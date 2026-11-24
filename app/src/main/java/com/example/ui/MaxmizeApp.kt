@@ -282,6 +282,15 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                 currentDestination?.hasRoute(MaxmizeRoute.Automix::class) == true ||
                 currentDestination?.hasRoute(MaxmizeRoute.AutomixSettings::class) == true ||
                 currentDestination?.hasRoute(MaxmizeRoute.DjQueue::class) == true -> "dj"
+            currentDestination?.hasRoute(MaxmizeRoute.Library::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.AlbumDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.ArtistDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.GenreDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.FolderDetail::class) == true -> "library"
+            currentDestination?.hasRoute(MaxmizeRoute.Playlists::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.PlaylistDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.SmartPlaylistDetail::class) == true -> "playlists"
+            currentDestination?.hasRoute(MaxmizeRoute.Settings::class) == true -> "home"
             else -> topBindings.firstOrNull { binding ->
                 currentDestination?.hasRoute(binding.route::class) == true
             }?.navItem?.id
