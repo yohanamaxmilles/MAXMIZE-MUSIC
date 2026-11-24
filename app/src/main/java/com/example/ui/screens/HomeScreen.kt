@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -102,6 +103,7 @@ fun HomeScreen(
     onOpenNowPlaying: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenAutomix: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenCategory: (LibraryCategory) -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
@@ -176,6 +178,16 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Rounded.Search,
                             contentDescription = "Search library",
+                            tint = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.testTag("home_settings_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = "Settings",
                             tint = MaterialTheme.colorScheme.onBackground,
                         )
                     }

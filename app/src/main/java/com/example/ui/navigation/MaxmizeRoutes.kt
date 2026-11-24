@@ -7,6 +7,7 @@ sealed interface MaxmizeRoute {
     @Serializable data object Library : MaxmizeRoute
     @Serializable data object Playlists : MaxmizeRoute
     @Serializable data object Search : MaxmizeRoute
+    @Serializable data object DjMode : MaxmizeRoute
     @Serializable data object Settings : MaxmizeRoute
     @Serializable data class AlbumDetail(val albumKey: String) : MaxmizeRoute
     @Serializable data class ArtistDetail(val artistName: String) : MaxmizeRoute
