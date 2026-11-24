@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Maxmize" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/maxmize_deep_black</item>
+    </style>
+</resources>

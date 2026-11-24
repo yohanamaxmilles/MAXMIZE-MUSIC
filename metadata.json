@@ -1,0 +1,6 @@
+{
+  "name": "Maxmize",
+  "description": "Offline-first audiophile music player with Media3 playback, hardware equalizer, synchronized LRC lyrics, and local library management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
