@@ -470,7 +470,7 @@ class AudioAnalysisEngine(
                 phraseLengthMs = phraseLengthMs,
                 downbeatConfidence = downbeatConfidence,
                 spectralCentroidHz = spectralCentroidHz,
-                analysisVersion = 2,
+                analysisVersion = 3,
             )
 
             val genreClass = if (trackHint != null) {
@@ -509,7 +509,7 @@ class AudioAnalysisEngine(
             if (body.isEmpty()) return 0L
             val baseline = body[body.size / 2]
             if (baseline < 0.005f) return 0L
-            val threshold = baseline * 0.42f
+            val threshold = baseline * 0.65f
             val startIndex = (windowRms.size - 14).coerceAtLeast(3)
             for (index in startIndex until windowRms.size - 3) {
                 val sustained = (windowRms[index] + windowRms[index + 1] + windowRms[index + 2] + windowRms[index + 3]) / 4f
