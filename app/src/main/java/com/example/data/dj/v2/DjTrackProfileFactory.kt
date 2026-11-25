@@ -51,7 +51,7 @@ object DjTrackProfileFactory {
             firstBeatMs = analysis?.takeIf { it.downbeatConfidence >= 0.60f }?.firstBeatMs,
             beatIntervalMs = bpmReliable?.beatIntervalMs,
             beatsPerBar = 4,
-            analysisVersion = 2,
+            analysisVersion = analysis?.analysisVersion ?: 0,
         )
     }
 
