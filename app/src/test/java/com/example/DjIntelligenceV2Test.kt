@@ -256,4 +256,16 @@ class DjIntelligenceV2Test {
             com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.98f),
         )
     }
+
+    @Test
+    fun `incoming cue uses the measured first beat inside the intro`() {
+        val outgoing = profile("outgoing", boundaries = listOf(120_000L, 136_000L))
+        val incoming = profile("incoming", bpm = 118f).copy(firstBeatMs = 240L)
+        val result = DjTransitionPlanner().plan(
+            outgoing, incoming, outgoingPositionMs = 121_000L,
+            config = DjTransitionConfig(bars = 8, beatsPerBar = 4),
+        )
+        assertTrue(result is DjTransitionPlanningResult.Ready)
+        assertEquals(240L, (result as DjTransitionPlanningResult.Ready).plan.incomingStartMs)
+    }
 }
