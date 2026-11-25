@@ -242,4 +242,20 @@ class DjAnalysisAndCompatibilityTest {
         assertEquals(1, flexibleRes.queue.size)
         assertEquals(clashKeyPop.id, flexibleRes.queue.first().track.id)
     }
+
+    @Test
+    fun `silent audio does not receive invented BPM or musical key`() {
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "silence",
+            samples = FloatArray(22_050 * 8),
+            sampleRate = 22_050,
+            durationMs = 8_000L,
+        )
+        assertEquals(0f, result.bpm, 0f)
+        assertEquals(0f, result.bpmConfidence, 0f)
+        assertEquals("Unknown", result.musicalKey)
+        assertEquals("--", result.camelotCode)
+        assertEquals(0L, result.beatIntervalMs)
+        assertEquals(0L, result.phraseLengthMs)
+    }
 }
