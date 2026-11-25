@@ -171,6 +171,7 @@ data class TrackAnalysisEntity(
     val phraseLengthMs: Long = 0L,
     val downbeatConfidence: Float = 0.5f,
     val spectralCentroidHz: Float = 1500f,
+    @ColumnInfo(defaultValue = "0")
     val analysisVersion: Int = 0,
 )
 
