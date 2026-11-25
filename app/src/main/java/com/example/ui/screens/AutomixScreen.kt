@@ -315,7 +315,7 @@ fun AutomixScreen(
                         Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Start Automix",
+                            text = if (automixConfig.operatingMode == DjOperatingMode.INTELLIGENT_DJ) "Start Intelligent DJ" else "Start Automix",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         )
                     }
@@ -334,7 +334,7 @@ fun AutomixScreen(
                         ) {
                             Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Stop Automix", fontWeight = FontWeight.SemiBold)
+                            Text(if (automixConfig.operatingMode == DjOperatingMode.INTELLIGENT_DJ) "End DJ Session" else "Stop Automix", fontWeight = FontWeight.SemiBold)
                         }
                         Button(
                             onClick = onSkipNextMix,
