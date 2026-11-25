@@ -219,6 +219,14 @@ class DjAnalysisAndCompatibilityTest {
     }
 
     @Test
+    fun genreAliasesRequireRealTokenBoundaries() {
+        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Popular Music"))
+        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Tanzania"))
+        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Piano Solo"))
+        assertEquals("Deep House", com.example.data.dj.GenreEngine.canonicalize("Electronic; Deep House")?.canonical)
+    }
+
+    @Test
     fun `HarmonicCompatibility enforces strict harmonic matching and reports empty reason`() {
         val current = track("c1", "Starter", genre = "Pop")
         val incompatible = track("i1", "Industrial Slam", genre = "Hard Techno")
