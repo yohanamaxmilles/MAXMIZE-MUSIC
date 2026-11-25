@@ -31,6 +31,12 @@ import com.example.R
 import com.example.data.dj.DjProfiles
 import com.example.data.dj.GenreEngine
 import com.example.data.dj.HarmonicCompatibility
+import com.example.data.dj.v2.AudioContentKind
+import com.example.data.dj.v2.DjDecisionConfig
+import com.example.data.dj.v2.DjDecisionEngine
+import com.example.data.dj.v2.DjSessionArcPlanner
+import com.example.data.dj.v2.DjSessionPhase
+import com.example.data.dj.v2.DjTrackProfileFactory
 import com.example.data.local.db.CustomDjProfileEntity
 import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.local.db.MixHistoryEntity
@@ -150,6 +156,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     // Dual-Deck Automix runtime state (background-independent)
     private val djQueueMutex = Mutex()
+    private val djDecisionEngine = DjDecisionEngine()
     private var djVoiceDirector: DjVoiceDirector? = null
     private var speechDuckActive: Boolean = false
     private var automixActive: Boolean = false
@@ -906,21 +913,90 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             }
         }
 
-        val result = HarmonicCompatibility.selectSmartQueueWithStatus(
-            currentTrack = pivotTrack,
-            allTracks = pool,
-            analyses = analysesCache,
-            recentTrackIds = recentDjHistoryIds.toSet(),
-            config = automixConfig,
-            count = 15,
-            customRules = customRulesCache,
+        val currentAnalysis = analysesCache[pivotTrack.id]
+            ?: container.audioAnalysisEngine.getAnalysisForTrack(pivotTrack).also {
+                analysesCache = analysesCache + (pivotTrack.id to it)
+            }
+        val currentProfile = DjTrackProfileFactory.from(pivotTrack, currentAnalysis)
+        val profilesById = pool.associate { track ->
+            track.id to DjTrackProfileFactory.from(track, analysesCache[track.id])
+        }
+        val sessionProgress = if (automixConfig.mixDurationMinutes > 0) {
+            ((System.currentTimeMillis() - automixStartTimeMs).toFloat() /
+                (automixConfig.mixDurationMinutes * 60_000f)).coerceIn(0f, 1f)
+        } else 0f
+        val sessionPhase = when (automixConfig.energyProgression) {
+            com.example.data.model.EnergyProgression.BUILD_UP -> DjSessionArcPlanner.phaseFor(sessionProgress)
+            com.example.data.model.EnergyProgression.PEAK_HOUR -> DjSessionPhase.PEAK_TIME
+            com.example.data.model.EnergyProgression.STEADY -> DjSessionPhase.FLOW
+            com.example.data.model.EnergyProgression.CHILL_DOWN -> DjSessionPhase.COOL_DOWN
+            com.example.data.model.EnergyProgression.WAVE -> {
+                val waveProgress = (sessionProgress * 2f).let { if (it <= 1f) it else 2f - it }
+                DjSessionArcPlanner.phaseFor(waveProgress)
+            }
+        }
+        val maxTempoAdjustment = when (automixConfig.harmonicMixLevel) {
+            com.example.data.model.HarmonicMixLevel.STRICT -> 0.04f
+            com.example.data.model.HarmonicMixLevel.BALANCED -> 0.08f
+            com.example.data.model.HarmonicMixLevel.FLEXIBLE -> 0.12f
+        }
+        val decisionConfig = DjDecisionConfig(
+            strictGenreMatching = automixConfig.strictGenreMatching,
+            allowOpenFormatBridging = automixConfig.openFormatBridging,
+            requireReliableTempo = automixConfig.bpmMatchEnabled,
+            requireReliableGenre = true,
+            requireReliableKey = automixConfig.keyMatchingEnabled &&
+                automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT,
+            maxTempoAdjustment = maxTempoAdjustment,
+            minTrackDurationMs = 45_000L,
+            maxUnknownContentDurationMs = 12L * 60L * 1000L,
+            sessionPhase = sessionPhase,
+            bpmWeight = automixConfig.bpmWeight,
+            keyWeight = automixConfig.harmonicWeight,
+            genreWeight = automixConfig.genreWeight,
+            energyWeight = automixConfig.energyWeight,
         )
+        val eligibleProfiles = profilesById.values.filter { profile ->
+            val bpm = profile.bpm
+            bpm == null || bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat()
+        }
+        val ranking = djDecisionEngine.rankNextTracks(
+            current = currentProfile,
+            candidates = eligibleProfiles,
+            recentTrackIds = if (automixConfig.avoidRepeats) recentDjHistoryIds.toSet() else emptySet(),
+            config = decisionConfig,
+            count = 15,
+        )
+        val rankedQueue = ranking.rankedCandidates.mapNotNull { score ->
+            val track = allTracksCache[score.trackId] ?: return@mapNotNull null
+            DjQueuedTrack(
+                track = track,
+                analysis = analysesCache[track.id],
+                compatibilityScore = score.totalScore,
+                reason = score.reasons.joinToString(" · "),
+            )
+        }
+        val rejectionSummary = ranking.rejectedCandidates
+            .groupingBy { it.reason }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .take(2)
+            .joinToString("; ") { "${it.key} (${it.value})" }
+        val noTrackReason = when {
+            currentProfile.contentKind != AudioContentKind.MUSIC ->
+                "Current track is not verified music. Select a music track to start Intelligent DJ."
+            rankedQueue.isEmpty() -> rejectionSummary.ifBlank {
+                "No tracks meet the current tempo, genre, and content safety rules."
+            }
+            else -> null
+        }
         djQueueMutex.withLock {
             val previousFirstId = djQueue.firstOrNull()?.track?.id
             djQueue.clear()
-            djQueue.addAll(result.queue)
-            noSuitableTrackReason = result.noSuitableTrackReason
-            if (!isMixingTransition && previousFirstId != result.queue.firstOrNull()?.track?.id) {
+            djQueue.addAll(rankedQueue)
+            noSuitableTrackReason = noTrackReason
+            if (!isMixingTransition && previousFirstId != rankedQueue.firstOrNull()?.track?.id) {
                 preloadedTrack = null
             }
         }
