@@ -30,7 +30,7 @@ Hybrid operation is mandatory:
 
 ### Existing audio runtime
 
-The current Media3 service already owns two ExoPlayer decks and a background queue. The current transition executor mainly uses player-volume curves and playback-rate changes. The v2 planner is not yet connected to this runtime. Do not describe current transitions as sample-accurate phrase mixing.
+The Media3 service owns two ExoPlayer decks and a background queue. The v2 decision engine now ranks the DJ queue sequentially. The transition planner is connected to preload and dual-deck execution, and its selected curve controls the per-deck EQ and volume curves. Phrase boundaries are estimated from a stable beat grid, not independently verified musical sections. The engine does not yet guarantee sample-accurate phase alignment.
 
 ## Required engine layers
 
@@ -38,7 +38,7 @@ The current Media3 service already owns two ExoPlayer decks and a background que
 2. Audio decoder: decode representative intro, middle, and outro windows without blocking the UI or playback.
 3. Rhythm analysis: onset envelope, tempo hypotheses including half/double time, beatgrid phase, downbeat, tempo stability, and confidence.
 4. Harmonic analysis: windowed spectral chroma, key candidates, Camelot conversion, confidence, and disagreement checks across sections.
-5. Structure analysis: intro, outro, breakdown, buildup, drop, vocal and instrumental regions, silence, and phrase boundaries.
+5. Structure analysis: current PCM sampling detects conservative intro/outro energy changes. Breakdown, buildup, drop, vocal and instrumental classification still require a dedicated section model. Phrase boundaries are currently estimated from a stable beat grid.
 6. Music identity: metadata-backed genre taxonomy plus optional cloud enrichment. Audio-only genre guesses must remain low confidence.
 7. Session memory: recent tracks, artists, genres, energy curve, transitions, listener skips, and DJ profile.
 8. Decision engine: hard rejection rules first, then multi-factor ranking and a reason for every choice.
@@ -107,9 +107,10 @@ The DJ voice is enabled by default in Intelligent DJ mode:
 - Build a reliable multi-window decoder and feature extraction tests.
 
 ### Phase B: real musical analysis
-- Improve tempo hypotheses and beatgrid detection.
-- Implement windowed FFT/chroma key analysis.
-- Detect structure and phrase boundaries with confidence.
+- Validate fractional-lag tempo estimation and half/double-time ambiguity against a labelled corpus.
+- Validate windowed FFT/chroma key estimates across multiple windows of each track.
+- Add dedicated vocal, breakdown, buildup, drop, and instrumental-region detection.
+- Improve phrase and bar downbeat detection beyond the current inferred beat-grid.
 - Validate against a labelled test corpus of real tracks across House, Techno, Trance, Pop, Hip-Hop, Afro, and other genres.
 
 ### Phase C: DJ session brain
@@ -120,8 +121,8 @@ The DJ voice is enabled by default in Intelligent DJ mode:
 
 ### Phase D: live audio execution
 - Add independent per-deck DSP controls.
-- Connect transition plans to the Media3 service.
-- Verify phase alignment, gain staging, EQ, key lock, clipping, clicks, and gaps on real devices.
+- Refine transition plan timing against measured deck phase, not only beat-grid estimates.
+- Verify gain staging, EQ, key lock, clipping, clicks, and gaps on real devices.
 - Keep the service independent of Compose navigation.
 
 ### Phase E: hybrid intelligence and voice
