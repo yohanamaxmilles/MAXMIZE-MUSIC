@@ -6,13 +6,13 @@ It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 ## Current implementation
 - Kotlin smart-cast issue found by the first CI compilation pass was corrected in the PCM tempo detector.
 - Offline mono PCM tempo estimation with autocorrelation.
-- Beat timestamps and 16-beat phrase markers.
+- Beat timestamps and 32-beat phrase candidates (eight 4/4 bars).
 - RMS-based energy and coarse energy-section estimates.
 - Confidence bands and explicit nulls for unsupported measurements.
 - Independent candidate ranking using tempo, Camelot key, genre family and energy.
 - Phrase-length transition plan generation.
 - Equal-power crossfade envelope and low-frequency handover curve.
-- Library metadata adapter that rejects low-confidence BPM/key values before they enter DJ decisions.
+- Library metadata adapter that rejects low-confidence BPM/key values before they enter DJ decisions, including refusing an incoming beat cue when tempo confidence is low.
 - Session arc planner that selects tracks phase-by-phase across opening, warm-up, build, peak, breather and closing.
 - Live Automix queue ranking now uses the independent engine and iteratively selects a compatible session sequence.
 - Dual-deck cue planning now uses measured outgoing outro and incoming first-beat offsets, with a phrase-length transition duration.
@@ -22,7 +22,7 @@ It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 - CI unit tests cover silence, synthetic 120 BPM pulses, ranking and mix curves.
 
 ## Deliberate limitations
-The new standalone `DjPcmAnalyzer` accepts decoded mono Float PCM. Production library analysis currently uses the existing Android media decoder and its separate DSP implementation. BPM/key confidence still needs validation against a labelled reference set. Vocal presence, vocal phrases, semantic drops, breakdowns and build-ups are not yet detected reliably. Intro/outro markers remain heuristic estimates.
+The new standalone `DjPcmAnalyzer` accepts decoded mono Float PCM. Production library analysis currently uses the existing Android media decoder and its separate DSP implementation. BPM/key confidence still needs validation against a labelled reference set. Vocal presence, vocal phrases, semantic drops, breakdowns and build-ups are not yet detected reliably. Intro/outro markers are acoustic RMS activity estimates, not semantic arrangement labels.
 
 Live Automix uses two ExoPlayer instances with volume curves and per-deck three-band EQ processing. This is not yet a sample-accurate shared-clock mixer. Device testing is still required for cue accuracy, playback-rate matching, EQ artifacts, audio-focus handover, TTS audibility and gap-free deck swaps.
 
