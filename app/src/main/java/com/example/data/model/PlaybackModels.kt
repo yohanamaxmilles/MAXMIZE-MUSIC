@@ -273,6 +273,7 @@ data class TrackAnalysis(
     val vocalAverageSpeechProbability: Float? = null,
     val vocalConfidence: String = "UNKNOWN",
     val vocalSegmentsJson: String = "[]",
+    val vocalAnalysisVersion: Int = 0,
 )
 
 @Immutable
