@@ -85,6 +85,11 @@ class DjDecisionEngine {
         if (candidate.trackId == current.trackId) return "Already playing"
         if (candidate.trackId in recentTrackIds) return "Recently played"
         if (candidate.durationMs < config.minTrackDurationMs) return "Track is too short for a DJ set"
+        if (config.requirePhraseStructure &&
+            (current.phraseBoundariesMs.size < 2 || candidate.phraseBoundariesMs.size < 2)
+        ) {
+            return "Reliable phrase grid is required for phrase-matched mixing"
+        }
 
         when (candidate.contentKind) {
             AudioContentKind.PODCAST -> return "Podcast excluded from music Automix"
