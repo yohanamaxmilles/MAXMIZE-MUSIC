@@ -34,10 +34,10 @@ returns a conservative plan and leaves the transition under manual control.
 ## Latest refinement
 - DJ Voice now uses Android speech/navigation audio attributes, queues the next announcement instead of interrupting active speech, and reports speech start/end to the service.
 - During an announcement, both decks are gently reduced to 72% of their current transition level. The original transition curve remains in control, and the deck levels return automatically when speech ends.
-- Phrase candidate markers in the PCM analyser now mark every 32 beats (eight 4/4 bars), and Automix phrase alignment uses the track's stored phrase length, choosing the nearest safe phrase boundary.
+- Phrase candidate markers in the PCM analyser mark every 32 beats (eight 4/4 bars). Automix phrase alignment uses the stored phrase length only when BPM confidence is at least 0.62 and the BPM is within the supported range.
 - Phrase markers are still grid-based candidates, not a semantic musical-phrase model. A labelled reference set and real-device listening tests are still required.
 - Vocal detection is not implemented. The current repository has no validated vocal classifier or vocal/instrumental separation model. Frequency-band or energy heuristics are not accepted as proof of vocals.
-- Intro/outro detection is still heuristic. The current decoder samples a middle window for longer tracks and does not yet decode dedicated intro and outro windows. Do not treat those cue points as verified.
+- Intro/outro detection is still heuristic. The decoder samples separate opening, middle and ending windows. Do not treat those acoustic activity cue points as verified musical arrangement boundaries.
 
 
 ## Dedicated intro/outro decoding
@@ -52,3 +52,17 @@ returns a conservative plan and leaves the transition under manual control.
 - Essentia offers voice/instrumental classifiers, but its core library is AGPL-3.0 or separately licensed. A commercial Android integration needs a deliberate licensing decision.
 - YAMNet is a 4.1 MB Apache-2.0 LiteRT/TFLite audio event model and is a lower-risk on-device baseline. Its AudioSet labels are broad sound-event classes, so a singing label must be treated as a candidate signal, not a verified lyric/vocal detector. It needs a labelled music validation set and threshold calibration before Automix uses it.
 - No vocal labels are currently emitted by MAXMIZE DJ Engine. Unknown remains the correct result until an approved model is integrated and validated.
+
+
+## Beat synchronization refinement
+- A dedicated beat-sync planner now requires reliable BPM confidence (at least 0.62) and a reliable first-beat cue on both decks.
+- It checks direct, half-time and double-time relationships, then applies a speed correction only when the required adjustment stays within 8%.
+- It rejects larger corrections and leaves the incoming deck at native speed. It does not clamp a poor match into a false sync.
+- Beat and phrase cue alignment also stops when BPM confidence is low. This prevents fallback genre-prior BPM values from driving automatic cue placement.
+- The planner has JVM unit tests for half-time matching, low-confidence input and excessive tempo correction.
+
+## Vocal evidence pipeline
+- A model-output interpreter now accepts frame scores from an approved audio classifier and groups singing/speech candidate segments.
+- It tracks average and peak singing probability, active-frame ratio, speech probability and a conservative confidence band.
+- YAMNet-style broad labels are treated as candidate evidence only. Low singing scores do not prove a track is instrumental.
+- The repository still does not bundle or execute a vocal model. Model runtime, model asset delivery, device performance and validation against a labelled EDM set remain required before vocal analysis is available to users or used by Automix.
