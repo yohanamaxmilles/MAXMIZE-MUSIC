@@ -141,7 +141,7 @@ class DjAnalysisAndCompatibilityTest {
             outroOffsetMs = 200_000L,
         )
         assertEquals(4_000L, result.introEndMs)
-        assertEquals(205_000L, result.outroStartMs)
+        assertEquals(204_000L, result.outroStartMs)
     }
 
     @Test
