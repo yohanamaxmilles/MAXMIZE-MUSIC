@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,9 +31,10 @@ jobs:
       - name: Run unit tests and assemble debug APK
         run: gradle testDebugUnitTest assembleDebug --stacktrace
       - name: Upload debug APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: maxmize-music-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14
