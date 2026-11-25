@@ -97,6 +97,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         const val CMD_MOVE_DJ_QUEUE = "com.example.cmd.MOVE_DJ_QUEUE"
         const val CMD_REMOVE_DJ_QUEUE = "com.example.cmd.REMOVE_DJ_QUEUE"
         const val CMD_PLAY_DJ_TRACK_NOW = "com.example.cmd.PLAY_DJ_TRACK_NOW"
+        const val CMD_PREVIEW_DJ_VOICE = "com.example.cmd.PREVIEW_DJ_VOICE"
 
         const val ARG_FLOAT = "arg_float"
         const val ARG_INT = "arg_int"
@@ -1208,6 +1209,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 .add(SessionCommand(CMD_MOVE_DJ_QUEUE, Bundle.EMPTY))
                 .add(SessionCommand(CMD_REMOVE_DJ_QUEUE, Bundle.EMPTY))
                 .add(SessionCommand(CMD_PLAY_DJ_TRACK_NOW, Bundle.EMPTY))
+                .add(SessionCommand(CMD_PREVIEW_DJ_VOICE, Bundle.EMPTY))
                 .build()
 
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -1277,6 +1279,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                         if (preloadedTrack?.id == removed.track.id) preloadedTrack = null
                         publishAutomixRuntime()
                     }
+                }
+                CMD_PREVIEW_DJ_VOICE -> {
+                    djVoiceDirector?.previewVoice()
                 }
                 CMD_PLAY_DJ_TRACK_NOW -> {
                     val trackId = args.getString(ARG_TRACK_ID)
