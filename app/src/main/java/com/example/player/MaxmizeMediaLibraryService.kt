@@ -433,6 +433,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         recomputeDebounceJob?.cancel()
         tempoEaseJob?.cancel()
         RealtimeSpectrumBus.reset()
+        djVoiceDirector?.close()
+        djVoiceDirector = null
         container.audioEffectsManager.releaseEffects()
         mediaLibrarySession?.release()
         mediaLibrarySession = null
