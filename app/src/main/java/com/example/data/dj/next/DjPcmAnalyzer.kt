@@ -81,7 +81,9 @@ class DjPcmAnalyzer(
                 .toList()
         } else emptyList()
 
-        val phrases = beatTimes.filterIndexed { index, _ -> index > 0 && index % 16 == 0 }
+        // Eight-bar phrase candidates: 32 beats in common 4/4 dance music.
+        // These are grid-aligned candidates, not semantic phrase classification.
+        val phrases = beatTimes.filterIndexed { index, _ -> index > 0 && index % 32 == 0 }
         val energy = ((rmsDb + 48f) / 42f).coerceIn(0f, 1f)
         val sections = buildSections(rmsFrames, sampleRate, hopSize, windowSize, durationMs)
 
