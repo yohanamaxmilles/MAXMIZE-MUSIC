@@ -2,15 +2,15 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Deep Black & Gold Editorial Dark Palette (zero gradients, restrained warmth)
-val DeepBlack = Color(0xFF08080A)
-val DarkSurface = Color(0xFF111114)
-val DarkElevatedSurface = Color(0xFF18181C)
-val DarkSurfaceVariant = Color(0xFF141418)
-val DarkPrimaryText = Color(0xFFF6F6F7)
-val DarkSecondaryText = Color(0xFF9A9AA4)
-val DarkOutline = Color(0xFF26262D)
-val DarkOutlineVariant = Color(0xFF1C1C22)
+// Deep Charcoal & Black Dark Palette with Lime & Lavender Accents
+val DeepBlack = Color(0xFF0A0A0F)
+val DarkSurface = Color(0xFF13131A)
+val DarkElevatedSurface = Color(0xFF1C1C26)
+val DarkSurfaceVariant = Color(0xFF17171F)
+val DarkPrimaryText = Color(0xFFFFFFFF)
+val DarkSecondaryText = Color(0xFF9A9AA8)
+val DarkOutline = Color(0xFF2A2A36)
+val DarkOutlineVariant = Color(0xFF22222C)
 val MonochromeAccentDark = Color(0xFFFAFAFA)
 
 // Refined Light Palette
@@ -70,3 +70,10 @@ val BadgeIndigoFg = Color(0xFF7B88F4)
 
 val BadgeTealBg = Color(0xFF102225)
 val BadgeTealFg = Color(0xFF2AC1D4)
+
+// Modern Lime accent (new default) + Lavender feature-card palette
+val LimeAccentDark = Color(0xFFC8E64C)
+val LimeAccentLight = Color(0xFF7A9A00)
+val LavenderCard = Color(0xFFCBA8F5)
+val LavenderCardDeep = Color(0xFF3B1F5E)
+val LavenderCardText = Color(0xFF1B0F2E)

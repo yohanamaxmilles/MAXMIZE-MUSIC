@@ -78,10 +78,10 @@ fun TrackRow(
 
     val rowBg = when {
         isSelected -> MaterialTheme.colorScheme.surfaceContainerHigh
-        isCurrent -> MaterialTheme.colorScheme.surface
+        isCurrent -> MaterialTheme.colorScheme.surfaceContainerHigh
         else -> MaterialTheme.colorScheme.background
     }
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(20.dp)
     val densityMetrics = LocalDensityMetrics.current
 
     Row(
@@ -117,14 +117,14 @@ fun TrackRow(
             ArtworkImage(
                 artworkUri = track.customArtworkUri ?: track.artworkUri,
                 fallbackUri = track.contentUri,
-                modifier = Modifier.size(46.dp),
-                cornerRadius = 8.dp,
+                modifier = Modifier.size(54.dp),
+                cornerRadius = 16.dp,
             )
             if (isCurrent) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(54.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.background.copy(alpha = 0.68f)),
                     contentAlignment = Alignment.Center,
                 ) {

@@ -81,7 +81,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -96,8 +100,8 @@ import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.MaxmizeSlider
 import com.example.ui.components.formatTimecode
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoTimecodeStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -161,6 +165,8 @@ fun NowPlayingScreen(
         ) {
             val isWideOrLandscape = maxWidth > maxHeight || maxWidth >= 600.dp
 
+            NowPlayingBackdrop(track = track)
+
             Column(modifier = Modifier.fillMaxSize()) {
                 // Minimal Top Bar
                 Row(
@@ -185,8 +191,8 @@ fun NowPlayingScreen(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(100.dp))
-                                .background(BadgeGoldBg)
-                                .border(0.75.dp, BadgeGoldFg.copy(alpha = 0.65f), RoundedCornerShape(100.dp))
+                                .background(LavenderCardDeep)
+                                .border(0.75.dp, LavenderCard.copy(alpha = 0.65f), RoundedCornerShape(100.dp))
                                 .clickable(onClick = onOpenDjMode)
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                                 .testTag("now_playing_automix_pill"),
@@ -196,13 +202,13 @@ fun NowPlayingScreen(
                             Icon(
                                 imageVector = Icons.Rounded.GraphicEq,
                                 contentDescription = "Automix active",
-                                tint = BadgeGoldFg,
+                                tint = LavenderCard,
                                 modifier = Modifier.size(14.dp),
                             )
                             Text(
                                 text = "AUTOMIX ACTIVE",
                                 style = MonoBadgeStyle,
-                                color = BadgeGoldFg,
+                                color = LavenderCard,
                             )
                         }
                     }
@@ -446,6 +452,33 @@ fun NowPlayingScreen(
 }
 
 @Composable
+private fun NowPlayingBackdrop(track: Track) {
+    // Blur is only available on Android 12+ (API 31); older devices keep the clean solid background.
+    if (android.os.Build.VERSION.SDK_INT < 31) return
+    val bg = MaterialTheme.colorScheme.background
+    Box(modifier = Modifier.fillMaxSize()) {
+        ArtworkImage(
+            artworkUri = track.customArtworkUri ?: track.artworkUri,
+            fallbackUri = track.contentUri,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(70.dp)
+                .alpha(0.5f),
+            cornerRadius = 0.dp,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, bg.copy(alpha = 0.85f), bg),
+                    ),
+                ),
+        )
+    }
+}
+
+@Composable
 private fun ArtworkPager(
     queue: List<Track>,
     currentIndex: Int,
@@ -482,8 +515,8 @@ private fun ArtworkPager(
             fallbackUri = pageTrack.contentUri,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(2.dp),
-            cornerRadius = 16.dp,
+                .padding(6.dp),
+            cornerRadius = 500.dp,
         )
     }
 }
@@ -621,7 +654,7 @@ private fun PlayerControlsBlock(
 
             Box(
                 modifier = Modifier
-                    .size(66.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
                     .clickable(onClick = onTogglePlayPause)
@@ -632,7 +665,7 @@ private fun PlayerControlsBlock(
                     imageVector = if (playbackState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = stringResource(R.string.cd_play_pause),
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(34.dp),
+                    modifier = Modifier.size(36.dp),
                 )
             }
 

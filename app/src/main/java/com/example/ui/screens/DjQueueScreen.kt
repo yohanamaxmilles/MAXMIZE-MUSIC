@@ -58,8 +58,8 @@ import com.example.data.model.MixHistoryEntry
 import com.example.data.model.PlaybackUiState
 import com.example.data.model.TrackAnalysis
 import com.example.ui.components.ArtworkImage
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -456,13 +456,13 @@ private fun DjQueueTrackRow(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(BadgeGoldBg)
+                .background(LavenderCardDeep)
                 .padding(horizontal = 7.dp, vertical = 3.dp),
         ) {
             Text(
                 text = "${item.compatibilityScore}%",
                 style = MonoBadgeStyle,
-                color = BadgeGoldFg,
+                color = LavenderCard,
             )
         }
         Box {

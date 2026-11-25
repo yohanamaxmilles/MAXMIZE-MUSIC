@@ -41,8 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.PlaybackUiState
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 
 @Composable
@@ -61,19 +61,19 @@ fun MiniPlayer(
     } else 0f
 
     var dragDelta by remember { mutableFloatStateOf(0f) }
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(26.dp)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
                 .pointerInput(track.id) {
                     detectHorizontalDragGestures(
@@ -101,8 +101,8 @@ fun MiniPlayer(
                 ArtworkImage(
                     artworkUri = track.customArtworkUri ?: track.artworkUri,
                     fallbackUri = track.contentUri,
-                    modifier = Modifier.size(42.dp),
-                    cornerRadius = 8.dp,
+                    modifier = Modifier.size(46.dp),
+                    cornerRadius = 23.dp,
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -123,10 +123,10 @@ fun MiniPlayer(
                             Text(
                                 text = "DJ",
                                 style = MonoBadgeStyle,
-                                color = BadgeGoldFg,
+                                color = LavenderCard,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
-                                    .background(BadgeGoldBg)
+                                    .background(LavenderCardDeep)
                                     .padding(horizontal = 5.dp, vertical = 1.dp),
                             )
                         }
@@ -176,7 +176,7 @@ fun MiniPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp)
+                    .height(3.dp)
                     .background(MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Box(

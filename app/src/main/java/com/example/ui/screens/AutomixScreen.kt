@@ -79,8 +79,8 @@ import com.example.data.model.TrackAnalysis
 import com.example.player.RealtimeSpectrumBus
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoStatStyle
 import com.example.ui.theme.MonoTimecodeStyle
@@ -202,13 +202,13 @@ fun AutomixScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(BadgeGoldBg)
+                                .background(LavenderCardDeep)
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = "${automixState.currentCompatibilityScore}% MATCH",
                                 style = MonoBadgeStyle,
-                                color = BadgeGoldFg,
+                                color = LavenderCard,
                             )
                         }
                     }
@@ -737,13 +737,13 @@ private fun DjFeatureTile(
             modifier = Modifier
                 .size(34.dp)
                 .clip(RoundedCornerShape(9.dp))
-                .background(if (highlighted) BadgeGoldBg else MaterialTheme.colorScheme.surfaceContainerHigh),
+                .background(if (highlighted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (highlighted) BadgeGoldFg else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
         }

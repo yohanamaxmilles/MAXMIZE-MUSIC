@@ -57,9 +57,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
-import com.example.ui.theme.GoldAccentDark
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 
 data class NavDestinationItem(
     val id: String,
@@ -78,9 +77,9 @@ fun TopProfileSettingsButton(
     Box(
         modifier = modifier
             .minimumInteractiveComponentSize()
-            .size(38.dp)
+            .size(46.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(onClick = onClick)
             .testTag("top_settings_btn"),
@@ -90,7 +89,7 @@ fun TopProfileSettingsButton(
             imageVector = Icons.Outlined.Settings,
             contentDescription = "Settings and Profile",
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(19.dp),
+            modifier = Modifier.size(21.dp),
         )
     }
 }
@@ -152,91 +151,63 @@ fun MaxmizeBottomBar(
     onSelect: (NavDestinationItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val barShape = RoundedCornerShape(32.dp)
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding(),
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(62.dp)
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .height(66.dp)
+                .clip(barShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, barShape)
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEach { item ->
                 val selected = item.id == selectedId
-                val djGold = GoldAccentDark
-                val iconTint by animateColorAsState(
+                val circleBg by animateColorAsState(
                     targetValue = when {
-                        selected && item.accentHighlighted -> djGold
                         selected -> MaterialTheme.colorScheme.primary
-                        item.accentHighlighted -> djGold.copy(alpha = 0.85f)
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    label = "navTint",
-                )
-                val badgeBg by animateColorAsState(
-                    targetValue = when {
-                        selected && item.accentHighlighted -> BadgeGoldBg
-                        selected -> MaterialTheme.colorScheme.primaryContainer
-                        item.accentHighlighted -> djGold.copy(alpha = 0.08f)
+                        item.accentHighlighted -> LavenderCardDeep.copy(alpha = 0.45f)
                         else -> Color.Transparent
                     },
-                    label = "navBg",
+                    label = "navCircleBg",
+                )
+                val iconTint by animateColorAsState(
+                    targetValue = when {
+                        selected -> MaterialTheme.colorScheme.onPrimary
+                        item.accentHighlighted -> LavenderCard
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    label = "navIconTint",
                 )
                 val interactionSource = remember { MutableInteractionSource() }
 
-                Column(
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(circleBg)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = ripple(bounded = true),
                             onClick = { onSelect(item) },
                         )
                         .testTag(item.testTag),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 40.dp, height = 28.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(badgeBg)
-                            .let { mod ->
-                                if (item.accentHighlighted) {
-                                    mod.border(
-                                        width = if (selected) 1.dp else 0.75.dp,
-                                        color = if (selected) djGold else djGold.copy(alpha = 0.32f),
-                                        shape = RoundedCornerShape(10.dp),
-                                    )
-                                } else mod
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = item.label,
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = if (selected || item.accentHighlighted) FontWeight.SemiBold else FontWeight.Medium,
-                        ),
-                        color = iconTint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Icon(
+                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label,
+                        tint = iconTint,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
@@ -264,29 +235,27 @@ fun MaxmizeNavigationRail(
             items.forEach { item ->
                 val selected = item.id == selectedId
                 val tint = when {
-                    selected && item.accentHighlighted -> BadgeGoldFg
-                    selected -> MaterialTheme.colorScheme.primary
-                    item.accentHighlighted -> BadgeGoldFg.copy(alpha = 0.85f)
+                    selected -> MaterialTheme.colorScheme.onPrimary
+                    item.accentHighlighted -> LavenderCard
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
                 val bg = when {
-                    selected && item.accentHighlighted -> BadgeGoldBg
-                    selected -> MaterialTheme.colorScheme.primaryContainer
-                    item.accentHighlighted -> BadgeGoldFg.copy(alpha = 0.08f)
+                    selected -> MaterialTheme.colorScheme.primary
+                    item.accentHighlighted -> LavenderCardDeep.copy(alpha = 0.42f)
                     else -> Color.Transparent
                 }
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .background(bg)
                         .let { mod ->
-                            if (item.accentHighlighted) {
+                            if (item.accentHighlighted && !selected) {
                                 mod.border(
-                                    width = if (selected) 1.dp else 0.75.dp,
-                                    color = if (selected) BadgeGoldFg else BadgeGoldFg.copy(alpha = 0.30f),
-                                    shape = RoundedCornerShape(12.dp),
+                                    width = 0.75.dp,
+                                    color = LavenderCard.copy(alpha = 0.35f),
+                                    shape = RoundedCornerShape(16.dp),
                                 )
                             } else mod
                         }
@@ -299,7 +268,7 @@ fun MaxmizeNavigationRail(
                         imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
                         contentDescription = item.label,
                         tint = tint,
-                        modifier = Modifier.size(21.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

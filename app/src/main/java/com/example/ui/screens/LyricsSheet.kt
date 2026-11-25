@@ -86,8 +86,8 @@ import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.MaxmizeSlider
 import com.example.ui.components.formatTimecode
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoTimecodeStyle
 
@@ -300,13 +300,13 @@ fun LyricsSheet(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(BadgeGoldBg)
+                            .background(LavenderCardDeep)
                             .padding(horizontal = 7.dp, vertical = 2.dp),
                     ) {
                         Text(
                             text = badgeLabel,
                             style = MonoBadgeStyle,
-                            color = BadgeGoldFg,
+                            color = LavenderCard,
                         )
                     }
                     if (syncOffsetMs != 0L) {

@@ -58,8 +58,8 @@ import com.example.data.model.SmartPlaylistType
 import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.PlaylistCollageArtwork
 import com.example.ui.components.formatDurationSummary
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 
 private val SECONDARY_SMART_PLAYLISTS = SmartPlaylistType.entries.filter {
@@ -166,13 +166,13 @@ fun PlaylistsScreen(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(BadgeGoldBg),
+                                    .background(LavenderCardDeep),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.AutoAwesome,
                                     contentDescription = null,
-                                    tint = BadgeGoldFg,
+                                    tint = LavenderCard,
                                     modifier = Modifier.size(17.dp),
                                 )
                             }
@@ -428,13 +428,13 @@ private fun PinnedSmartTile(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(BadgeGoldBg),
+                .background(LavenderCardDeep),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = BadgeGoldFg,
+                tint = LavenderCard,
                 modifier = Modifier.size(19.dp),
             )
         }

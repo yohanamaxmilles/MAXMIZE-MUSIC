@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import com.example.data.model.AlbumSummary
 import com.example.data.model.LibraryCategory
 import com.example.data.model.PlaybackUiState
@@ -65,12 +66,13 @@ import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
 import com.example.ui.components.EditorialSectionHeader
-import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.PlaylistCollageArtwork
+import com.example.ui.components.TopProfileSettingsButton
 import com.example.ui.components.TrackRow
 import com.example.ui.components.formatTimecode
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
+import com.example.ui.theme.LavenderCardText
 import com.example.ui.theme.MonoBadgeStyle
 import java.util.Calendar
 
@@ -102,11 +104,10 @@ fun HomeScreen(
     var overflowOpen by remember { mutableStateOf(false) }
 
     val greeting = remember {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-            hour < 12 -> "GOOD MORNING"
-            hour < 17 -> "GOOD AFTERNOON"
-            else -> "GOOD EVENING"
+        when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+            in 5..11 -> "Good morning"
+            in 12..16 -> "Good afternoon"
+            else -> "Good evening"
         }
     }
 
@@ -135,15 +136,43 @@ fun HomeScreen(
         contentPadding = PaddingValues(bottom = 28.dp),
     ) {
         item {
-            MaxmizeTopHeader(
-                title = "Listen Now",
-                subtitle = greeting,
-                onOpenSettings = onOpenSettings,
-                actions = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = greeting,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Maxmize",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 38.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Box {
                         IconButton(
                             onClick = { overflowOpen = true },
-                            modifier = Modifier.testTag("home_rescan_btn"),
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                .testTag("home_rescan_btn"),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
@@ -177,8 +206,9 @@ fun HomeScreen(
                             )
                         }
                     }
-                },
-            )
+                    TopProfileSettingsButton(onClick = onOpenSettings)
+                }
+            }
         }
 
         if (scanState.isScanning) {
@@ -205,6 +235,44 @@ fun HomeScreen(
             }
         }
 
+        // Quick filter pills (jump into library categories)
+        item {
+            val chips = listOf(
+                "All" to LibraryCategory.SONGS,
+                "Recent" to LibraryCategory.RECENTLY_PLAYED,
+                "Favorites" to LibraryCategory.FAVORITES,
+                "Most played" to LibraryCategory.MOST_PLAYED,
+                "Albums" to LibraryCategory.ALBUMS,
+                "Artists" to LibraryCategory.ARTISTS,
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+            ) {
+                itemsIndexed(chips, key = { _, c -> c.first }) { index, (label, category) ->
+                    val selected = index == 0
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            )
+                            .clickable { onOpenCategory(category) }
+                            .padding(horizontal = 20.dp, vertical = 11.dp),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         if (tracks.isEmpty()) {
             item {
                 EmptyLibraryGuidance(
@@ -217,10 +285,21 @@ fun HomeScreen(
                 )
             }
         } else {
-            // 1. Continue Listening Hero (or Play All Editorial Hero when idle)
-            val continueTrack = playbackState.currentTrack ?: recentlyPlayed.firstOrNull()
+            // 1. Lavender Editorial Hero Card
             item {
-                if (continueTrack != null) {
+                HeroBannerCard(
+                    tracks = tracks,
+                    albums = albums,
+                    isScanning = scanState.isScanning,
+                    onPlayAll = { onPlayTracks(tracks, 0, false) },
+                )
+            }
+
+            // 2. Continue Listening Card (when active or recent track exists)
+            val continueTrack = playbackState.currentTrack ?: recentlyPlayed.firstOrNull()
+            if (continueTrack != null) {
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
                     ContinueListeningHeroCard(
                         track = continueTrack,
                         totalTracks = tracks.size,
@@ -242,17 +321,10 @@ fun HomeScreen(
                         },
                         onPlayAll = { onPlayTracks(tracks, 0, false) },
                     )
-                } else {
-                    HeroBannerCard(
-                        tracks = tracks,
-                        albums = albums,
-                        isScanning = scanState.isScanning,
-                        onPlayAll = { onPlayTracks(tracks, 0, false) },
-                    )
                 }
             }
 
-            // 2. Quick DJ Mode Editorial Card
+            // 3. Quick DJ Mode Card
             item {
                 Spacer(modifier = Modifier.height(12.dp))
                 QuickDjModeCard(
@@ -412,10 +484,10 @@ private fun ContinueListeningHeroCard(
 ) {
     EditorialGroupCard(
         modifier = Modifier
-            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .padding(horizontal = 20.dp, vertical = 2.dp)
             .clickable(onClick = onCardClick)
             .testTag("home_continue_listening_card"),
-        cornerRadius = 16.dp,
+        cornerRadius = 24.dp,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -435,8 +507,7 @@ private fun ContinueListeningHeroCard(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .clickable(onClick = onPlayAll)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                        .testTag("home_shuffle_all_card"),
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -523,16 +594,15 @@ private fun HeroBannerCard(
         if (albumArts.isNotEmpty()) albumArts.take(4)
         else tracks.mapNotNull { it.displayArtwork }.distinct().take(4)
     }
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(32.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .padding(18.dp),
+            .background(LavenderCard)
+            .padding(22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -541,27 +611,32 @@ private fun HeroBannerCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "Your Music.\nAlways Offline.",
+                text = "Your Music.\nYour Way.",
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 21.sp,
-                    lineHeight = 26.sp,
+                    fontSize = 23.sp,
+                    lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = LavenderCardText,
             )
             Text(
-                text = "${tracks.size} Tracks · Lossless Local Playback",
+                text = if (tracks.isEmpty()) {
+                    "Offline · Local · Lossless"
+                } else {
+                    "Offline · ${tracks.size} Tracks · Lossless"
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LavenderCardText.copy(alpha = 0.7f),
             )
+            Spacer(modifier = Modifier.height(6.dp))
             Button(
                 onClick = onPlayAll,
                 enabled = !isScanning,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = LavenderCardDeep,
+                    contentColor = Color.White,
                 ),
                 modifier = Modifier.testTag("home_shuffle_all_card"),
             ) {
@@ -577,23 +652,22 @@ private fun HeroBannerCard(
             PlaylistCollageArtwork(
                 customCoverUri = null,
                 artworkUris = coverUris,
-                modifier = Modifier.size(96.dp),
-                cornerRadius = 12.dp,
+                modifier = Modifier.size(104.dp),
+                cornerRadius = 22.dp,
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(0.75.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
+                    .size(104.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(LavenderCardDeep.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.LibraryMusic,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(36.dp),
+                    tint = LavenderCardDeep,
+                    modifier = Modifier.size(40.dp),
                 )
             }
         }
@@ -605,7 +679,7 @@ private fun QuickDjModeCard(
     isAutomixActive: Boolean,
     onOpenDjMode: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(24.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -614,26 +688,26 @@ private fun QuickDjModeCard(
             .background(MaterialTheme.colorScheme.surface)
             .border(
                 width = if (isAutomixActive) 1.dp else 0.75.dp,
-                color = if (isAutomixActive) BadgeGoldFg else MaterialTheme.colorScheme.outlineVariant,
+                color = if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                 shape = shape,
             )
             .clickable(onClick = onOpenDjMode)
-            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
             .testTag("home_automix_card"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(BadgeGoldBg),
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (isAutomixActive) MaterialTheme.colorScheme.primary else LavenderCardDeep),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Rounded.GraphicEq,
                 contentDescription = "DJ Mode",
-                tint = BadgeGoldFg,
-                modifier = Modifier.size(21.dp),
+                tint = if (isAutomixActive) MaterialTheme.colorScheme.onPrimary else LavenderCard,
+                modifier = Modifier.size(22.dp),
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
@@ -658,7 +732,7 @@ private fun QuickDjModeCard(
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = "Open DJ Mode",
-            tint = if (isAutomixActive) BadgeGoldFg else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

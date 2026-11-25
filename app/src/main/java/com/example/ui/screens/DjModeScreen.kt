@@ -37,8 +37,6 @@ import com.example.data.model.Playlist
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
 import com.example.ui.components.MaxmizeTopHeader
-import com.example.ui.theme.BadgeGoldBg
-import com.example.ui.theme.BadgeGoldFg
 import com.example.ui.theme.MonoBadgeStyle
 
 enum class DjSectionTab(val label: String, val testTag: String) {
@@ -114,23 +112,23 @@ fun DjModeScreen(
         ) {
             items(DjSectionTab.entries, key = { it.name }) { tab ->
                 val selected = selectedTab == tab
-                val shape = RoundedCornerShape(10.dp)
+                val shape = RoundedCornerShape(50)
                 Box(
                     modifier = Modifier
-                        .height(34.dp)
+                        .height(36.dp)
                         .clip(shape)
                         .background(
-                            if (selected) BadgeGoldBg
-                            else MaterialTheme.colorScheme.surface
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHigh
                         )
                         .border(
                             width = 0.75.dp,
-                            color = if (selected) BadgeGoldFg
+                            color = if (selected) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.outlineVariant,
                             shape = shape,
                         )
                         .clickable { onSelectTab(tab) }
-                        .padding(horizontal = 13.dp)
+                        .padding(horizontal = 14.dp)
                         .testTag(tab.testTag),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -139,7 +137,7 @@ fun DjModeScreen(
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         ),
-                        color = if (selected) BadgeGoldFg else MaterialTheme.colorScheme.onSurface,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
