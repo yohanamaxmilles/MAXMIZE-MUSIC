@@ -558,7 +558,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             it in (dur / 2)..(dur - 3500L)
         } ?: (dur - transMs - 600L).coerceAtLeast(dur / 2)
 
-        val fallbackCueOutMs = if (automixConfig.phraseMatchEnabled) {
+        val fallbackCueOutMs = if (automixConfig.phraseMatchEnabled ||
+            automixConfig.technique == AutomixTechnique.PHRASE_MATCH
+        ) {
             alignToPhraseOrBeat(rawCueOut, activeTrackAnalysis)
         } else {
             alignToNearestBeat(rawCueOut, activeTrackAnalysis)
@@ -1053,10 +1055,12 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             requireReliableTempo = automixConfig.bpmMatchEnabled ||
                 automixConfig.technique == AutomixTechnique.BEAT_SYNC ||
                 automixConfig.technique == AutomixTechnique.PHRASE_MATCH,
-            requireReliableGenre = automixConfig.strictGenreMatching,
-            requireReliableKey = automixConfig.keyMatchingEnabled &&
-                (automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT ||
-                    automixConfig.technique == AutomixTechnique.HARMONIC),
+            requireReliableGenre = automixConfig.strictGenreMatching ||
+                automixConfig.technique == AutomixTechnique.GENRE_MATCH,
+            requireReliableKey = automixConfig.technique == AutomixTechnique.HARMONIC ||
+                (automixConfig.keyMatchingEnabled &&
+                    automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT),
+            requirePhraseStructure = automixConfig.technique == AutomixTechnique.PHRASE_MATCH,
             maxTempoAdjustment = maxTempoAdjustment,
             minTrackDurationMs = 45_000L,
             maxUnknownContentDurationMs = 12L * 60L * 1000L,
