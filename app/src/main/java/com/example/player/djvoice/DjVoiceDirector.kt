@@ -6,6 +6,14 @@ import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import com.example.data.local.prefs.UserPreferencesRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,6 +37,7 @@ class DjVoiceDirector(
     private val closed = AtomicBoolean(false)
     private val speakingCount = AtomicInteger(0)
     private val queueLock = Any()
+    private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val pending = ArrayDeque<String>()
     private var textToSpeech: TextToSpeech? = null
     private var sequence = 0L
@@ -71,6 +80,13 @@ class DjVoiceDirector(
                 pending.toList().also { pending.clear() }
             }
             if (ready.get()) messages.forEach(::speak)
+        }
+        preferenceScope.launch {
+            UserPreferencesRepository(appContext).preferencesFlow.collect { prefs ->
+                setGenderPreference(prefs.automixConfig.djVoiceGender)
+                setSpeechRate(prefs.automixConfig.djVoiceRate)
+                setSpeechVolume(prefs.automixConfig.djVoiceVolume)
+            }
         }
     }
 
@@ -167,6 +183,7 @@ class DjVoiceDirector(
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
+        preferenceScope.cancel()
         ready.set(false)
     }
 }
