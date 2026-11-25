@@ -37,6 +37,11 @@ import com.example.data.dj.v2.DjDecisionEngine
 import com.example.data.dj.v2.DjSessionArcPlanner
 import com.example.data.dj.v2.DjSessionPhase
 import com.example.data.dj.v2.DjTrackProfileFactory
+import com.example.data.dj.v2.DjTransitionConfig
+import com.example.data.dj.v2.DjTransitionCurve
+import com.example.data.dj.v2.DjTransitionPlan
+import com.example.data.dj.v2.DjTransitionPlanner
+import com.example.data.dj.v2.DjTransitionPlanningResult
 import com.example.data.local.db.CustomDjProfileEntity
 import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.local.db.MixHistoryEntity
@@ -157,6 +162,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     // Dual-Deck Automix runtime state (background-independent)
     private val djQueueMutex = Mutex()
     private val djDecisionEngine = DjDecisionEngine()
+    private val djTransitionPlanner = DjTransitionPlanner()
+    private var activeTransitionPlan: DjTransitionPlan? = null
     private var djVoiceDirector: DjVoiceDirector? = null
     private var speechDuckActive: Boolean = false
     private var automixActive: Boolean = false
@@ -546,11 +553,12 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             it in (dur / 2)..(dur - 3500L)
         } ?: (dur - transMs - 600L).coerceAtLeast(dur / 2)
 
-        val cueOutMs = if (automixConfig.phraseMatchEnabled) {
+        val fallbackCueOutMs = if (automixConfig.phraseMatchEnabled) {
             alignToPhraseOrBeat(rawCueOut, activeTrackAnalysis)
         } else {
             alignToNearestBeat(rawCueOut, activeTrackAnalysis)
         }
+        val cueOutMs = activeTransitionPlan?.outgoingStartMs ?: fallbackCueOutMs
 
         // Preload standby deck ~12 seconds prior to cue-out
         if (!isMixingTransition && nextEntry != null && pos >= (cueOutMs - 12_000L).coerceAtLeast(0L)) {
@@ -561,7 +569,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         // Start simultaneous dual-deck transition
         if (!isMixingTransition && nextEntry != null && pos >= cueOutMs && preloadedTrack?.id == nextEntry.track.id) {
-            beginDualDeckTransition(transMs)
+            beginDualDeckTransition(activeTransitionPlan?.durationMs ?: transMs)
         }
 
         // Advance active transition volume & EQ/gain curves
@@ -584,7 +592,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     }
 
     private fun alignToPhraseOrBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
-        if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
+        if (analysis == null || analysis.beatIntervalMs <= 0L || analysis.bpmConfidence < 0.60f || analysis.downbeatConfidence < 0.60f) return targetMs
         val phraseMs = analysis.phraseLengthMs.takeIf { it > 0L }
             ?: (analysis.beatIntervalMs * 16L)
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
@@ -599,11 +607,50 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         if (automixConfig.bpmMatchEnabled && (outBpm == null || inBpm == null)) {
             preloadedTrack = null
             incomingTrackAnalysis = null
+            activeTransitionPlan = null
             return
         }
-        val tempoRatio = if (automixConfig.bpmMatchEnabled) {
-            HarmonicCompatibility.computeBeatmatchRatio(outBpm!!, inBpm!!)
-        } else 1.0f
+
+        val outgoingId = activePlayer.currentMediaItem?.mediaId
+        val outgoingTrack = outgoingId?.let { allTracksCache[it] }
+        val outgoingProfile = outgoingTrack?.let {
+            DjTrackProfileFactory.from(it, activeTrackAnalysis)
+        }
+        val incomingProfile = DjTrackProfileFactory.from(nextTrack, inAnalysis)
+        activeTransitionPlan = if (outgoingProfile != null) {
+            val outgoingBeatMs = outgoingProfile.beatIntervalMs ?: 0L
+            val bars = if (outgoingBeatMs > 0L) {
+                ((automixConfig.transitionDurationSec * 1000L).toDouble() /
+                    (outgoingBeatMs * 4L).toDouble()).roundToInt().coerceIn(1, 16)
+            } else 4
+            val curve = when (automixConfig.transitionStyle) {
+                TransitionStyle.BASS_SWAP -> DjTransitionCurve.BASS_SWAP
+                TransitionStyle.EQ_FILTER -> DjTransitionCurve.VOCAL_AWARE_EQ
+                TransitionStyle.BEAT_CUT -> DjTransitionCurve.PHRASE_CUT
+                TransitionStyle.INTRO_OUTRO, TransitionStyle.SMOOTH_FADE -> DjTransitionCurve.EQUAL_POWER
+            }
+            val maxAdjustment = when (automixConfig.harmonicMixLevel) {
+                com.example.data.model.HarmonicMixLevel.STRICT -> 0.04f
+                com.example.data.model.HarmonicMixLevel.BALANCED -> 0.08f
+                com.example.data.model.HarmonicMixLevel.FLEXIBLE -> 0.12f
+            }
+            (djTransitionPlanner.plan(
+                outgoing = outgoingProfile,
+                incoming = incomingProfile,
+                outgoingPositionMs = activePlayer.currentPosition,
+                config = DjTransitionConfig(
+                    maxTempoAdjustment = maxAdjustment,
+                    bars = bars,
+                    curve = curve,
+                    keyLockEnabled = automixConfig.keyLockEnabled,
+                ),
+            ) as? DjTransitionPlanningResult.Ready)?.plan
+        } else null
+
+        val tempoRatio = activeTransitionPlan?.incomingPlaybackRate
+            ?: if (automixConfig.bpmMatchEnabled && outBpm != null && inBpm != null) {
+                HarmonicCompatibility.computeBeatmatchRatio(outBpm, inBpm)
+            } else 1.0f
         preloadedTrack = nextTrack
         incomingTrackAnalysis = inAnalysis
 
@@ -616,7 +663,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         sb.pause()
         sb.volume = 0f
 
-        val introSeek = inAnalysis.firstBeatMs.coerceIn(0L, (nextTrack.durationMs / 4).coerceAtLeast(0L))
+        val introSeek = (activeTransitionPlan?.incomingStartMs ?: inAnalysis.firstBeatMs)
+            .coerceIn(0L, (nextTrack.durationMs / 4).coerceAtLeast(0L))
         if (introSeek > 0L) sb.seekTo(introSeek)
 
         val pitch = if (automixConfig.keyLockEnabled) 1.0f else tempoRatio
@@ -739,6 +787,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         isMixingTransition = false
         preloadedTrack = null
+        activeTransitionPlan = null
         lastRecordedTrackId = null
 
         val prevAnalysis = activeTrackAnalysis
@@ -875,6 +924,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         automixActive = false
         isMixingTransition = false
         preloadedTrack = null
+        activeTransitionPlan = null
         djQueueJob?.cancel()
         tempoEaseJob?.cancel()
         standbyPlayer.pause()
