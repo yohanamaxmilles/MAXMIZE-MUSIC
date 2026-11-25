@@ -527,6 +527,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onDeleteCustomProfile = viewModel::deleteCustomDjProfile,
                                             onUpsertGenreRule = viewModel::upsertGenreRule,
                                             onDeleteGenreRule = viewModel::deleteGenreRule,
+                                            onPreviewVoice = viewModel.playbackController::previewDjVoice,
                                         )
                                     }
 
@@ -680,6 +681,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onDeleteCustomProfile = viewModel::deleteCustomDjProfile,
                                             onUpsertGenreRule = viewModel::upsertGenreRule,
                                             onDeleteGenreRule = viewModel::deleteGenreRule,
+                                            onPreviewVoice = viewModel.playbackController::previewDjVoice,
                                         )
                                     }
 
