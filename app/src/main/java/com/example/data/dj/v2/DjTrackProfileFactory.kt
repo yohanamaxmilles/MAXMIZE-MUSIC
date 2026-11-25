@@ -32,6 +32,25 @@ object DjTrackProfileFactory {
             it.energy in 0f..1f && it.bpmConfidence >= 0.40f
         }
 
+        val phraseBoundaries = analysis?.takeIf {
+            it.bpmConfidence >= 0.75f &&
+                it.tempoStability >= 0.65f &&
+                it.downbeatConfidence >= 0.65f &&
+                it.phraseLengthMs > 0L
+        }?.let { a ->
+            generateSequence(a.firstBeatMs + a.phraseLengthMs) { previous ->
+                previous + a.phraseLengthMs
+            }.takeWhile { it < track.durationMs }.toList()
+        }.orEmpty()
+        val sections = buildList {
+            analysis?.takeIf { it.introEndMs > 0L && it.introEndMs < track.durationMs }?.let {
+                add(MusicalSection(MusicalSectionType.INTRO, 0L, it.introEndMs, 0.65f))
+            }
+            analysis?.takeIf { it.outroStartMs > 0L && it.outroStartMs < track.durationMs }?.let {
+                add(MusicalSection(MusicalSectionType.OUTRO, it.outroStartMs, track.durationMs, 0.65f))
+            }
+        }
+
         return DjTrackProfile(
             trackId = track.id,
             durationMs = track.durationMs,
@@ -48,6 +67,8 @@ object DjTrackProfileFactory {
             keyConfidence = analysis?.keyConfidence ?: 0f,
             energy = energyReliable?.energy,
             energyConfidence = if (energyReliable != null) 0.65f else 0f,
+            phraseBoundariesMs = phraseBoundaries,
+            sections = sections,
             firstBeatMs = analysis?.takeIf { it.downbeatConfidence >= 0.60f }?.firstBeatMs,
             beatIntervalMs = bpmReliable?.beatIntervalMs,
             beatsPerBar = 4,
