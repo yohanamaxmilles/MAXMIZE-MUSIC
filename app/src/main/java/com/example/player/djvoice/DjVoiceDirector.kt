@@ -60,11 +60,10 @@ class DjVoiceDirector(
             )
             selectPreferredVoice(engine)
             engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {
-                    if (speakingCount.getAndIncrement() == 0) onSpeechStarted()
-                }
+                override fun onStart(utteranceId: String?) = Unit
 
                 override fun onDone(utteranceId: String?) = finishUtterance()
+                override fun onStop(utteranceId: String?, interrupted: Boolean) = finishUtterance()
                 @Deprecated("Deprecated in Java")
                 override fun onError(utteranceId: String?) = finishUtterance()
                 override fun onError(utteranceId: String?, errorCode: Int) = finishUtterance()
@@ -174,8 +173,11 @@ class DjVoiceDirector(
         val params = Bundle().apply {
             putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, speechVolume)
         }
+        val engine = textToSpeech ?: return
         val id = "maxmize-dj-voice-${++sequence}"
-        textToSpeech?.speak(clean, TextToSpeech.QUEUE_ADD, params, id)
+        if (speakingCount.getAndIncrement() == 0) onSpeechStarted()
+        val result = engine.speak(clean, TextToSpeech.QUEUE_ADD, params, id)
+        if (result == TextToSpeech.ERROR) finishUtterance()
     }
 
     override fun close() {
