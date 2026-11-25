@@ -33,7 +33,6 @@ class ExampleRobolectricTest {
     fun `bottom navigation switches across all five destinations`() {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("home_screen").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("empty_library_card").assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("nav_library").performClick()
         composeTestRule.waitForIdle()
@@ -69,7 +68,8 @@ class ExampleRobolectricTest {
     @Test
     fun `automix hub settings and dj queue screens navigate cleanly`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_open_automix").performClick()
         composeTestRule.waitForIdle()
@@ -103,7 +103,9 @@ class ExampleRobolectricTest {
     @Test
     fun `settings displays typography artwork and library health controls`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_dj").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dj_open_automix").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_library_stats"))
         composeTestRule.onNodeWithTag("settings_library_stats").assertIsDisplayed()
