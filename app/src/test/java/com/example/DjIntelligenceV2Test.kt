@@ -178,6 +178,31 @@ class DjIntelligenceV2Test {
     }
 
     @Test
+    fun intelligentSessionHoldsAStageUntilRecentEnergyMatchesItsTarget() {
+        assertTrue(
+            com.example.data.dj.v2.DjSessionArcPlanner.shouldHoldPhase(
+                com.example.data.dj.v2.DjSessionPhase.BUILD_UP,
+                recentAverageEnergy = 0.42f,
+                targetEnergy = 0.72f,
+            ),
+        )
+        assertFalse(
+            com.example.data.dj.v2.DjSessionArcPlanner.shouldHoldPhase(
+                com.example.data.dj.v2.DjSessionPhase.BUILD_UP,
+                recentAverageEnergy = 0.76f,
+                targetEnergy = 0.72f,
+            ),
+        )
+        assertTrue(
+            com.example.data.dj.v2.DjSessionArcPlanner.shouldHoldPhase(
+                com.example.data.dj.v2.DjSessionPhase.BREATHER,
+                recentAverageEnergy = 0.90f,
+                targetEnergy = 0.62f,
+            ),
+        )
+    }
+
+    @Test
     fun `session arc contains opening build peak breather and closing phases`() {
         assertEquals(
             com.example.data.dj.v2.DjSessionPhase.OPENING,
