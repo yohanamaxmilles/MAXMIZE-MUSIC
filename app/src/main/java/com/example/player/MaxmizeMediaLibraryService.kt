@@ -1053,7 +1053,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             requireReliableTempo = automixConfig.bpmMatchEnabled ||
                 automixConfig.technique == AutomixTechnique.BEAT_SYNC ||
                 automixConfig.technique == AutomixTechnique.PHRASE_MATCH,
-            requireReliableGenre = true,
+            requireReliableGenre = automixConfig.strictGenreMatching,
             requireReliableKey = automixConfig.keyMatchingEnabled &&
                 (automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT ||
                     automixConfig.technique == AutomixTechnique.HARMONIC),
