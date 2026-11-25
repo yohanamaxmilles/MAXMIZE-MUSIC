@@ -143,4 +143,28 @@ class DjIntelligenceV2Test {
             (result as DjTransitionPlanningResult.Ready).plan.curve,
         )
     }
+
+    @Test
+    fun `session arc contains opening build peak breather and closing phases`() {
+        assertEquals(
+            com.example.data.dj.v2.DjSessionPhase.OPENING,
+            com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.02f),
+        )
+        assertEquals(
+            com.example.data.dj.v2.DjSessionPhase.BUILD_UP,
+            com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.35f),
+        )
+        assertEquals(
+            com.example.data.dj.v2.DjSessionPhase.PEAK_TIME,
+            com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.60f),
+        )
+        assertEquals(
+            com.example.data.dj.v2.DjSessionPhase.BREATHER,
+            com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.78f),
+        )
+        assertEquals(
+            com.example.data.dj.v2.DjSessionPhase.CLOSING,
+            com.example.data.dj.v2.DjSessionArcPlanner.phaseFor(0.98f),
+        )
+    }
 }
