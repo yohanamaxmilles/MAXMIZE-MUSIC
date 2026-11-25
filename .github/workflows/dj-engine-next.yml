@@ -5,8 +5,11 @@ on:
     branches: [main]
     paths:
       - "app/src/main/java/com/example/data/dj/next/**"
+      - "app/src/main/java/com/example/data/dj/AudioAnalysisEngine.kt"
       - "app/src/main/java/com/example/player/**"
       - "app/src/test/java/com/example/data/dj/next/**"
+      - "app/src/test/java/com/example/DjAnalysisAndCompatibilityTest.kt"
+      - "docs/DJ_ENGINE_NEXT.md"
       - "app/build.gradle.kts"
       - "gradle/**"
       - "settings.gradle.kts"
