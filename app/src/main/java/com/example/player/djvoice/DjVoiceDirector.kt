@@ -19,6 +19,7 @@ class DjVoiceDirector(
     private val enabled = AtomicBoolean(true)
     private val appContext = context.applicationContext
     private val pendingAnnouncements = ArrayDeque<String>()
+    private val queueLock = Any()
     private var textToSpeech: TextToSpeech? = null
     private var sequence = 0L
 
@@ -42,11 +43,15 @@ class DjVoiceDirector(
                     override fun onError(utteranceId: String?) = onSpeechFinished()
                     override fun onError(utteranceId: String?, errorCode: Int) = onSpeechFinished()
                 })
-                ready.set(languageResult != TextToSpeech.LANG_MISSING_DATA &&
-                    languageResult != TextToSpeech.LANG_NOT_SUPPORTED)
-                while (pendingAnnouncements.isNotEmpty() && enabled.get()) {
-                    val pending = pendingAnnouncements.removeFirst()
-                    engine.speak(pending, TextToSpeech.QUEUE_ADD, null, "maxmize-dj-voice-" + (++sequence))
+                val pending = synchronized(queueLock) {
+                    ready.set(languageResult != TextToSpeech.LANG_MISSING_DATA &&
+                        languageResult != TextToSpeech.LANG_NOT_SUPPORTED)
+                    pendingAnnouncements.toList().also { pendingAnnouncements.clear() }
+                }
+                if (enabled.get()) {
+                    pending.forEach { message ->
+                        engine.speak(message, TextToSpeech.QUEUE_ADD, null, "maxmize-dj-voice-" + (++sequence))
+                    }
                 }
             }
         }
@@ -55,7 +60,7 @@ class DjVoiceDirector(
     fun setEnabled(value: Boolean) {
         enabled.set(value)
         if (!value) {
-            pendingAnnouncements.clear()
+            synchronized(queueLock) { pendingAnnouncements.clear() }
             textToSpeech?.stop()
         }
     }
@@ -84,18 +89,21 @@ class DjVoiceDirector(
         if (!enabled.get()) return
         val clean = message.trim().take(240)
         if (clean.isBlank()) return
-        if (!ready.get()) {
-            if (pendingAnnouncements.size >= 4) pendingAnnouncements.removeFirst()
-            pendingAnnouncements.addLast(clean)
-            return
+        val queueBeforeReady = synchronized(queueLock) {
+            if (!ready.get()) {
+                if (pendingAnnouncements.size >= 4) pendingAnnouncements.removeFirst()
+                pendingAnnouncements.addLast(clean)
+                true
+            } else false
         }
+        if (queueBeforeReady) return
         val utteranceId = "maxmize-dj-voice-" + (++sequence)
         textToSpeech?.speak(clean, TextToSpeech.QUEUE_ADD, null, utteranceId)
     }
 
     override fun close() {
         enabled.set(false)
-        pendingAnnouncements.clear()
+        synchronized(queueLock) { pendingAnnouncements.clear() }
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
