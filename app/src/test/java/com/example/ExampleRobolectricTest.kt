@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
@@ -115,7 +116,7 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("dj_analysis_section").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("dj_tab_settings").performClick()
+        composeTestRule.onNodeWithText("DJ Settings").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("automix_settings_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_settings_screen").performScrollToNode(hasTestTag("switch_strict_genre"))
