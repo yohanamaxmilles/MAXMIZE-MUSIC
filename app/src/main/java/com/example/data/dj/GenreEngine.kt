@@ -239,6 +239,9 @@ object GenreEngine {
 
     fun inferFromAudioFeatures(a: TrackAnalysis): GenreClassification {
         val bpm = a.bpm
+        if (bpm <= 0f || a.bpmConfidence < 0.45f) {
+            return GenreClassification("Unknown", "Unknown", "", GenreFamily.UNKNOWN, 0.1f)
+        }
         val energy = a.energy
         val onsets = a.onsetDensity
         val centroid = a.spectralCentroidHz
