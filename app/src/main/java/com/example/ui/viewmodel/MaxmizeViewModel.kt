@@ -42,6 +42,7 @@ import com.example.data.model.ThemeMode
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
 import com.example.data.model.UiDensity
+import com.example.ui.screens.DjSectionTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -245,6 +246,9 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     private val _selectedLibraryCategory = MutableStateFlow<LibraryCategory?>(null)
     val selectedLibraryCategory: StateFlow<LibraryCategory?> = _selectedLibraryCategory.asStateFlow()
 
+    private val _selectedDjTab = MutableStateFlow(DjSectionTab.HOME)
+    val selectedDjTab: StateFlow<DjSectionTab> = _selectedDjTab.asStateFlow()
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -405,6 +409,10 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
 
     fun selectLibraryCategory(category: LibraryCategory?) {
         _selectedLibraryCategory.value = category
+    }
+
+    fun selectDjTab(tab: DjSectionTab) {
+        _selectedDjTab.value = tab
     }
 
     fun playPlaylist(playlistId: Long, shuffle: Boolean = false) {

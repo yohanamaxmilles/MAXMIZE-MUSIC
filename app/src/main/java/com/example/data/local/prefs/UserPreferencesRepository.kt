@@ -30,7 +30,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class UserPreferences(
     val themeMode: ThemeMode = ThemeMode.DARK,
     val accentPreset: AccentPreset = AccentPreset.GOLD,
-    val fontChoice: FontChoice = FontChoice.INTER,
+    val fontChoice: FontChoice = FontChoice.PLUS_JAKARTA,
     val fontScale: Float = 1.0f,
     val uiDensity: UiDensity = UiDensity.COMFORTABLE,
     val eqEnabled: Boolean = true,
@@ -142,7 +142,7 @@ class UserPreferencesRepository(private val context: Context) {
             accentPreset = prefs[Keys.ACCENT_PRESET]?.let { runCatching { AccentPreset.valueOf(it) }.getOrNull() }
                 ?: AccentPreset.GOLD,
             fontChoice = prefs[Keys.FONT_CHOICE]?.let { runCatching { FontChoice.valueOf(it) }.getOrNull() }
-                ?: FontChoice.INTER,
+                ?: FontChoice.PLUS_JAKARTA,
             fontScale = (prefs[Keys.FONT_SCALE] ?: 1.0f).coerceIn(0.88f, 1.18f),
             uiDensity = prefs[Keys.UI_DENSITY]?.let { runCatching { UiDensity.valueOf(it) }.getOrNull() }
                 ?: UiDensity.COMFORTABLE,

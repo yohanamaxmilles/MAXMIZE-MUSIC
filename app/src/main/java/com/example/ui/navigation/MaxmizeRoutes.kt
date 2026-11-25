@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 sealed interface MaxmizeRoute {
     @Serializable data object Home : MaxmizeRoute
     @Serializable data object Library : MaxmizeRoute
+    @Serializable data object DjMode : MaxmizeRoute
     @Serializable data object Playlists : MaxmizeRoute
     @Serializable data object Search : MaxmizeRoute
     @Serializable data object Settings : MaxmizeRoute

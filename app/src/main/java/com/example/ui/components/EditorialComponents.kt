@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +57,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.theme.BadgeGoldBg
+import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.GoldAccentDark
 
 data class NavDestinationItem(
     val id: String,
@@ -62,7 +67,83 @@ data class NavDestinationItem(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
     val testTag: String,
+    val accentHighlighted: Boolean = false,
 )
+
+@Composable
+fun TopProfileSettingsButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+            .clickable(onClick = onClick)
+            .testTag("top_settings_btn"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Settings,
+            contentDescription = "Settings and Profile",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(19.dp),
+        )
+    }
+}
+
+@Composable
+fun MaxmizeTopHeader(
+    title: String,
+    subtitle: String? = null,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.3.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 27.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            actions()
+            TopProfileSettingsButton(onClick = onOpenSettings)
+        }
+    }
+}
 
 @Composable
 fun MaxmizeBottomBar(
@@ -81,19 +162,30 @@ fun MaxmizeBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(62.dp)
                 .padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEach { item ->
                 val selected = item.id == selectedId
+                val djGold = GoldAccentDark
                 val iconTint by animateColorAsState(
-                    targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    targetValue = when {
+                        selected && item.accentHighlighted -> djGold
+                        selected -> MaterialTheme.colorScheme.primary
+                        item.accentHighlighted -> djGold.copy(alpha = 0.85f)
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     label = "navTint",
                 )
                 val badgeBg by animateColorAsState(
-                    targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    targetValue = when {
+                        selected && item.accentHighlighted -> BadgeGoldBg
+                        selected -> MaterialTheme.colorScheme.primaryContainer
+                        item.accentHighlighted -> djGold.copy(alpha = 0.08f)
+                        else -> Color.Transparent
+                    },
                     label = "navBg",
                 )
                 val interactionSource = remember { MutableInteractionSource() }
@@ -114,24 +206,33 @@ fun MaxmizeBottomBar(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(width = 36.dp, height = 28.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(badgeBg),
+                            .size(width = 40.dp, height = 28.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(badgeBg)
+                            .let { mod ->
+                                if (item.accentHighlighted) {
+                                    mod.border(
+                                        width = if (selected) 1.dp else 0.75.dp,
+                                        color = if (selected) djGold else djGold.copy(alpha = 0.32f),
+                                        shape = RoundedCornerShape(10.dp),
+                                    )
+                                } else mod
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
                             contentDescription = item.label,
                             tint = iconTint,
-                            modifier = Modifier.size(21.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = 10.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            fontWeight = if (selected || item.accentHighlighted) FontWeight.SemiBold else FontWeight.Medium,
                         ),
                         color = iconTint,
                         maxLines = 1,
@@ -153,7 +254,7 @@ fun MaxmizeNavigationRail(
     Row(modifier = modifier.fillMaxHeight()) {
         Column(
             modifier = Modifier
-                .width(80.dp)
+                .width(84.dp)
                 .fillMaxHeight()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(vertical = 16.dp, horizontal = 8.dp),
@@ -162,14 +263,33 @@ fun MaxmizeNavigationRail(
         ) {
             items.forEach { item ->
                 val selected = item.id == selectedId
-                val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                val bg = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                val tint = when {
+                    selected && item.accentHighlighted -> BadgeGoldFg
+                    selected -> MaterialTheme.colorScheme.primary
+                    item.accentHighlighted -> BadgeGoldFg.copy(alpha = 0.85f)
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                val bg = when {
+                    selected && item.accentHighlighted -> BadgeGoldBg
+                    selected -> MaterialTheme.colorScheme.primaryContainer
+                    item.accentHighlighted -> BadgeGoldFg.copy(alpha = 0.08f)
+                    else -> Color.Transparent
+                }
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(bg)
+                        .let { mod ->
+                            if (item.accentHighlighted) {
+                                mod.border(
+                                    width = if (selected) 1.dp else 0.75.dp,
+                                    color = if (selected) BadgeGoldFg else BadgeGoldFg.copy(alpha = 0.30f),
+                                    shape = RoundedCornerShape(12.dp),
+                                )
+                            } else mod
+                        }
                         .clickable { onSelect(item) }
                         .padding(vertical = 10.dp)
                         .testTag(item.testTag),
@@ -179,13 +299,13 @@ fun MaxmizeNavigationRail(
                         imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
                         contentDescription = item.label,
                         tint = tint,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(21.dp),
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = item.label,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            fontWeight = if (selected || item.accentHighlighted) FontWeight.SemiBold else FontWeight.Medium,
                         ),
                         color = tint,
                         maxLines = 1,
@@ -361,16 +481,16 @@ fun EditorialChip(
         enabled -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
 
     Box(
         modifier = modifier
-            .height(36.dp)
+            .height(34.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+            .border(0.75.dp, borderColor, RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 13.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -388,6 +508,7 @@ fun EditorialChip(
 fun EditorialGroupCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 14.dp,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
@@ -396,7 +517,7 @@ fun EditorialGroupCard(
             .fillMaxWidth()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+            .border(0.75.dp, borderColor, shape),
         content = content,
     )
 }
@@ -411,7 +532,7 @@ fun EditorialSectionHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 16.dp, top = 22.dp, bottom = 10.dp),
+            .padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

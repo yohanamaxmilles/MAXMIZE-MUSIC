@@ -25,27 +25,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CreateNewFolder
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOff
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material3.Button
@@ -56,7 +52,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,13 +62,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.model.AlbumSummary
 import com.example.data.model.ArtistSummary
 import com.example.data.model.FolderSummary
@@ -86,30 +78,17 @@ import com.example.data.model.SortOrder
 import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialChip
+import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.TrackRow
 import com.example.ui.components.formatDurationSummary
-import com.example.ui.theme.BadgeAmberBg
-import com.example.ui.theme.BadgeAmberFg
-import com.example.ui.theme.BadgeBlueBg
-import com.example.ui.theme.BadgeBlueFg
-import com.example.ui.theme.BadgeIndigoBg
-import com.example.ui.theme.BadgeIndigoFg
-import com.example.ui.theme.BadgePinkBg
-import com.example.ui.theme.BadgePinkFg
-import com.example.ui.theme.BadgePurpleBg
-import com.example.ui.theme.BadgePurpleFg
-import com.example.ui.theme.BadgeRedBg
-import com.example.ui.theme.BadgeRedFg
-import com.example.ui.theme.BadgeTealBg
-import com.example.ui.theme.BadgeTealFg
+import com.example.ui.theme.MonoBadgeStyle
 
-private data class LibraryDirEntry(
-    val category: LibraryCategory,
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val badgeBg: Color,
-    val badgeFg: Color,
+private val PRIMARY_LIBRARY_TABS = listOf(
+    LibraryCategory.SONGS,
+    LibraryCategory.ALBUMS,
+    LibraryCategory.ARTISTS,
+    LibraryCategory.GENRES,
+    LibraryCategory.FOLDERS,
 )
 
 @Composable
@@ -129,7 +108,7 @@ fun LibraryScreen(
     playbackState: PlaybackUiState,
     onRescan: (Boolean) -> Unit,
     onImportFolder: () -> Unit,
-    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onPlayTracks: (List<Track>, Int, Boolean) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onOpenAlbum: (String) -> Unit,
@@ -141,24 +120,32 @@ fun LibraryScreen(
     onTrackMenuAction: (Track, TrackMenuEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val activeCategory = selectedCategory ?: LibraryCategory.SONGS
+    val isTrackListCategory = activeCategory == LibraryCategory.SONGS ||
+        activeCategory == LibraryCategory.RECENTLY_ADDED ||
+        activeCategory == LibraryCategory.RECENTLY_PLAYED ||
+        activeCategory == LibraryCategory.MOST_PLAYED ||
+        activeCategory == LibraryCategory.FAVORITES
+
     var multiSelectMode by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     var sortMenuOpen by remember { mutableStateOf(false) }
     var overflowMenuOpen by remember { mutableStateOf(false) }
+    var useGridLayout by remember { mutableStateOf(true) }
 
-    if (selectedCategory != null) {
+    if (multiSelectMode || (selectedCategory != null && selectedCategory != LibraryCategory.SONGS)) {
         BackHandler {
             if (multiSelectMode) {
                 multiSelectMode = false
                 selectedIds = emptySet()
             } else {
-                onSelectCategory(null)
+                onSelectCategory(LibraryCategory.SONGS)
             }
         }
     }
 
-    val displayedTracks = remember(selectedCategory, sortedTracks, allTracks) {
-        when (selectedCategory) {
+    val displayedTracks = remember(activeCategory, sortedTracks, allTracks) {
+        when (activeCategory) {
             LibraryCategory.SONGS -> sortedTracks
             LibraryCategory.RECENTLY_ADDED -> allTracks.sortedByDescending { it.dateAddedSec }
             LibraryCategory.RECENTLY_PLAYED -> allTracks.filter { it.lastPlayedAt > 0L }.sortedByDescending { it.lastPlayedAt }
@@ -168,20 +155,21 @@ fun LibraryScreen(
         }
     }
 
-    val directoryEntries = remember(allTracks, artists, albums, genres, folders) {
-        val favCount = allTracks.count { it.isFavorite }
-        val mostPlayedCount = allTracks.count { it.playCount > 0 }
-        val recentCount = allTracks.take(50).size
-        listOf(
-            LibraryDirEntry(LibraryCategory.SONGS, "All Songs", "${allTracks.size} songs", Icons.Rounded.MusicNote, BadgeRedBg, BadgeRedFg),
-            LibraryDirEntry(LibraryCategory.ARTISTS, "Artists", "${artists.size} artists", Icons.Rounded.Person, BadgeBlueBg, BadgeBlueFg),
-            LibraryDirEntry(LibraryCategory.ALBUMS, "Albums", "${albums.size} albums", Icons.Rounded.Album, BadgePurpleBg, BadgePurpleFg),
-            LibraryDirEntry(LibraryCategory.GENRES, "Genres", "${genres.size} genres", Icons.Rounded.Category, BadgeAmberBg, BadgeAmberFg),
-            LibraryDirEntry(LibraryCategory.FOLDERS, "Folders", "${folders.size} folders", Icons.Rounded.Folder, BadgeAmberBg, BadgeAmberFg),
-            LibraryDirEntry(LibraryCategory.FAVORITES, "Favorites", "$favCount songs", Icons.Rounded.Favorite, BadgePinkBg, BadgePinkFg),
-            LibraryDirEntry(LibraryCategory.RECENTLY_ADDED, "Recently Added", "$recentCount songs", Icons.Rounded.Schedule, BadgeIndigoBg, BadgeIndigoFg),
-            LibraryDirEntry(LibraryCategory.MOST_PLAYED, "Most Played", "$mostPlayedCount songs", Icons.Rounded.BarChart, BadgeTealBg, BadgeTealFg),
-        )
+    val sortedAlbums = remember(albums, sortOrder) {
+        if (sortOrder == SortOrder.ASCENDING) albums.sortedBy { it.albumName.lowercase() }
+        else albums.sortedByDescending { it.albumName.lowercase() }
+    }
+    val sortedArtists = remember(artists, sortOrder) {
+        if (sortOrder == SortOrder.ASCENDING) artists.sortedBy { it.artistName.lowercase() }
+        else artists.sortedByDescending { it.artistName.lowercase() }
+    }
+    val sortedGenres = remember(genres, sortOrder) {
+        if (sortOrder == SortOrder.ASCENDING) genres.sortedBy { it.genreName.lowercase() }
+        else genres.sortedByDescending { it.genreName.lowercase() }
+    }
+    val sortedFolders = remember(folders, sortOrder) {
+        if (sortOrder == SortOrder.ASCENDING) folders.sortedBy { it.folderName.lowercase() }
+        else folders.sortedByDescending { it.folderName.lowercase() }
     }
 
     Column(
@@ -190,43 +178,18 @@ fun LibraryScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("library_screen"),
     ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = if (selectedCategory != null && !multiSelectMode) 8.dp else 20.dp,
-                    end = 8.dp,
-                    top = 14.dp,
-                    bottom = 8.dp,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (selectedCategory != null && !multiSelectMode) {
-                    IconButton(onClick = { onSelectCategory(null) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                            contentDescription = "Back to library categories",
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                }
-                Text(
-                    text = when {
-                        multiSelectMode -> "${selectedIds.size} Selected"
-                        selectedCategory != null -> selectedCategory.label
-                        else -> "Library"
-                    },
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = if (selectedCategory == null) 26.sp else 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        MaxmizeTopHeader(
+            title = if (multiSelectMode) "${selectedIds.size} Selected" else "Library",
+            subtitle = when (activeCategory) {
+                LibraryCategory.SONGS -> "${displayedTracks.size} SONGS"
+                LibraryCategory.ALBUMS -> "${albums.size} ALBUMS"
+                LibraryCategory.ARTISTS -> "${artists.size} ARTISTS"
+                LibraryCategory.GENRES -> "${genres.size} GENRES"
+                LibraryCategory.FOLDERS -> "${folders.size} FOLDERS"
+                else -> "${activeCategory.label.uppercase()} · ${displayedTracks.size} SONGS"
+            },
+            onOpenSettings = onOpenSettings,
+            actions = {
                 if (multiSelectMode) {
                     TextButton(
                         onClick = {
@@ -238,7 +201,7 @@ fun LibraryScreen(
                         },
                         enabled = selectedIds.isNotEmpty(),
                     ) {
-                        Icon(Icons.Rounded.PlaylistAdd, contentDescription = null)
+                        Icon(Icons.Rounded.PlaylistAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Playlist")
                     }
@@ -249,47 +212,11 @@ fun LibraryScreen(
                         Icon(Icons.Rounded.Close, contentDescription = "Exit selection")
                     }
                 } else {
-                    if (selectedCategory == null) {
-                        IconButton(onClick = onOpenSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = "Search library")
-                        }
-                    } else {
+                    if (isTrackListCategory) {
                         IconButton(onClick = { multiSelectMode = true }) {
                             Icon(Icons.Rounded.Checklist, contentDescription = "Select songs")
                         }
-                        Box {
-                            IconButton(onClick = { sortMenuOpen = true }) {
-                                Icon(Icons.Rounded.Sort, contentDescription = "Sort options")
-                            }
-                            DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                                SortOption.entries.forEach { option ->
-                                    val isCurrent = option == sortOption
-                                    DropdownMenuItem(
-                                        text = { Text(option.label) },
-                                        trailingIcon = if (isCurrent) {
-                                            {
-                                                Icon(
-                                                    imageVector = if (sortOrder == SortOrder.ASCENDING) {
-                                                        Icons.Rounded.ArrowUpward
-                                                    } else Icons.Rounded.ArrowDownward,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(16.dp),
-                                                )
-                                            }
-                                        } else null,
-                                        onClick = {
-                                            val nextOrder = if (isCurrent) {
-                                                if (sortOrder == SortOrder.ASCENDING) SortOrder.DESCENDING else SortOrder.ASCENDING
-                                            } else SortOrder.ASCENDING
-                                            onChangeSort(option, nextOrder)
-                                            sortMenuOpen = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
                     }
-
                     Box {
                         IconButton(onClick = { overflowMenuOpen = true }) {
                             Icon(Icons.Rounded.MoreVert, contentDescription = "Library options")
@@ -313,8 +240,8 @@ fun LibraryScreen(
                         }
                     }
                 }
-            }
-        }
+            },
+        )
 
         if (scanState.isScanning) {
             LinearProgressIndicator(
@@ -324,350 +251,515 @@ fun LibraryScreen(
             )
         }
 
-        if (selectedCategory == null) {
-            // Editorial Library Category Directory (matches showcase)
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(directoryEntries, key = { it.category.name }) { entry ->
-                    val shape = RoundedCornerShape(14.dp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(shape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                            .clickable { onSelectCategory(entry.category) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                            .testTag("lib_dir_${entry.category.name.lowercase()}"),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(11.dp))
-                                .background(entry.badgeBg),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = entry.icon,
-                                contentDescription = null,
-                                tint = entry.badgeFg,
-                                modifier = Modifier.size(22.dp),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = entry.title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = entry.subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
+        // Direct top-level segment tabs: Songs | Albums | Artists | Genres | Folders
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(PRIMARY_LIBRARY_TABS, key = { it.name }) { category ->
+                EditorialChip(
+                    label = category.label,
+                    selected = activeCategory == category,
+                    onClick = { onSelectCategory(category) },
+                    modifier = Modifier.testTag("lib_tab_${category.name.lowercase()}"),
+                )
             }
-        } else {
-            // Category Tabs
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        }
+
+        // Active sub-filter badge when navigated from Home "See all" (Recently Added / Played / Favorites)
+        if (activeCategory !in PRIMARY_LIBRARY_TABS) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                items(LibraryCategory.entries, key = { it.name }) { category ->
-                    EditorialChip(
-                        label = category.label,
-                        selected = selectedCategory == category,
-                        onClick = { onSelectCategory(category) },
-                        modifier = Modifier.testTag("lib_tab_${category.name.lowercase()}"),
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .border(0.75.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                        .clickable { onSelectCategory(LibraryCategory.SONGS) }
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "Filter: ${activeCategory.label}",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = Icons.Rounded.Close,
+                        contentDescription = "Clear filter",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
                     )
                 }
             }
+        }
 
-            HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
-
-            when (selectedCategory) {
-                LibraryCategory.SONGS,
-                LibraryCategory.RECENTLY_ADDED,
-                LibraryCategory.RECENTLY_PLAYED,
-                LibraryCategory.MOST_PLAYED,
-                LibraryCategory.FAVORITES -> {
-                    if (displayedTracks.isEmpty()) {
-                        EmptyCategoryState(
-                            title = "Nothing in ${selectedCategory.label}",
-                            subtitle = if (allTracks.isEmpty()) {
-                                "Scan your device or import a music folder to start listening."
-                            } else {
-                                "Tracks matching ${selectedCategory.label.lowercase()} will appear here as you listen."
+        // Inline Sort & Layout Toolbar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box {
+                val chipShape = RoundedCornerShape(9.dp)
+                Row(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(chipShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, chipShape)
+                        .clickable { sortMenuOpen = true }
+                        .padding(horizontal = 10.dp)
+                        .testTag("lib_sort_btn"),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sort,
+                        contentDescription = "Sort library",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = if (isTrackListCategory) sortOption.label else "Name",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Icon(
+                        imageVector = if (sortOrder == SortOrder.ASCENDING) {
+                            Icons.Rounded.ArrowUpward
+                        } else Icons.Rounded.ArrowDownward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
+                    SortOption.entries.forEach { option ->
+                        val isCurrent = option == sortOption
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            trailingIcon = if (isCurrent) {
+                                {
+                                    Icon(
+                                        imageVector = if (sortOrder == SortOrder.ASCENDING) {
+                                            Icons.Rounded.ArrowUpward
+                                        } else Icons.Rounded.ArrowDownward,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            } else null,
+                            onClick = {
+                                val nextOrder = if (isCurrent) {
+                                    if (sortOrder == SortOrder.ASCENDING) SortOrder.DESCENDING else SortOrder.ASCENDING
+                                } else SortOrder.ASCENDING
+                                onChangeSort(option, nextOrder)
+                                sortMenuOpen = false
                             },
-                            onAction = if (allTracks.isEmpty()) ({ onRescan(false) }) else null,
-                            actionLabel = if (allTracks.isEmpty()) "Scan Device" else null,
                         )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        ) {
-                            item {
-                                Row(
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (isTrackListCategory && displayedTracks.isNotEmpty()) {
+                    val shuffleShape = RoundedCornerShape(9.dp)
+                    Row(
+                        modifier = Modifier
+                            .height(34.dp)
+                            .clip(shuffleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shuffleShape)
+                            .clickable { onPlayTracks(displayedTracks, 0, true) }
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Shuffle,
+                            contentDescription = "Shuffle songs",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = "Shuffle",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+
+                if (activeCategory == LibraryCategory.ALBUMS ||
+                    activeCategory == LibraryCategory.ARTISTS ||
+                    activeCategory == LibraryCategory.GENRES ||
+                    activeCategory == LibraryCategory.FOLDERS
+                ) {
+                    val toggleShape = RoundedCornerShape(9.dp)
+                    Row(
+                        modifier = Modifier
+                            .height(34.dp)
+                            .clip(toggleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, toggleShape)
+                            .clickable { useGridLayout = !useGridLayout }
+                            .padding(horizontal = 10.dp)
+                            .testTag("lib_view_toggle"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (useGridLayout) Icons.AutoMirrored.Rounded.ViewList else Icons.Rounded.GridView,
+                            contentDescription = if (useGridLayout) "Switch to list view" else "Switch to grid view",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = if (useGridLayout) "Grid" else "List",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
+
+        when (activeCategory) {
+            LibraryCategory.SONGS,
+            LibraryCategory.RECENTLY_ADDED,
+            LibraryCategory.RECENTLY_PLAYED,
+            LibraryCategory.MOST_PLAYED,
+            LibraryCategory.FAVORITES -> {
+                if (displayedTracks.isEmpty()) {
+                    EmptyCategoryState(
+                        title = "Nothing in ${activeCategory.label}",
+                        subtitle = if (allTracks.isEmpty()) {
+                            "Scan your device or import a music folder to start listening."
+                        } else {
+                            "Tracks matching ${activeCategory.label.lowercase()} will appear here as you listen."
+                        },
+                        onAction = if (allTracks.isEmpty()) ({ onRescan(false) }) else null,
+                        actionLabel = if (allTracks.isEmpty()) "Scan Device" else null,
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                    ) {
+                        itemsIndexed(displayedTracks, key = { _, t -> t.id }) { index, track ->
+                            val isSelected = track.id in selectedIds
+                            TrackRow(
+                                track = track,
+                                isCurrent = playbackState.currentTrack?.id == track.id,
+                                isPlaying = playbackState.isPlaying,
+                                isMultiSelectMode = multiSelectMode,
+                                isSelected = isSelected,
+                                onClick = {
+                                    if (multiSelectMode) {
+                                        selectedIds = if (isSelected) selectedIds - track.id else selectedIds + track.id
+                                    } else {
+                                        onPlayTracks(displayedTracks, index, false)
+                                    }
+                                },
+                                onLongClick = {
+                                    multiSelectMode = true
+                                    selectedIds = selectedIds + track.id
+                                },
+                                onToggleFavorite = { onToggleFavorite(track.id) },
+                                onPlayNext = { onTrackMenuAction(track, TrackMenuEvent.PlayNext) },
+                                onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
+                                onAddToPlaylist = { onTrackMenuAction(track, TrackMenuEvent.AddToPlaylist) },
+                                onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
+                                onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
+                                onGoToAlbum = { onTrackMenuAction(track, TrackMenuEvent.GoToAlbum) },
+                                onGoToArtist = { onTrackMenuAction(track, TrackMenuEvent.GoToArtist) },
+                                onTrackInfo = { onTrackMenuAction(track, TrackMenuEvent.TrackInfo) },
+                            )
+                        }
+                    }
+                }
+            }
+
+            LibraryCategory.ALBUMS -> {
+                if (sortedAlbums.isEmpty()) {
+                    EmptyCategoryState("No Albums", "Scan your local music library to browse albums.")
+                } else if (useGridLayout) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 152.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        items(sortedAlbums, key = { it.key }) { album ->
+                            Column(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onOpenAlbum(album.key) },
+                            ) {
+                                ArtworkImage(
+                                    artworkUri = album.artworkUri,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = "${displayedTracks.size} songs",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    OutlinedButton(
-                                        onClick = { onPlayTracks(displayedTracks, 0, true) },
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                    ) {
-                                        Icon(Icons.Rounded.Shuffle, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("Shuffle")
-                                    }
-                                }
-                            }
-                            itemsIndexed(displayedTracks, key = { _, t -> t.id }) { index, track ->
-                                val isSelected = track.id in selectedIds
-                                TrackRow(
-                                    track = track,
-                                    isCurrent = playbackState.currentTrack?.id == track.id,
-                                    isPlaying = playbackState.isPlaying,
-                                    isMultiSelectMode = multiSelectMode,
-                                    isSelected = isSelected,
-                                    onClick = {
-                                        if (multiSelectMode) {
-                                            selectedIds = if (isSelected) selectedIds - track.id else selectedIds + track.id
-                                        } else {
-                                            onPlayTracks(displayedTracks, index, false)
-                                        }
-                                    },
-                                    onLongClick = {
-                                        multiSelectMode = true
-                                        selectedIds = selectedIds + track.id
-                                    },
-                                    onToggleFavorite = { onToggleFavorite(track.id) },
-                                    onPlayNext = { onTrackMenuAction(track, TrackMenuEvent.PlayNext) },
-                                    onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
-                                    onAddToPlaylist = { onTrackMenuAction(track, TrackMenuEvent.AddToPlaylist) },
-                                    onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
-                                    onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
-                                    onGoToAlbum = { onTrackMenuAction(track, TrackMenuEvent.GoToAlbum) },
-                                    onGoToArtist = { onTrackMenuAction(track, TrackMenuEvent.GoToArtist) },
-                                    onTrackInfo = { onTrackMenuAction(track, TrackMenuEvent.TrackInfo) },
+                                        .height(152.dp),
+                                    cornerRadius = 12.dp,
+                                    fallbackIcon = Icons.Rounded.Album,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = album.albumName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = "${album.artistName} · ${album.trackCount} songs",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
                     }
-                }
-
-                LibraryCategory.ALBUMS -> {
-                    if (albums.isEmpty()) {
-                        EmptyCategoryState("No Albums", "Scan your local music library to browse albums.")
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 152.dp),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                        ) {
-                            items(albums, key = { it.key }) { album ->
-                                Column(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable { onOpenAlbum(album.key) },
-                                ) {
-                                    ArtworkImage(
-                                        artworkUri = album.artworkUri,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(152.dp),
-                                        cornerRadius = 12.dp,
-                                        fallbackIcon = Icons.Rounded.Album,
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = album.albumName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        text = "${album.artistName} · ${album.trackCount} songs",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(sortedAlbums, key = { it.key }) { album ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenAlbum(album.key) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ArtworkImage(
+                                    artworkUri = album.artworkUri,
+                                    modifier = Modifier.size(50.dp),
+                                    cornerRadius = 8.dp,
+                                    fallbackIcon = Icons.Rounded.Album,
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(album.albumName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${album.artistName} · ${album.trackCount} songs", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
+                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
+            }
 
-                LibraryCategory.ARTISTS -> {
-                    if (artists.isEmpty()) {
-                        EmptyCategoryState("No Artists", "Scan your local music library to browse artists.")
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(artists, key = { it.artistName }) { artist ->
-                                val shape = RoundedCornerShape(12.dp)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(shape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                                        .clickable { onOpenArtist(artist.artistName) }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    ArtworkImage(
-                                        artworkUri = artist.artworkUri,
-                                        modifier = Modifier.size(50.dp),
-                                        cornerRadius = 25.dp,
-                                        fallbackIcon = Icons.Rounded.Person,
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = artist.artistName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Text(
-                                            text = "${artist.albumCount} albums · ${artist.trackCount} songs",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+            LibraryCategory.ARTISTS -> {
+                if (sortedArtists.isEmpty()) {
+                    EmptyCategoryState("No Artists", "Scan your local music library to browse artists.")
+                } else if (useGridLayout) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 144.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        items(sortedArtists, key = { it.artistName }) { artist ->
+                            Column(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onOpenArtist(artist.artistName) }
+                                    .padding(4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                ArtworkImage(
+                                    artworkUri = artist.artworkUri,
+                                    modifier = Modifier.size(116.dp),
+                                    cornerRadius = 58.dp,
+                                    fallbackIcon = Icons.Rounded.Person,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(artist.artistName, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${artist.trackCount} songs", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(sortedArtists, key = { it.artistName }) { artist ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenArtist(artist.artistName) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ArtworkImage(
+                                    artworkUri = artist.artworkUri,
+                                    modifier = Modifier.size(50.dp),
+                                    cornerRadius = 25.dp,
+                                    fallbackIcon = Icons.Rounded.Person,
+                                )
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(artist.artistName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${artist.albumCount} albums · ${artist.trackCount} songs", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
+                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
+            }
 
-                LibraryCategory.GENRES -> {
-                    if (genres.isEmpty()) {
-                        EmptyCategoryState("No Genres", "Genre metadata will appear after scanning tracks.")
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            items(genres, key = { it.genreName }) { genre ->
-                                val shape = RoundedCornerShape(12.dp)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(shape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                                        .clickable { onOpenGenre(genre.genreName) }
-                                        .padding(14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Category,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(genre.genreName, style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            "${genre.trackCount} songs · ${formatDurationSummary(genre.totalDurationMs)}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+            LibraryCategory.GENRES -> {
+                if (sortedGenres.isEmpty()) {
+                    EmptyCategoryState("No Genres", "Genre metadata will appear after scanning tracks.")
+                } else if (useGridLayout) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 152.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(sortedGenres, key = { it.genreName }) { genre ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Column(
+                                modifier = Modifier
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenGenre(genre.genreName) }
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Icon(Icons.Rounded.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Text(genre.genreName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${genre.trackCount} songs", style = MonoBadgeStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(sortedGenres, key = { it.genreName }) { genre ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenGenre(genre.genreName) }
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Rounded.Category, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(genre.genreName, style = MaterialTheme.typography.titleMedium)
+                                    Text("${genre.trackCount} songs · ${formatDurationSummary(genre.totalDurationMs)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
+                                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
                 }
+            }
 
-                LibraryCategory.FOLDERS -> {
-                    if (folders.isEmpty()) {
-                        EmptyCategoryState("No Folders", "Scan device storage or import a folder to browse directories.")
-                    } else {
-                        LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            items(folders, key = { it.folderPath }) { folder ->
-                                val shape = RoundedCornerShape(12.dp)
+            LibraryCategory.FOLDERS -> {
+                if (sortedFolders.isEmpty()) {
+                    EmptyCategoryState("No Folders", "Scan device storage or import a folder to browse directories.")
+                } else if (useGridLayout) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 152.dp),
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(sortedFolders, key = { it.folderPath }) { folder ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Column(
+                                modifier = Modifier
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenFolder(folder.folderPath) }
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(shape)
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                                        .clickable { onOpenFolder(folder.folderPath) }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Folder,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(30.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = folder.folderName,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Text(
-                                            text = "${folder.trackCount} songs · ${folder.folderPath}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                    IconButton(onClick = { onExcludeFolder(folder.folderPath) }) {
+                                    Icon(Icons.Rounded.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    IconButton(
+                                        onClick = { onExcludeFolder(folder.folderPath) },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
                                         Icon(
                                             imageVector = Icons.Rounded.FolderOff,
                                             contentDescription = "Exclude folder",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp),
                                         )
                                     }
+                                }
+                                Text(folder.folderName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${folder.trackCount} songs", style = MonoBadgeStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(sortedFolders, key = { it.folderPath }) { folder ->
+                            val shape = RoundedCornerShape(12.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onOpenFolder(folder.folderPath) }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(Icons.Rounded.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(30.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(folder.folderName, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("${folder.trackCount} songs · ${folder.folderPath}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                IconButton(onClick = { onExcludeFolder(folder.folderPath) }) {
+                                    Icon(Icons.Rounded.FolderOff, contentDescription = "Exclude folder", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }

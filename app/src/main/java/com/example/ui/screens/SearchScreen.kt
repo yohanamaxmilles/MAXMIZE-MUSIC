@@ -61,6 +61,7 @@ import com.example.data.model.PlaybackUiState
 import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialChip
+import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.TrackRow
 import com.example.ui.viewmodel.SearchResults
 
@@ -94,6 +95,7 @@ fun SearchScreen(
     onOpenFolder: (String) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
     onTrackMenuAction: (Track, TrackMenuEvent) -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var scope by remember { mutableStateOf(SearchScope.ALL) }
@@ -104,13 +106,10 @@ fun SearchScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("search_screen"),
     ) {
-        Text(
-            text = "Search",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-            ),
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+        MaxmizeTopHeader(
+            title = "Search",
+            subtitle = "SONGS · ARTISTS · ALBUMS · FOLDERS",
+            onOpenSettings = onOpenSettings,
         )
 
         // Custom Editorial Search Input Bar

@@ -1,11 +1,5 @@
 package com.example.ui.screens
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +41,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -66,12 +61,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,7 +82,9 @@ import com.example.ui.components.EditorialGroupCard
 import com.example.ui.theme.BadgeGoldBg
 import com.example.ui.theme.BadgeGoldFg
 import com.example.ui.theme.MonoBadgeStyle
+import com.example.ui.theme.MonoStatStyle
 import com.example.ui.theme.MonoTimecodeStyle
+import kotlin.math.roundToInt
 
 @Composable
 fun AutomixScreen(
@@ -111,15 +105,15 @@ fun AutomixScreen(
     onAnalyzeLibrary: () -> Unit,
     onCorrectAnalysis: (Track, Float, String) -> Unit,
     modifier: Modifier = Modifier,
+    embeddedInHub: Boolean = false,
 ) {
     var correctionTrack by remember { mutableStateOf<Track?>(null) }
     val spectrumBands by RealtimeSpectrumBus.bands.collectAsStateWithLifecycle()
 
-    val activeTrack = if (automixState.activeDeckIndex == 0) {
-        automixState.deckA.track ?: playbackState.currentTrack
-    } else {
-        automixState.deckB.track ?: playbackState.currentTrack
-    }
+    val activeDeck = if (automixState.activeDeckIndex == 0) automixState.deckA else automixState.deckB
+    val incomingDeck = if (automixState.activeDeckIndex == 0) automixState.deckB else automixState.deckA
+    val incomingPreviewTrack = incomingDeck.track ?: automixState.djQueue.firstOrNull()?.track
+    val incomingPreviewAnalysis = incomingPreviewTrack?.let { analyses[it.id] }
 
     LazyColumn(
         modifier = modifier
@@ -128,153 +122,208 @@ fun AutomixScreen(
             .testTag("automix_screen"),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
-        // Top Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                        contentDescription = "Back",
-                        modifier = Modifier.size(30.dp),
-                    )
-                }
-                Text(
-                    text = if (automixState.isActive) "Automix in Progress" else "Automix",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                Row {
-                    IconButton(
-                        onClick = onOpenDjQueue,
-                        modifier = Modifier.testTag("automix_queue_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.QueueMusic,
-                            contentDescription = "DJ Queue & History",
-                            tint = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
-                    IconButton(
-                        onClick = onOpenSettings,
-                        modifier = Modifier.testTag("automix_settings_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = "Automix Settings",
-                            tint = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
-                }
-            }
-        }
-
-        // Turntable Disc & Live Spectrum Visualizer (Zero Gradients)
-        item {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                VinylTurntableVisualizer(
-                    isActive = automixState.isActive,
-                    isPlaying = playbackState.isPlaying || automixState.isMixingTransition,
-                    isMixing = automixState.isMixingTransition,
-                    spectrumBands = spectrumBands,
-                    onCenterClick = {
-                        if (automixState.isActive) onTogglePlayPause() else onStartAutomix()
-                    },
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Active DJ Profile Badge
+        if (!embeddedInHub) {
+            item {
                 Row(
                     modifier = Modifier
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                        .clickable(onClick = onOpenSettings)
-                        .padding(horizontal = 12.dp, vertical = 5.dp)
-                        .testTag("automix_profile_badge"),
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Tune,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp),
-                    )
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(30.dp),
+                        )
+                    }
                     Text(
-                        text = "${automixState.activeProfileName} · ${automixConfig.harmonicMixLevel.label} Key · ${automixConfig.energyProgression.label}",
-                        style = MonoBadgeStyle,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = if (automixState.isActive) "Automix Live" else "Automix",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = if (automixState.isActive) "Mixing your tracks..." else "Smart Automix",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = if (automixState.isActive) {
-                        automixState.statusText
-                    } else {
-                        "Let the music flow automatically with offline BPM, harmonic & genre intelligence."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                )
-
-                if (automixState.isMixingTransition) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LinearProgressIndicator(
-                        progress = { automixState.transitionProgress.coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth(0.75f)
-                            .height(4.dp)
-                            .clip(CircleShape),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.outline,
-                    )
+                    Row {
+                        IconButton(
+                            onClick = onOpenDjQueue,
+                            modifier = Modifier.testTag("automix_queue_btn"),
+                        ) {
+                            Icon(Icons.Rounded.QueueMusic, contentDescription = "DJ Queue")
+                        }
+                        IconButton(
+                            onClick = onOpenSettings,
+                            modifier = Modifier.testTag("automix_settings_btn"),
+                        ) {
+                            Icon(Icons.Rounded.Settings, contentDescription = "Automix Settings")
+                        }
+                    }
                 }
             }
         }
 
-        // Primary Gold CTA / Stop Control
+        // Transition Status & Compatibility Header
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            .clickable(onClick = onOpenSettings)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                            .testTag("automix_profile_badge"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = "${automixState.activeProfileName} · ${automixConfig.transitionStyle.label}",
+                            style = MonoBadgeStyle,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+
+                    if (automixState.currentCompatibilityScore > 0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(BadgeGoldBg)
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                        ) {
+                            Text(
+                                text = "${automixState.currentCompatibilityScore}% MATCH",
+                                style = MonoBadgeStyle,
+                                color = BadgeGoldFg,
+                            )
+                        }
+                    }
+                }
+
+                // Live Spectrum Waveform & Crossfade Progress Card
+                EditorialGroupCard(cornerRadius = 16.dp) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = when {
+                                    automixState.isMixingTransition -> "CROSSFADING TRACKS"
+                                    automixState.isActive -> "DUAL-DECK AUTOMIX ACTIVE"
+                                    else -> "AUTOMIX READY"
+                                },
+                                style = MonoBadgeStyle,
+                                color = if (automixState.isActive) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "${automixConfig.transitionDurationSec}s · ${automixConfig.mode.label}",
+                                style = MonoBadgeStyle,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+
+                        SpectrumWaveformStrip(
+                            spectrumBands = spectrumBands,
+                            isPlaying = playbackState.isPlaying || automixState.isMixingTransition,
+                            isMixing = automixState.isMixingTransition,
+                        )
+
+                        Text(
+                            text = automixState.statusText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+
+                        if (automixState.isMixingTransition) {
+                            LinearProgressIndicator(
+                                progress = { automixState.transitionProgress.coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Current Deck vs Incoming Deck Cards
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                DeckStageCard(
+                    roleLabel = "CURRENT DECK (${activeDeck.deckName.uppercase()})",
+                    deck = activeDeck,
+                    fallbackTrack = playbackState.currentTrack,
+                    fallbackAnalysis = playbackState.currentTrack?.let { analyses[it.id] },
+                    highlighted = true,
+                    onEditClick = {
+                        val t = activeDeck.track ?: playbackState.currentTrack
+                        if (t != null) correctionTrack = t
+                    },
+                )
+                DeckStageCard(
+                    roleLabel = "INCOMING DECK (${incomingDeck.deckName.uppercase()})",
+                    deck = incomingDeck,
+                    fallbackTrack = incomingPreviewTrack,
+                    fallbackAnalysis = incomingPreviewAnalysis,
+                    highlighted = automixState.isMixingTransition,
+                    onEditClick = {
+                        val t = incomingDeck.track ?: incomingPreviewTrack
+                        if (t != null) correctionTrack = t
+                    },
+                )
+            }
+        }
+
+        // Start / Pause / Stop / Mix Next Transport Controls
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (!automixState.isActive) {
                     Button(
                         onClick = onStartAutomix,
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ),
-                        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
+                            .height(50.dp)
                             .testTag("start_automix_btn"),
                     ) {
                         Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
@@ -287,42 +336,55 @@ fun AutomixScreen(
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        OutlinedButton(
-                            onClick = onStopAutomix,
-                            shape = CircleShape,
+                        Button(
+                            onClick = onTogglePlayPause,
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp)
-                                .testTag("stop_automix_btn"),
+                                .height(48.dp)
+                                .testTag("automix_play_pause_btn"),
                         ) {
-                            Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Icon(
+                                imageVector = if (playbackState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                            )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Stop Automix", fontWeight = FontWeight.SemiBold)
+                            Text(if (playbackState.isPlaying) "Pause" else "Resume", fontWeight = FontWeight.SemiBold)
                         }
                         Button(
                             onClick = onSkipNextMix,
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
                             ),
                             modifier = Modifier
-                                .weight(0.85f)
-                                .height(50.dp)
+                                .weight(1f)
+                                .height(48.dp)
                                 .testTag("mix_next_btn"),
                         ) {
                             Icon(Icons.Rounded.SkipNext, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Mix Next", fontWeight = FontWeight.SemiBold)
                         }
+                        OutlinedButton(
+                            onClick = onStopAutomix,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .height(48.dp)
+                                .testTag("stop_automix_btn"),
+                        ) {
+                            Icon(Icons.Rounded.Stop, contentDescription = "Stop Automix", modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
         }
 
-        // Strict Compatibility Rejection Alert (honest feedback instead of bad forced match)
+        // Strict Compatibility Rejection Alert
         val rejectionReason = automixState.noSuitableTrackReason
         if (!rejectionReason.isNullOrBlank()) {
             item {
@@ -350,7 +412,6 @@ fun AutomixScreen(
                         Text(
                             text = "No Compatible Next Track",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground,
                         )
                         Text(
                             text = rejectionReason,
@@ -367,99 +428,12 @@ fun AutomixScreen(
             }
         }
 
-        // Active Track Card (when Automix is running)
-        if (automixState.isActive && activeTrack != null) {
-            item {
-                val activeAnalysis = analyses[activeTrack.id]
-                EditorialGroupCard(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    cornerRadius = 14.dp,
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { correctionTrack = activeTrack }
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ArtworkImage(
-                            artworkUri = activeTrack.customArtworkUri ?: activeTrack.artworkUri,
-                            fallbackUri = activeTrack.contentUri,
-                            modifier = Modifier.size(52.dp),
-                            cornerRadius = 10.dp,
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = activeTrack.title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = activeTrack.artist,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            if (activeAnalysis != null) {
-                                Text(
-                                    text = "${activeAnalysis.bpm.toInt()} BPM · ${activeAnalysis.camelotCode} (${activeAnalysis.musicalKey}) · ${activeAnalysis.subgenre.ifBlank { activeTrack.genre }}",
-                                    style = MonoBadgeStyle,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(top = 3.dp),
-                                )
-                            }
-                        }
-                        if (automixState.djQueue.isNotEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(BadgeGoldBg)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                            ) {
-                                Text(
-                                    text = "${automixState.currentCompatibilityScore}% Match",
-                                    style = MonoBadgeStyle,
-                                    color = BadgeGoldFg,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Dual-Deck Live Telemetry
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                DeckTelemetryCard(
-                    deck = automixState.deckA,
-                    onEditClick = { automixState.deckA.track?.let { correctionTrack = it } },
-                    modifier = Modifier.weight(1f),
-                )
-                DeckTelemetryCard(
-                    deck = automixState.deckB,
-                    onEditClick = { automixState.deckB.track?.let { correctionTrack = it } },
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        // 6-Tile DJ Feature Matrix
+        // 6-Tile Quick Controls Matrix
         item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(
@@ -469,7 +443,7 @@ fun AutomixScreen(
                     DjFeatureTile(
                         icon = Icons.Rounded.Speed,
                         title = "BPM Match",
-                        subtitle = if (automixConfig.bpmMatchEnabled) "On · ${automixConfig.bpmMin}-${automixConfig.bpmMax}" else "Off",
+                        subtitle = if (automixConfig.bpmMatchEnabled) "${automixConfig.bpmMin}-${automixConfig.bpmMax}" else "Off",
                         highlighted = automixConfig.bpmMatchEnabled,
                         onClick = onToggleBpmMatch,
                         modifier = Modifier.weight(1f),
@@ -477,7 +451,7 @@ fun AutomixScreen(
                     DjFeatureTile(
                         icon = Icons.Rounded.Lock,
                         title = "Key Lock",
-                        subtitle = if (automixConfig.keyLockEnabled) "Pitch Kept" else "Vinyl Pitch",
+                        subtitle = if (automixConfig.keyLockEnabled) "Pitch Kept" else "Vinyl",
                         highlighted = automixConfig.keyLockEnabled,
                         onClick = onToggleKeyLock,
                         modifier = Modifier.weight(1f),
@@ -506,14 +480,14 @@ fun AutomixScreen(
                     DjFeatureTile(
                         icon = Icons.Rounded.Loop,
                         title = "Crossfade",
-                        subtitle = "${automixConfig.transitionDurationSec}s · ${automixConfig.transitionStyle.label}",
+                        subtitle = "${automixConfig.transitionDurationSec}s",
                         highlighted = true,
                         onClick = onOpenSettings,
                         modifier = Modifier.weight(1f),
                     )
                     DjFeatureTile(
                         icon = Icons.Rounded.QueueMusic,
-                        title = "Smart Queue",
+                        title = "DJ Queue",
                         subtitle = "${automixState.djQueue.size} upcoming",
                         highlighted = automixState.djQueue.isNotEmpty(),
                         onClick = onOpenDjQueue,
@@ -523,57 +497,41 @@ fun AutomixScreen(
             }
         }
 
-        // Offline DSP Analysis Status Card
+        // Offline Audio Analysis Quick Trigger
         item {
             EditorialGroupCard(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 cornerRadius = 14.dp,
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Offline Audio Analysis",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                            Text(
-                                text = if (automixState.isAnalyzing) {
-                                    "Analyzing BPM, Camelot Key & Genre (${automixState.analyzedCount}/${automixState.totalTrackCount})"
-                                } else {
-                                    "${analyses.size} analyzed tracks stored locally"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = onAnalyzeLibrary,
-                            enabled = !automixState.isAnalyzing,
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.testTag("analyze_library_btn"),
-                        ) {
-                            Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (automixState.isAnalyzing) "Analyzing..." else "Analyze")
-                        }
-                    }
-                    if (automixState.isAnalyzing && automixState.totalTrackCount > 0) {
-                        LinearProgressIndicator(
-                            progress = {
-                                (automixState.analyzedCount.toFloat() / automixState.totalTrackCount.coerceAtLeast(1))
-                                    .coerceIn(0f, 1f)
-                            },
-                            modifier = Modifier.fillMaxWidth().height(3.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.outline,
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Offline Audio Analysis",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         )
+                        Text(
+                            text = if (automixState.isAnalyzing) {
+                                "Analyzing ${automixState.analyzedCount}/${automixState.totalTrackCount} tracks..."
+                            } else {
+                                "${analyses.size} analyzed tracks ready for mixing"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onAnalyzeLibrary,
+                        enabled = !automixState.isAnalyzing,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.testTag("analyze_library_btn"),
+                    ) {
+                        Text(if (automixState.isAnalyzing) "Analyzing..." else "Analyze")
                     }
                 }
             }
@@ -596,150 +554,80 @@ fun AutomixScreen(
 }
 
 @Composable
-private fun VinylTurntableVisualizer(
-    isActive: Boolean,
+private fun SpectrumWaveformStrip(
+    spectrumBands: List<Float>,
     isPlaying: Boolean,
     isMixing: Boolean,
-    spectrumBands: List<Float>,
-    onCenterClick: () -> Unit,
 ) {
-    val transition = rememberInfiniteTransition(label = "turntableSpin")
-    val spinAngle by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "discRotation",
-    )
-
     val gold = MaterialTheme.colorScheme.primary
-    val discSurface = MaterialTheme.colorScheme.surface
-    val grooveColor = MaterialTheme.colorScheme.outline
+    val muted = MaterialTheme.colorScheme.outlineVariant
 
-    Box(
+    Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(210.dp),
-        contentAlignment = Alignment.Center,
+            .height(52.dp),
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val cy = size.height / 2f
-            val cx = size.width / 2f
-            val discRadius = 86.dp.toPx()
+        val barCount = 28
+        val gap = 4.dp.toPx()
+        val barWidth = ((size.width - gap * (barCount - 1)) / barCount).coerceAtLeast(2.dp.toPx())
+        val cy = size.height / 2f
 
-            // Live 12-band PCM frequency bars driven directly by ExoPlayer decoded PCM buffer
-            val barCount = 12
-            val barWidth = 3.dp.toPx()
-            val barSpacing = 5.5.dp.toPx()
-            val maxBarHalfH = 44.dp.toPx()
-
-            for (side in listOf(-1, 1)) {
-                for (i in 0 until barCount) {
-                    val distFromDisc = discRadius + 12.dp.toPx() + i * barSpacing
-                    val x = cx + side * distFromDisc
-                    if (x < 6f || x > size.width - 6f) continue
-
-                    val bandIdx = if (side == -1) (barCount - 1 - i) else i
-                    val amp = if (isPlaying) {
-                        spectrumBands.getOrElse(bandIdx) { 0.08f }.coerceIn(0.06f, 1.0f)
-                    } else {
-                        0.12f + 0.06f * ((i % 3) / 2f)
-                    }
-                    val envelope = 1f - (i.toFloat() / barCount) * 0.42f
-                    val halfH = (maxBarHalfH * envelope * amp).coerceAtLeast(3.dp.toPx())
-                    drawRoundRect(
-                        color = if (isMixing || amp > 0.55f) gold else gold.copy(alpha = 0.68f),
-                        topLeft = Offset(x - barWidth / 2f, cy - halfH),
-                        size = Size(barWidth, halfH * 2f),
-                        cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
-                    )
-                }
+        for (i in 0 until barCount) {
+            val bandIdx = (i * 12) / barCount
+            val amp = if (isPlaying) {
+                spectrumBands.getOrElse(bandIdx) { 0.15f }.coerceIn(0.10f, 1f)
+            } else {
+                0.16f + 0.12f * ((i % 4) / 3f)
             }
-
-            // Matte Black Vinyl Disc + Subtle Grooves
-            drawCircle(
-                color = if (isActive) gold else grooveColor,
-                radius = discRadius + 2.dp.toPx(),
-                center = Offset(cx, cy),
-                style = Stroke(width = if (isActive) 2.dp.toPx() else 1.2.dp.toPx()),
-            )
-            drawCircle(
-                color = discSurface,
-                radius = discRadius,
-                center = Offset(cx, cy),
-            )
-
-            val angle = if (isPlaying) spinAngle else 25f
-            rotate(degrees = angle, pivot = Offset(cx, cy)) {
-                for (rFactor in listOf(0.84f, 0.72f, 0.60f, 0.48f)) {
-                    drawCircle(
-                        color = grooveColor,
-                        radius = discRadius * rFactor,
-                        center = Offset(cx, cy),
-                        style = Stroke(width = 1.dp.toPx()),
-                    )
-                }
-                drawCircle(
-                    color = gold,
-                    radius = 3.5.dp.toPx(),
-                    center = Offset(cx, cy - discRadius * 0.74f),
-                )
+            val halfH = (size.height * 0.45f * amp).coerceAtLeast(4.dp.toPx())
+            val x = i * (barWidth + gap)
+            val color = when {
+                isMixing || amp > 0.55f -> gold
+                isPlaying -> gold.copy(alpha = 0.65f)
+                else -> muted
             }
-
-            // Gold Inner Hub Ring
-            drawCircle(
-                color = gold.copy(alpha = 0.25f),
-                radius = 30.dp.toPx(),
-                center = Offset(cx, cy),
-            )
-            drawCircle(
-                color = gold,
-                radius = 27.dp.toPx(),
-                center = Offset(cx, cy),
-                style = Stroke(width = 2.dp.toPx()),
-            )
-        }
-
-        // Interactive Center Play / Pause Spindle Button
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
-                .clickable(onClick = onCenterClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (isActive && isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = "Toggle Automix playback",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(28.dp),
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x, cy - halfH),
+                size = Size(barWidth, halfH * 2f),
+                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
             )
         }
     }
 }
 
 @Composable
-private fun DeckTelemetryCard(
+private fun DeckStageCard(
+    roleLabel: String,
     deck: DeckState,
+    fallbackTrack: Track?,
+    fallbackAnalysis: TrackAnalysis?,
+    highlighted: Boolean,
     onEditClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
+    val track = deck.track ?: fallbackTrack
+    val bpm = when {
+        deck.bpm > 0f -> deck.bpm
+        fallbackAnalysis != null -> fallbackAnalysis.bpm
+        else -> 0f
+    }
+    val keyCode = deck.camelotCode.takeIf { it != "--" } ?: fallbackAnalysis?.camelotCode ?: "--"
+    val genre = deck.genreLabel.ifBlank { fallbackAnalysis?.subgenre?.ifBlank { track?.genre } ?: "" }
+
     val shape = RoundedCornerShape(14.dp)
-    val borderColor = if (deck.isActiveForeground && deck.track != null) {
-        MaterialTheme.colorScheme.primary
+    val borderColor = if (highlighted && track != null) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.65f)
     } else MaterialTheme.colorScheme.outlineVariant
 
     Column(
-        modifier = modifier
+        modifier = Modifier
+            .fillMaxWidth()
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
             .border(1.dp, borderColor, shape)
-            .clickable(enabled = deck.track != null, onClick = onEditClick)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .clickable(enabled = track != null, onClick = onEditClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -747,31 +635,73 @@ private fun DeckTelemetryCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = deck.deckName.uppercase(),
+                text = roleLabel,
                 style = MonoBadgeStyle,
-                color = if (deck.isActiveForeground) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (highlighted && track != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = if (deck.bpm > 0f) "${deck.bpm.toInt()} BPM · ${deck.camelotCode}" else "IDLE",
-                style = MonoTimecodeStyle.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (track != null) {
+                Text(
+                    text = "${(deck.volume * 100).roundToInt()}% VOL",
+                    style = MonoBadgeStyle,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ArtworkImage(
+                artworkUri = track?.displayArtwork,
+                fallbackUri = track?.contentUri,
+                modifier = Modifier.size(56.dp),
+                cornerRadius = 10.dp,
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track?.title ?: "Standby",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = track?.artist ?: "Waiting for track",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            DeckTelemetryChip("BPM", if (bpm > 0f) "${bpm.roundToInt()}" else "--")
+            DeckTelemetryChip("KEY", keyCode)
+            DeckTelemetryChip("GENRE", genre.ifBlank { "--" })
+        }
+    }
+}
+
+@Composable
+private fun DeckTelemetryChip(label: String, value: String) {
+    Column {
         Text(
-            text = deck.track?.title ?: "Standby",
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = if (deck.genreLabel.isNotBlank() && deck.track != null) {
-                "${deck.track.artist} · ${deck.genreLabel}"
-            } else {
-                deck.track?.artist ?: "Waiting for next track"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = value,
+            style = MonoStatStyle.copy(fontSize = 13.sp),
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -799,14 +729,14 @@ private fun DjFeatureTile(
                 shape = shape,
             )
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 8.dp),
+            .padding(vertical = 12.dp, horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(34.dp)
+                .clip(RoundedCornerShape(9.dp))
                 .background(if (highlighted) BadgeGoldBg else MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {
@@ -814,7 +744,7 @@ private fun DjFeatureTile(
                 imageVector = icon,
                 contentDescription = title,
                 tint = if (highlighted) BadgeGoldFg else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(19.dp),
+                modifier = Modifier.size(18.dp),
             )
         }
         Text(

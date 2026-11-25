@@ -25,9 +25,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Analytics
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -50,14 +50,12 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PrivacyTip
-import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Speaker
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SurroundSound
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Wifi
@@ -109,7 +107,6 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     prefs: UserPreferences,
     equalizerState: EqualizerUiState,
-    isAutomixActive: Boolean,
     lyricsBatchStatus: String?,
     artworkBatchStatus: String?,
     failedArtworkCount: Int,
@@ -118,15 +115,14 @@ fun SettingsScreen(
     undoHistory: List<MetadataUndoEntity>,
     excludedFolders: List<String>,
     trackCount: Int,
+    hasAudioPermission: Boolean = true,
+    onBack: () -> Unit = {},
+    onRequestPermission: () -> Unit = {},
     onSetThemeMode: (ThemeMode) -> Unit,
     onSetAccentPreset: (AccentPreset) -> Unit,
     onSetFontChoice: (FontChoice) -> Unit,
     onSetFontScale: (Float) -> Unit,
     onSetUiDensity: (UiDensity) -> Unit,
-    onToggleAutomix: () -> Unit,
-    onOpenAutomix: () -> Unit,
-    onOpenAutomixSettings: () -> Unit,
-    onOpenDjQueue: () -> Unit,
     onOpenEqualizer: () -> Unit,
     onToggleBassBoost: (Boolean) -> Unit,
     onToggleVirtualizer: (Boolean) -> Unit,
@@ -178,238 +174,202 @@ fun SettingsScreen(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
     }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .testTag("settings_screen"),
-        contentPadding = PaddingValues(bottom = 32.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        // Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+        // Editorial Settings Header with Back Arrow
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("settings_back_btn"),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
                 Text(
                     text = "Settings",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 26.sp,
+                        fontSize = 25.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
-                IconButton(onClick = onOpenSearch) {
-                    Icon(Icons.Rounded.Search, contentDescription = "Search library")
+            }
+            IconButton(
+                onClick = onOpenSearch,
+                modifier = Modifier.testTag("settings_search_btn"),
+            ) {
+                Icon(Icons.Rounded.Search, contentDescription = "Search library")
+            }
+        }
+        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
+
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag("settings_screen"),
+            contentPadding = PaddingValues(bottom = 36.dp),
+        ) {
+
+        // 1. APPEARANCE
+        item {
+            SettingsCategoryLabel("APPEARANCE")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val themeItems = listOf(
+                        Triple(ThemeMode.DARK, "Dark", Icons.Rounded.DarkMode),
+                        Triple(ThemeMode.LIGHT, "Light", Icons.Rounded.LightMode),
+                        Triple(ThemeMode.SYSTEM, "System", Icons.Rounded.PhoneAndroid),
+                    )
+                    themeItems.forEach { (mode, label, icon) ->
+                        val selected = prefs.themeMode == mode
+                        val tileShape = RoundedCornerShape(12.dp)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(tileShape)
+                                .background(
+                                    if (selected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceContainerHigh
+                                )
+                                .border(
+                                    width = if (selected) 1.5.dp else 0.75.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    shape = tileShape,
+                                )
+                                .clickable { onSetThemeMode(mode) }
+                                .padding(vertical = 12.dp)
+                                .testTag("theme_chip_${mode.name.lowercase()}"),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                ),
+                                color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                RowDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        text = "Font Family",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FontChoice.entries.forEach { font ->
+                            EditorialChip(
+                                label = font.label,
+                                selected = prefs.fontChoice == font,
+                                onClick = { onSetFontChoice(font) },
+                                modifier = Modifier.testTag("font_choice_${font.name.lowercase()}"),
+                            )
+                        }
+                    }
+                }
+                RowDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Text Scale", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text(
+                            text = "${(prefs.fontScale * 100).roundToInt()}%",
+                            style = MonoTimecodeStyle,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    MaxmizeSlider(
+                        value = prefs.fontScale,
+                        onValueChange = { onSetFontScale(it) },
+                        valueRange = 0.88f..1.18f,
+                    )
+                }
+                RowDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        text = "Layout Density",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        UiDensity.entries.forEach { density ->
+                            EditorialChip(
+                                label = density.label,
+                                selected = prefs.uiDensity == density,
+                                onClick = { onSetUiDensity(density) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+                RowDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(
+                        text = "Accent Color",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        AccentPreset.entries.forEach { preset ->
+                            val swatchColor = accentColorFor(preset, isDark)
+                            val selected = prefs.accentPreset == preset
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .let {
+                                        if (selected) {
+                                            it.border(2.dp, MaterialTheme.colorScheme.onBackground, CircleShape)
+                                                .padding(4.dp)
+                                        } else it
+                                    }
+                                    .clip(CircleShape)
+                                    .background(swatchColor)
+                                    .clickable { onSetAccentPreset(preset) }
+                                    .testTag("accent_swatch_${preset.name.lowercase()}"),
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // AUTOMIX & DJ
-        item {
-            SettingsCategoryLabel("AUTOMIX & DJ")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.AutoAwesome,
-                    title = "Automix",
-                    subtitle = "Background-independent dual-deck DJ mixing",
-                    checked = isAutomixActive,
-                    onCheckedChange = { onToggleAutomix() },
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.GraphicEq,
-                    title = "Automix Deck Hub",
-                    valueText = if (isAutomixActive) "Active" else "Open",
-                    onClick = onOpenAutomix,
-                    modifier = Modifier.testTag("settings_open_automix"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Tune,
-                    title = "DJ Intelligence & Mix Settings",
-                    valueText = prefs.automixConfig.mode.label,
-                    onClick = onOpenAutomixSettings,
-                    modifier = Modifier.testTag("settings_open_automix_settings"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.QueueMusic,
-                    title = "DJ Queue & History",
-                    onClick = onOpenDjQueue,
-                    modifier = Modifier.testTag("settings_open_dj_queue"),
-                )
-            }
-        }
-
-        // AUDIO SETTINGS
-        item {
-            SettingsCategoryLabel("AUDIO SETTINGS")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsNavRow(
-                    icon = Icons.Rounded.Equalizer,
-                    title = "Equalizer",
-                    valueText = prefs.eqPreset,
-                    onClick = onOpenEqualizer,
-                    modifier = Modifier.testTag("settings_open_eq"),
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.Speaker,
-                    title = "Bass Boost",
-                    checked = equalizerState.bassBoostStrength > 0,
-                    onCheckedChange = onToggleBassBoost,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.SurroundSound,
-                    title = "Virtualizer",
-                    checked = equalizerState.virtualizerStrength > 0,
-                    onCheckedChange = onToggleVirtualizer,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.VolumeUp,
-                    title = "Loudness Normalization",
-                    subtitle = "Target balanced -14 LUFS playback level",
-                    checked = prefs.loudnessNormalizationEnabled,
-                    onCheckedChange = onSetLoudnessNormalization,
-                )
-            }
-        }
-
-        // SMART ARTWORK ENGINE
-        item {
-            SettingsCategoryLabel("SMART ARTWORK & COVERS")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.AutoFixHigh,
-                    title = "Auto-Fix Missing Covers on Scan",
-                    subtitle = "Only apply high-confidence verified album art",
-                    checked = prefs.autoFixArtworkOnScan,
-                    onCheckedChange = onSetAutoFixArtworkOnScan,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.Wifi,
-                    title = "Wi-Fi Only Artwork Downloads",
-                    checked = prefs.artworkWifiOnly,
-                    onCheckedChange = onSetArtworkWifiOnly,
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Image,
-                    title = "Find Missing Album Covers",
-                    valueText = artworkBatchStatus ?: "${metadataHealth.missingArtworkTracks.size} missing",
-                    onClick = onBatchFixMissingArtwork,
-                    modifier = Modifier.testTag("settings_batch_artwork"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Refresh,
-                    title = "Retry Failed Cover Lookups",
-                    valueText = if (failedArtworkCount > 0) "$failedArtworkCount queued" else "None",
-                    onClick = onRetryFailedArtwork,
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.DeleteOutline,
-                    title = "Clear Artwork Cache",
-                    onClick = onClearArtworkCache,
-                )
-            }
-        }
-
-        // METADATA HEALTH & ANALYTICS
-        item {
-            SettingsCategoryLabel("LIBRARY HEALTH & STATS")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsNavRow(
-                    icon = Icons.Rounded.Analytics,
-                    title = "Library Analytics",
-                    valueText = "${libraryStats.totalTracks} songs",
-                    onClick = { showStatsDialog = true },
-                    modifier = Modifier.testTag("settings_library_stats"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.HealthAndSafety,
-                    title = "Metadata Health Inspector",
-                    valueText = if (metadataHealth.totalIssueTracks == 0) "Clean" else "${metadataHealth.totalIssueTracks} issues",
-                    onClick = { showHealthDialog = true },
-                    modifier = Modifier.testTag("settings_metadata_health"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.ContentCopy,
-                    title = "Duplicate Track Finder",
-                    valueText = "${metadataHealth.duplicateGroups.size} groups",
-                    onClick = { showDuplicatesDialog = true },
-                    modifier = Modifier.testTag("settings_duplicate_finder"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Undo,
-                    title = "Metadata Edit Undo History",
-                    valueText = "${undoHistory.size} edits",
-                    onClick = { showUndoDialog = true },
-                    modifier = Modifier.testTag("settings_undo_history"),
-                )
-            }
-        }
-
-        // LYRICS ENGINE
-        item {
-            SettingsCategoryLabel("LYRICS ENGINE")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.CloudDownload,
-                    title = "Auto-Download Synced Lyrics",
-                    subtitle = "Fetch missing lyrics via LRCLIB & cache offline",
-                    checked = prefs.autoDownloadLyrics,
-                    onCheckedChange = onSetAutoDownloadLyrics,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.Wifi,
-                    title = "Wi-Fi Only Lyrics Downloads",
-                    checked = prefs.lyricsWifiOnly,
-                    onCheckedChange = onSetLyricsWifiOnly,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.PlayArrow,
-                    title = "Download When Playback Starts",
-                    checked = prefs.downloadLyricsOnPlayStart,
-                    onCheckedChange = onSetDownloadLyricsOnPlayStart,
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Lyrics,
-                    title = "Fetch Missing Library Lyrics",
-                    valueText = lyricsBatchStatus ?: "Scan",
-                    onClick = onBatchFetchLyrics,
-                    modifier = Modifier.testTag("settings_batch_lyrics"),
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.Key,
-                    title = "Musixmatch API Key (Optional)",
-                    valueText = if (prefs.musixmatchApiKey.isBlank()) "Not Set" else "Configured",
-                    onClick = { showMusixmatchDialog = true },
-                )
-                RowDivider()
-                SettingsNavRow(
-                    icon = Icons.Rounded.DeleteOutline,
-                    title = "Clear Cached Lyrics",
-                    onClick = onClearLyricsCache,
-                )
-            }
-        }
-
-        // PLAYBACK
+        // 2. PLAYBACK
         item {
             SettingsCategoryLabel("PLAYBACK")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -486,166 +446,19 @@ fun SettingsScreen(
                     checked = prefs.resumePausedOnReopen,
                     onCheckedChange = onSetResumePaused,
                 )
-            }
-        }
-
-        // APPEARANCE & TYPOGRAPHY
-        item {
-            SettingsCategoryLabel("APPEARANCE & TYPOGRAPHY")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    val themeItems = listOf(
-                        Triple(ThemeMode.DARK, "Dark", Icons.Rounded.DarkMode),
-                        Triple(ThemeMode.LIGHT, "Light", Icons.Rounded.LightMode),
-                        Triple(ThemeMode.SYSTEM, "System", Icons.Rounded.PhoneAndroid),
-                    )
-                    themeItems.forEach { (mode, label, icon) ->
-                        val selected = prefs.themeMode == mode
-                        val tileShape = RoundedCornerShape(12.dp)
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(tileShape)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceContainerHigh
-                                )
-                                .border(
-                                    width = if (selected) 1.5.dp else 0.75.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    shape = tileShape,
-                                )
-                                .clickable { onSetThemeMode(mode) }
-                                .padding(vertical = 12.dp)
-                                .testTag("theme_chip_${mode.name.lowercase()}"),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = label,
-                                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                                ),
-                                color = if (selected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        text = "Font Family",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FontChoice.entries.forEach { font ->
-                            EditorialChip(
-                                label = font.label,
-                                selected = prefs.fontChoice == font,
-                                onClick = { onSetFontChoice(font) },
-                                modifier = Modifier.testTag("font_choice_${font.name.lowercase()}"),
-                            )
-                        }
-                    }
-                }
                 RowDivider()
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Text Scale", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        Text(
-                            text = "${(prefs.fontScale * 100).roundToInt()}%",
-                            style = MonoTimecodeStyle,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    MaxmizeSlider(
-                        value = prefs.fontScale,
-                        onValueChange = { onSetFontScale(it) },
-                        valueRange = 0.88f..1.18f,
-                    )
-                }
-                RowDivider()
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        text = "Layout Density",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        UiDensity.entries.forEach { density ->
-                            EditorialChip(
-                                label = density.label,
-                                selected = prefs.uiDensity == density,
-                                onClick = { onSetUiDensity(density) },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                text = "Accent Color",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                AccentPreset.entries.forEach { preset ->
-                    val swatchColor = accentColorFor(preset, isDark)
-                    val selected = prefs.accentPreset == preset
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .let {
-                                if (selected) {
-                                    it.border(2.dp, MaterialTheme.colorScheme.onBackground, CircleShape)
-                                        .padding(4.dp)
-                                } else it
-                            }
-                            .clip(CircleShape)
-                            .background(swatchColor)
-                            .clickable { onSetAccentPreset(preset) }
-                            .testTag("accent_swatch_${preset.name.lowercase()}"),
-                    )
-                }
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.Notifications,
+                    title = "Show Track Controls in Notification",
+                    checked = prefs.showNotificationSeekButtons,
+                    onCheckedChange = onSetNotifSeek,
+                )
             }
         }
 
-        // LIBRARY & SCANNING
+        // 3. MUSIC LIBRARY
         item {
-            SettingsCategoryLabel("LIBRARY & SCANNING")
+            SettingsCategoryLabel("MUSIC LIBRARY")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 SettingsNavRow(
                     icon = Icons.Rounded.Refresh,
@@ -699,42 +512,171 @@ fun SettingsScreen(
                         }
                     }
                 }
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Analytics,
+                    title = "Library Analytics",
+                    valueText = "${libraryStats.totalTracks} songs",
+                    onClick = { showStatsDialog = true },
+                    modifier = Modifier.testTag("settings_library_stats"),
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.ContentCopy,
+                    title = "Duplicate Track Finder",
+                    valueText = "${metadataHealth.duplicateGroups.size} groups",
+                    onClick = { showDuplicatesDialog = true },
+                    modifier = Modifier.testTag("settings_duplicate_finder"),
+                )
             }
         }
 
-        // NOTIFICATIONS
+        // 4. LYRICS
         item {
-            SettingsCategoryLabel("NOTIFICATIONS")
+            SettingsCategoryLabel("LYRICS")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsNavRow(
-                    icon = Icons.Rounded.Notifications,
-                    title = "Media Notification Settings",
-                    onClick = {
-                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                            }
-                        } else {
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = android.net.Uri.parse("package:${context.packageName}")
-                            }
-                        }
-                        runCatching { context.startActivity(intent) }
-                    },
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.CloudDownload,
+                    title = "Auto-Download Synced Lyrics",
+                    subtitle = "Fetch missing lyrics via LRCLIB & cache offline",
+                    checked = prefs.autoDownloadLyrics,
+                    onCheckedChange = onSetAutoDownloadLyrics,
                 )
                 RowDivider()
                 SettingsSwitchRow(
-                    icon = Icons.Rounded.Notifications,
-                    title = "Show Track Controls in Notification",
-                    checked = prefs.showNotificationSeekButtons,
-                    onCheckedChange = onSetNotifSeek,
+                    icon = Icons.Rounded.Wifi,
+                    title = "Wi-Fi Only Lyrics Downloads",
+                    checked = prefs.lyricsWifiOnly,
+                    onCheckedChange = onSetLyricsWifiOnly,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.PlayArrow,
+                    title = "Download When Playback Starts",
+                    checked = prefs.downloadLyricsOnPlayStart,
+                    onCheckedChange = onSetDownloadLyricsOnPlayStart,
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Lyrics,
+                    title = "Fetch Missing Library Lyrics",
+                    valueText = lyricsBatchStatus ?: "Scan",
+                    onClick = onBatchFetchLyrics,
+                    modifier = Modifier.testTag("settings_batch_lyrics"),
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Key,
+                    title = "Musixmatch API Key (Optional)",
+                    valueText = if (prefs.musixmatchApiKey.isBlank()) "Not Set" else "Configured",
+                    onClick = { showMusixmatchDialog = true },
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = "Clear Cached Lyrics",
+                    onClick = onClearLyricsCache,
                 )
             }
         }
 
-        // BACKUP & RESTORE
+        // 5. ARTWORK AND METADATA
         item {
-            SettingsCategoryLabel("BACKUP & RESTORE")
+            SettingsCategoryLabel("ARTWORK AND METADATA")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.AutoFixHigh,
+                    title = "Auto-Fix Missing Covers on Scan",
+                    subtitle = "Only apply high-confidence verified album art",
+                    checked = prefs.autoFixArtworkOnScan,
+                    onCheckedChange = onSetAutoFixArtworkOnScan,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.Wifi,
+                    title = "Wi-Fi Only Artwork Downloads",
+                    checked = prefs.artworkWifiOnly,
+                    onCheckedChange = onSetArtworkWifiOnly,
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Image,
+                    title = "Find Missing Album Covers",
+                    valueText = artworkBatchStatus ?: "${metadataHealth.missingArtworkTracks.size} missing",
+                    onClick = onBatchFixMissingArtwork,
+                    modifier = Modifier.testTag("settings_batch_artwork"),
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Refresh,
+                    title = "Retry Failed Cover Lookups",
+                    valueText = if (failedArtworkCount > 0) "$failedArtworkCount queued" else "None",
+                    onClick = onRetryFailedArtwork,
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.HealthAndSafety,
+                    title = "Metadata Health Inspector",
+                    valueText = if (metadataHealth.totalIssueTracks == 0) "Clean" else "${metadataHealth.totalIssueTracks} issues",
+                    onClick = { showHealthDialog = true },
+                    modifier = Modifier.testTag("settings_metadata_health"),
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.Undo,
+                    title = "Metadata Edit Undo History",
+                    valueText = "${undoHistory.size} edits",
+                    onClick = { showUndoDialog = true },
+                    modifier = Modifier.testTag("settings_undo_history"),
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = "Clear Artwork Cache",
+                    onClick = onClearArtworkCache,
+                )
+            }
+        }
+
+        // 6. AUDIO
+        item {
+            SettingsCategoryLabel("AUDIO")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                SettingsNavRow(
+                    icon = Icons.Rounded.Equalizer,
+                    title = "Equalizer",
+                    valueText = prefs.eqPreset,
+                    onClick = onOpenEqualizer,
+                    modifier = Modifier.testTag("settings_open_eq"),
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.Speaker,
+                    title = "Bass Boost",
+                    checked = equalizerState.bassBoostStrength > 0,
+                    onCheckedChange = onToggleBassBoost,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.SurroundSound,
+                    title = "Virtualizer",
+                    checked = equalizerState.virtualizerStrength > 0,
+                    onCheckedChange = onToggleVirtualizer,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.VolumeUp,
+                    title = "Loudness Normalization",
+                    subtitle = "Target balanced -14 LUFS playback level",
+                    checked = prefs.loudnessNormalizationEnabled,
+                    onCheckedChange = onSetLoudnessNormalization,
+                )
+            }
+        }
+
+        // 7. STORAGE AND BACKUP
+        item {
+            SettingsCategoryLabel("STORAGE AND BACKUP")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 SettingsNavRow(
                     icon = Icons.Rounded.Backup,
@@ -752,24 +694,65 @@ fun SettingsScreen(
             }
         }
 
-        // ABOUT & PRIVACY
+        // 8. PRIVACY AND PERMISSIONS
         item {
-            SettingsCategoryLabel("ABOUT & PRIVACY")
+            SettingsCategoryLabel("PRIVACY AND PERMISSIONS")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 SettingsNavRow(
                     icon = Icons.Rounded.PrivacyTip,
-                    title = "Privacy & Offline Architecture",
-                    valueText = "Local-First",
-                    onClick = { showPrivacyDialog = true },
+                    title = "Audio Storage Permission",
+                    valueText = if (hasAudioPermission) "Granted" else "Grant Access",
+                    onClick = {
+                        if (!hasAudioPermission) {
+                            onRequestPermission()
+                        } else {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.parse("package:${context.packageName}")
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }
+                    },
                 )
                 RowDivider()
                 SettingsNavRow(
-                    icon = Icons.Rounded.Info,
-                    title = "About Maxmize",
-                    valueText = "v2.0",
-                    onClick = { showAboutDialog = true },
+                    icon = Icons.Rounded.Notifications,
+                    title = "Media Notification Settings",
+                    onClick = {
+                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                        } else {
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = android.net.Uri.parse("package:${context.packageName}")
+                            }
+                        }
+                        runCatching { context.startActivity(intent) }
+                    },
+                )
+                RowDivider()
+                SettingsNavRow(
+                    icon = Icons.Rounded.PrivacyTip,
+                    title = "Offline Privacy Architecture",
+                    valueText = "Local-First",
+                    onClick = { showPrivacyDialog = true },
                 )
             }
+        }
+
+        // 9. ABOUT MAXMIZE MUSIC
+        item {
+            SettingsCategoryLabel("ABOUT MAXMIZE MUSIC")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                SettingsNavRow(
+                    icon = Icons.Rounded.Info,
+                    title = "About Maxmize Music",
+                    valueText = "v2.0",
+                    onClick = { showAboutDialog = true },
+                    modifier = Modifier.testTag("settings_about_row"),
+                )
+            }
+        }
         }
     }
 
@@ -917,7 +900,7 @@ fun SettingsScreen(
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
-            title = { Text("Maxmize") },
+            title = { Text("MAXMIZE MUSIC") },
             text = {
                 Text(
                     "Version 2.0\n\nBuilt with Dual-Deck Media3 ExoPlayer, On-Device PCM DSP Analysis, Smart Synced Lyrics & Artwork Engines, Room, DataStore, and Jetpack Compose."

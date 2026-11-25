@@ -23,16 +23,16 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -54,6 +54,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.data.model.LibraryCategory
+import com.example.data.model.MixMode
 import com.example.data.model.SmartPlaylistType
 import com.example.data.model.Track
 import com.example.data.repository.MusicRepository
@@ -70,7 +72,9 @@ import com.example.ui.screens.AutomixScreen
 import com.example.ui.screens.AutomixSettingsScreen
 import com.example.ui.screens.CollectionDetailScreen
 import com.example.ui.screens.CreateOrEditPlaylistDialog
+import com.example.ui.screens.DjModeScreen
 import com.example.ui.screens.DjQueueScreen
+import com.example.ui.screens.DjSectionTab
 import com.example.ui.screens.EqualizerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
@@ -112,6 +116,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
     val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
     val mixHistory by viewModel.mixHistory.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedLibraryCategory.collectAsStateWithLifecycle()
+    val selectedDjTab by viewModel.selectedDjTab.collectAsStateWithLifecycle()
     val currentLyrics by viewModel.currentLyrics.collectAsStateWithLifecycle()
     val lyricsCandidates by viewModel.lyricsCandidates.collectAsStateWithLifecycle()
     val isSearchingLyrics by viewModel.isSearchingLyrics.collectAsStateWithLifecycle()
@@ -260,16 +265,23 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                 MaxmizeRoute.Library,
             ),
             TopRouteBinding(
+                NavDestinationItem(
+                    id = "dj_mode",
+                    label = "DJ Mode",
+                    selectedIcon = Icons.Rounded.GraphicEq,
+                    unselectedIcon = Icons.Outlined.GraphicEq,
+                    testTag = "nav_dj_mode",
+                    accentHighlighted = true,
+                ),
+                MaxmizeRoute.DjMode,
+            ),
+            TopRouteBinding(
                 NavDestinationItem("playlists", "Playlists", Icons.Rounded.QueueMusic, Icons.Outlined.QueueMusic, "nav_playlists"),
                 MaxmizeRoute.Playlists,
             ),
             TopRouteBinding(
                 NavDestinationItem("search", "Search", Icons.Rounded.Search, Icons.Outlined.Search, "nav_search"),
                 MaxmizeRoute.Search,
-            ),
-            TopRouteBinding(
-                NavDestinationItem("settings", "Settings", Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings"),
-                MaxmizeRoute.Settings,
             ),
         )
     }
@@ -325,11 +337,22 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
         }
     }
 
+    val openSettings: () -> Unit = {
+        navController.navigate(MaxmizeRoute.Settings) {
+            launchSingleTop = true
+        }
+    }
+
+    val openDjMode: (DjSectionTab) -> Unit = { tab ->
+        viewModel.selectDjTab(tab)
+        navigateTopLevel(MaxmizeRoute.DjMode)
+    }
+
     val onNavSelect: (NavDestinationItem) -> Unit = { item ->
         val binding = topBindings.firstOrNull { it.navItem.id == item.id }
         if (binding != null) {
             if (binding.route == MaxmizeRoute.Library) {
-                viewModel.selectLibraryCategory(null)
+                viewModel.selectLibraryCategory(LibraryCategory.SONGS)
             }
             navigateTopLevel(binding.route)
         }
@@ -355,6 +378,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                 if (playbackState.currentTrack != null) {
                                     MiniPlayer(
                                         playbackState = playbackState,
+                                        isAutomixActive = automixState.isActive,
                                         onOpenNowPlaying = { isNowPlayingOpen = true },
                                         onTogglePlayPause = viewModel.playbackController::togglePlayPause,
                                         onSkipNext = viewModel.playbackController::skipNext,
@@ -412,8 +436,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onPlayTracks = viewModel.playbackController::playTracks,
                                             onTogglePlayPause = viewModel.playbackController::togglePlayPause,
                                             onOpenNowPlaying = { isNowPlayingOpen = true },
-                                            onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
-                                            onOpenAutomix = { navController.navigate(MaxmizeRoute.Automix) },
+                                            onOpenSettings = openSettings,
+                                            onOpenDjMode = { openDjMode(DjSectionTab.HOME) },
                                             onOpenCategory = { category ->
                                                 viewModel.selectLibraryCategory(category)
                                                 navigateTopLevel(MaxmizeRoute.Library)
@@ -446,7 +470,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             playbackState = playbackState,
                                             onRescan = viewModel::scanLibrary,
                                             onImportFolder = { folderPickerLauncher.launch(null) },
-                                            onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
+                                            onOpenSettings = openSettings,
                                             onPlayTracks = viewModel.playbackController::playTracks,
                                             onToggleFavorite = viewModel::toggleFavorite,
                                             onOpenAlbum = { key -> navController.navigate(MaxmizeRoute.AlbumDetail(key)) },
@@ -456,6 +480,53 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onExcludeFolder = viewModel::excludeFolder,
                                             onCreatePlaylistFromSelected = { ids -> multiSelectPlaylistIds = ids },
                                             onTrackMenuAction = handleTrackMenu,
+                                        )
+                                    }
+
+                                    composable<MaxmizeRoute.DjMode> {
+                                        DjModeScreen(
+                                            selectedTab = selectedDjTab,
+                                            onSelectTab = viewModel::selectDjTab,
+                                            automixState = automixState,
+                                            automixConfig = prefs.automixConfig,
+                                            playbackState = playbackState,
+                                            tracks = tracks,
+                                            analyses = trackAnalyses,
+                                            mixHistory = mixHistory,
+                                            genres = genres,
+                                            playlists = playlists,
+                                            profiles = customDjProfiles,
+                                            genreRules = genreRules,
+                                            onOpenSettings = openSettings,
+                                            onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
+                                            onStartAutomix = { viewModel.startAutomix(playbackState.currentTrack?.id) },
+                                            onStopAutomix = viewModel::stopAutomix,
+                                            onTogglePlayPause = viewModel.playbackController::togglePlayPause,
+                                            onSkipNextMix = viewModel.playbackController::skipAutomixNext,
+                                            onToggleBpmMatch = {
+                                                viewModel.updateAutomixConfig { it.copy(bpmMatchEnabled = !it.bpmMatchEnabled) }
+                                            },
+                                            onToggleKeyLock = {
+                                                viewModel.updateAutomixConfig { it.copy(keyLockEnabled = !it.keyLockEnabled) }
+                                            },
+                                            onCycleMixMode = {
+                                                val entries = MixMode.entries
+                                                val next = entries[(prefs.automixConfig.mode.ordinal + 1) % entries.size]
+                                                viewModel.updateAutomixConfig { it.copy(mode = next) }
+                                            },
+                                            onAnalyzeLibrary = viewModel::analyzeLibraryBatch,
+                                            onCorrectAnalysis = viewModel::correctTrackAnalysis,
+                                            onPlayDjTrackNow = viewModel.playbackController::playDjQueueTrackNow,
+                                            onMoveDjQueueItem = viewModel.playbackController::moveDjQueueItem,
+                                            onRemoveDjQueueItem = viewModel.playbackController::removeDjQueueItem,
+                                            onRecomputeQueue = viewModel.playbackController::recomputeDjQueue,
+                                            onClearHistory = viewModel::clearMixHistory,
+                                            onUpdateConfig = viewModel::updateAutomixConfig,
+                                            onApplyProfile = viewModel::applyDjProfile,
+                                            onSaveCustomProfile = viewModel::saveCustomDjProfile,
+                                            onDeleteCustomProfile = viewModel::deleteCustomDjProfile,
+                                            onUpsertGenreRule = viewModel::upsertGenreRule,
+                                            onDeleteGenreRule = viewModel::deleteGenreRule,
                                         )
                                     }
 
@@ -476,7 +547,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onPlayPlaylist = viewModel::playPlaylist,
                                             onRenamePlaylist = viewModel::renameAndDescribePlaylist,
                                             onDeletePlaylist = viewModel::deletePlaylist,
-                                            onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
+                                            onOpenSettings = openSettings,
                                         )
                                     }
 
@@ -499,6 +570,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onOpenFolder = { path -> navController.navigate(MaxmizeRoute.FolderDetail(path)) },
                                             onOpenPlaylist = { id -> navController.navigate(MaxmizeRoute.PlaylistDetail(id)) },
                                             onTrackMenuAction = handleTrackMenu,
+                                            onOpenSettings = openSettings,
                                         )
                                     }
 
@@ -506,7 +578,6 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                         SettingsScreen(
                                             prefs = prefs,
                                             equalizerState = equalizerState,
-                                            isAutomixActive = automixState.isActive,
                                             lyricsBatchStatus = lyricsBatchStatus,
                                             artworkBatchStatus = artworkBatchStatus,
                                             failedArtworkCount = failedArtworkCount,
@@ -515,15 +586,14 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             undoHistory = undoHistory,
                                             excludedFolders = excludedFolders,
                                             trackCount = tracks.size,
+                                            hasAudioPermission = hasAudioPerm,
+                                            onBack = { navController.popBackStack() },
+                                            onRequestPermission = requestAudioPermissions,
                                             onSetThemeMode = viewModel::setThemeMode,
                                             onSetAccentPreset = viewModel::setAccentPreset,
                                             onSetFontChoice = viewModel::setFontChoice,
                                             onSetFontScale = viewModel::setFontScale,
                                             onSetUiDensity = viewModel::setUiDensity,
-                                            onToggleAutomix = viewModel::toggleAutomix,
-                                            onOpenAutomix = { navController.navigate(MaxmizeRoute.Automix) },
-                                            onOpenAutomixSettings = { navController.navigate(MaxmizeRoute.AutomixSettings) },
-                                            onOpenDjQueue = { navController.navigate(MaxmizeRoute.DjQueue) },
                                             onOpenEqualizer = { navController.navigate(MaxmizeRoute.Equalizer) },
                                             onToggleBassBoost = { enabled ->
                                                 viewModel.audioEffectsManager.setBassBoost(if (enabled) 550 else 0)
@@ -587,7 +657,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                                 viewModel.updateAutomixConfig { it.copy(keyLockEnabled = !it.keyLockEnabled) }
                                             },
                                             onCycleMixMode = {
-                                                val entries = com.example.data.model.MixMode.entries
+                                                val entries = MixMode.entries
                                                 val next = entries[(prefs.automixConfig.mode.ordinal + 1) % entries.size]
                                                 viewModel.updateAutomixConfig { it.copy(mode = next) }
                                             },
@@ -767,6 +837,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                             if (useNavRail && playbackState.currentTrack != null) {
                                 MiniPlayer(
                                     playbackState = playbackState,
+                                    isAutomixActive = automixState.isActive,
                                     onOpenNowPlaying = { isNowPlayingOpen = true },
                                     onTogglePlayPause = viewModel.playbackController::togglePlayPause,
                                     onSkipNext = viewModel.playbackController::skipNext,
@@ -786,7 +857,12 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             ) {
                 NowPlayingScreen(
                     playbackState = playbackState,
+                    isAutomixActive = automixState.isActive,
                     onCollapse = { isNowPlayingOpen = false },
+                    onOpenDjMode = {
+                        isNowPlayingOpen = false
+                        openDjMode(DjSectionTab.AUTOMIX)
+                    },
                     onTogglePlayPause = viewModel.playbackController::togglePlayPause,
                     onSeekTo = viewModel.playbackController::seekTo,
                     onSeekForward = { viewModel.playbackController.seekForward() },
@@ -814,7 +890,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                     onStartDjMix = { tr ->
                         viewModel.startAutomix(tr.id)
                         isNowPlayingOpen = false
-                        navController.navigate(MaxmizeRoute.Automix)
+                        openDjMode(DjSectionTab.AUTOMIX)
                     },
                     onOpenSleepTimer = { showSleepTimerSheet = true },
                     onSpeedChange = viewModel.playbackController::setPlaybackSpeed,

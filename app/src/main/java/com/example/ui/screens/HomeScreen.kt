@@ -22,19 +22,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.AudioFile
 import androidx.compose.material.icons.rounded.CreateNewFolder
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -54,8 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,19 +65,14 @@ import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
 import com.example.ui.components.EditorialSectionHeader
+import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.PlaylistCollageArtwork
 import com.example.ui.components.TrackRow
 import com.example.ui.components.formatTimecode
-import com.example.ui.theme.BadgeBlueBg
-import com.example.ui.theme.BadgeBlueFg
 import com.example.ui.theme.BadgeGoldBg
 import com.example.ui.theme.BadgeGoldFg
-import com.example.ui.theme.BadgePurpleBg
-import com.example.ui.theme.BadgePurpleFg
-import com.example.ui.theme.BadgeRedBg
-import com.example.ui.theme.BadgeRedFg
 import com.example.ui.theme.MonoBadgeStyle
-import com.example.ui.theme.MonoTimecodeStyle
+import java.util.Calendar
 
 @Composable
 fun HomeScreen(
@@ -100,8 +90,8 @@ fun HomeScreen(
     onPlayTracks: (List<Track>, Int, Boolean) -> Unit,
     onTogglePlayPause: () -> Unit,
     onOpenNowPlaying: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onOpenAutomix: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onOpenDjMode: () -> Unit = {},
     onOpenCategory: (LibraryCategory) -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
@@ -111,14 +101,20 @@ fun HomeScreen(
 ) {
     var overflowOpen by remember { mutableStateOf(false) }
 
+    val greeting = remember {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        when {
+            hour < 12 -> "GOOD MORNING"
+            hour < 17 -> "GOOD AFTERNOON"
+            else -> "GOOD EVENING"
+        }
+    }
+
     val recentlyPlayed = remember(tracks) {
         tracks.filter { it.lastPlayedAt > 0L }.sortedByDescending { it.lastPlayedAt }.take(12)
     }
     val recentlyAdded = remember(tracks) {
         tracks.sortedByDescending { it.dateAddedSec }.take(12)
-    }
-    val mostPlayed = remember(tracks) {
-        tracks.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(6)
     }
     val favoriteTracks = remember(tracks) {
         tracks.filter { it.isFavorite }.take(10)
@@ -127,7 +123,7 @@ fun HomeScreen(
         val recent = albums.filter { it.lastPlayedAt > 0L }.sortedByDescending { it.lastPlayedAt }
         if (recent.isNotEmpty()) recent.take(10) else albums.take(10)
     }
-    val recentPlaylists = remember(playlists) {
+    val recommendedPlaylists = remember(playlists) {
         playlists.sortedByDescending { it.createdAt }.take(8)
     }
 
@@ -138,47 +134,12 @@ fun HomeScreen(
             .testTag("home_screen"),
         contentPadding = PaddingValues(bottom = 28.dp),
     ) {
-        // Editorial Two-Tone Brand Header
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-                    Text(
-                        text = "Maxmize",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 26.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = "Music",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 26.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onOpenSearch,
-                        modifier = Modifier.testTag("home_search_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = "Search library",
-                            tint = MaterialTheme.colorScheme.onBackground,
-                        )
-                    }
+            MaxmizeTopHeader(
+                title = "Listen Now",
+                subtitle = greeting,
+                onOpenSettings = onOpenSettings,
+                actions = {
                     Box {
                         IconButton(
                             onClick = { overflowOpen = true },
@@ -186,7 +147,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Library options",
+                                contentDescription = "Library scan options",
                                 tint = MaterialTheme.colorScheme.onBackground,
                             )
                         }
@@ -216,8 +177,8 @@ fun HomeScreen(
                             )
                         }
                     }
-                }
-            }
+                },
+            )
         }
 
         if (scanState.isScanning) {
@@ -244,25 +205,6 @@ fun HomeScreen(
             }
         }
 
-        // Hero Editorial Card (Solid dark surface + crisp border, zero gradients)
-        item {
-            HeroBannerCard(
-                tracks = tracks,
-                albums = albums,
-                isScanning = scanState.isScanning,
-                hasAudioPermission = hasAudioPermission,
-                onPlayAll = {
-                    if (tracks.isNotEmpty()) {
-                        onPlayTracks(tracks, 0, false)
-                    } else if (!hasAudioPermission) {
-                        onRequestPermission()
-                    } else {
-                        onRescan(false)
-                    }
-                },
-            )
-        }
-
         if (tracks.isEmpty()) {
             item {
                 EmptyLibraryGuidance(
@@ -275,7 +217,51 @@ fun HomeScreen(
                 )
             }
         } else {
-            // Recently Played Carousel
+            // 1. Continue Listening Hero (or Play All Editorial Hero when idle)
+            val continueTrack = playbackState.currentTrack ?: recentlyPlayed.firstOrNull()
+            item {
+                if (continueTrack != null) {
+                    ContinueListeningHeroCard(
+                        track = continueTrack,
+                        totalTracks = tracks.size,
+                        isPlaying = playbackState.currentTrack?.id == continueTrack.id && playbackState.isPlaying,
+                        positionMs = if (playbackState.currentTrack?.id == continueTrack.id) playbackState.positionMs else 0L,
+                        onCardClick = {
+                            if (playbackState.currentTrack?.id == continueTrack.id) {
+                                onOpenNowPlaying()
+                            } else {
+                                onPlayTracks(listOf(continueTrack), 0, false)
+                            }
+                        },
+                        onPlayPauseClick = {
+                            if (playbackState.currentTrack?.id == continueTrack.id) {
+                                onTogglePlayPause()
+                            } else {
+                                onPlayTracks(listOf(continueTrack), 0, false)
+                            }
+                        },
+                        onPlayAll = { onPlayTracks(tracks, 0, false) },
+                    )
+                } else {
+                    HeroBannerCard(
+                        tracks = tracks,
+                        albums = albums,
+                        isScanning = scanState.isScanning,
+                        onPlayAll = { onPlayTracks(tracks, 0, false) },
+                    )
+                }
+            }
+
+            // 2. Quick DJ Mode Editorial Card
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                QuickDjModeCard(
+                    isAutomixActive = isAutomixActive,
+                    onOpenDjMode = onOpenDjMode,
+                )
+            }
+
+            // 3. Recently Played
             if (recentlyPlayed.isNotEmpty()) {
                 item {
                     EditorialSectionHeader(
@@ -297,104 +283,7 @@ fun HomeScreen(
                 }
             }
 
-            // Quick Access 4-tile grid
-            item {
-                EditorialSectionHeader(title = "Quick Access")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    QuickAccessTile(
-                        label = "All Songs",
-                        icon = Icons.Rounded.MusicNote,
-                        badgeBg = BadgeRedBg,
-                        badgeFg = BadgeRedFg,
-                        onClick = { onOpenCategory(LibraryCategory.SONGS) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("home_all_songs_card"),
-                    )
-                    QuickAccessTile(
-                        label = "Artists",
-                        icon = Icons.Rounded.Person,
-                        badgeBg = BadgeBlueBg,
-                        badgeFg = BadgeBlueFg,
-                        onClick = { onOpenCategory(LibraryCategory.ARTISTS) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    QuickAccessTile(
-                        label = "Albums",
-                        icon = Icons.Rounded.Album,
-                        badgeBg = BadgePurpleBg,
-                        badgeFg = BadgePurpleFg,
-                        onClick = { onOpenCategory(LibraryCategory.ALBUMS) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    QuickAccessTile(
-                        label = if (isAutomixActive) "Mixing" else "Automix",
-                        icon = Icons.Rounded.GraphicEq,
-                        badgeBg = BadgeGoldBg,
-                        badgeFg = BadgeGoldFg,
-                        onClick = onOpenAutomix,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("home_automix_card"),
-                    )
-                }
-            }
-
-            // Continue Listening
-            val continueTrack = playbackState.currentTrack ?: recentlyPlayed.firstOrNull()
-            if (continueTrack != null) {
-                item {
-                    EditorialSectionHeader(title = "Continue Listening")
-                    ContinueListeningCard(
-                        track = continueTrack,
-                        isPlaying = playbackState.currentTrack?.id == continueTrack.id && playbackState.isPlaying,
-                        positionMs = if (playbackState.currentTrack?.id == continueTrack.id) playbackState.positionMs else 0L,
-                        onCardClick = {
-                            if (playbackState.currentTrack?.id == continueTrack.id) {
-                                onOpenNowPlaying()
-                            } else {
-                                onPlayTracks(listOf(continueTrack), 0, false)
-                            }
-                        },
-                        onPlayPauseClick = {
-                            if (playbackState.currentTrack?.id == continueTrack.id) {
-                                onTogglePlayPause()
-                            } else {
-                                onPlayTracks(listOf(continueTrack), 0, false)
-                            }
-                        },
-                    )
-                }
-            }
-
-            // Featured Albums
-            if (featuredAlbums.isNotEmpty()) {
-                item {
-                    EditorialSectionHeader(
-                        title = "Featured Albums",
-                        actionLabel = "See all",
-                        onAction = { onOpenCategory(LibraryCategory.ALBUMS) },
-                    )
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(featuredAlbums, key = { "fa_${it.key}" }) { album ->
-                            EditorialAlbumCard(
-                                album = album,
-                                onClick = { onOpenAlbum(album.key) },
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Recently Added
+            // 4. Recently Added
             if (recentlyAdded.isNotEmpty()) {
                 item {
                     EditorialSectionHeader(
@@ -416,47 +305,7 @@ fun HomeScreen(
                 }
             }
 
-            // Recently Created Playlists
-            if (recentPlaylists.isNotEmpty()) {
-                item {
-                    EditorialSectionHeader(title = "Your Playlists")
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(recentPlaylists, key = { "pl_${it.id}" }) { playlist ->
-                            Column(
-                                modifier = Modifier
-                                    .width(126.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { onOpenPlaylist(playlist.id) },
-                            ) {
-                                PlaylistCollageArtwork(
-                                    customCoverUri = playlist.customCoverUri,
-                                    artworkUris = playlist.artworkUris,
-                                    modifier = Modifier.size(126.dp),
-                                    cornerRadius = 12.dp,
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = playlist.name,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = "${playlist.trackCount} songs",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Favorite Tracks
+            // 5. Favorites
             if (favoriteTracks.isNotEmpty()) {
                 item {
                     EditorialSectionHeader(
@@ -486,46 +335,176 @@ fun HomeScreen(
                 }
             }
 
-            // Most Played
-            if (mostPlayed.isNotEmpty()) {
+            // 6. Featured Albums
+            if (featuredAlbums.isNotEmpty()) {
                 item {
                     EditorialSectionHeader(
-                        title = "Most Played",
+                        title = "Featured Albums",
                         actionLabel = "See all",
-                        onAction = { onOpenCategory(LibraryCategory.MOST_PLAYED) },
+                        onAction = { onOpenCategory(LibraryCategory.ALBUMS) },
                     )
-                }
-                itemsIndexed(mostPlayed, key = { _, t -> "mp_${t.id}" }) { index, track ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 20.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            text = "${index + 1}",
-                            style = MonoTimecodeStyle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(22.dp),
-                        )
-                        Box(modifier = Modifier.weight(1f)) {
-                            TrackRow(
-                                track = track,
-                                isCurrent = playbackState.currentTrack?.id == track.id,
-                                isPlaying = playbackState.isPlaying,
-                                onClick = { onPlayTracks(mostPlayed, index, false) },
-                                onToggleFavorite = { onToggleFavorite(track.id) },
-                                onPlayNext = { onTrackMenuAction(track, TrackMenuEvent.PlayNext) },
-                                onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
-                                onAddToPlaylist = { onTrackMenuAction(track, TrackMenuEvent.AddToPlaylist) },
-                                onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
-                                onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
-                                onGoToAlbum = { onTrackMenuAction(track, TrackMenuEvent.GoToAlbum) },
-                                onGoToArtist = { onTrackMenuAction(track, TrackMenuEvent.GoToArtist) },
-                                onTrackInfo = { onTrackMenuAction(track, TrackMenuEvent.TrackInfo) },
+                        items(featuredAlbums, key = { "fa_${it.key}" }) { album ->
+                            EditorialAlbumCard(
+                                album = album,
+                                onClick = { onOpenAlbum(album.key) },
                             )
                         }
                     }
+                }
+            }
+
+            // 7. Recommended Playlists
+            if (recommendedPlaylists.isNotEmpty()) {
+                item {
+                    EditorialSectionHeader(title = "Recommended Playlists")
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(recommendedPlaylists, key = { "pl_${it.id}" }) { playlist ->
+                            Column(
+                                modifier = Modifier
+                                    .width(128.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onOpenPlaylist(playlist.id) },
+                            ) {
+                                PlaylistCollageArtwork(
+                                    customCoverUri = playlist.customCoverUri,
+                                    artworkUris = playlist.artworkUris,
+                                    modifier = Modifier.size(128.dp),
+                                    cornerRadius = 12.dp,
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = "${playlist.trackCount} songs",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinueListeningHeroCard(
+    track: Track,
+    totalTracks: Int,
+    isPlaying: Boolean,
+    positionMs: Long,
+    onCardClick: () -> Unit,
+    onPlayPauseClick: () -> Unit,
+    onPlayAll: () -> Unit,
+) {
+    EditorialGroupCard(
+        modifier = Modifier
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .clickable(onClick = onCardClick)
+            .testTag("home_continue_listening_card"),
+        cornerRadius = 16.dp,
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (isPlaying) "NOW PLAYING" else "CONTINUE LISTENING",
+                    style = MonoBadgeStyle,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "Play All ($totalTracks)",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onPlayAll)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .testTag("home_shuffle_all_card"),
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ArtworkImage(
+                    artworkUri = track.customArtworkUri ?: track.artworkUri,
+                    fallbackUri = track.contentUri,
+                    modifier = Modifier.size(64.dp),
+                    cornerRadius = 10.dp,
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track.title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "${track.artist} · ${track.album}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val dur = track.durationMs.coerceAtLeast(1L)
+                    val progress = (positionMs.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.outline),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress)
+                                .height(3.dp)
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (positionMs > 0L) {
+                            "${formatTimecode(positionMs)} / ${formatTimecode(track.durationMs)}"
+                        } else {
+                            formatTimecode(track.durationMs)
+                        },
+                        style = MonoBadgeStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable(onClick = onPlayPauseClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = "Play or pause",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                    )
                 }
             }
         }
@@ -537,7 +516,6 @@ private fun HeroBannerCard(
     tracks: List<Track>,
     albums: List<AlbumSummary>,
     isScanning: Boolean,
-    hasAudioPermission: Boolean,
     onPlayAll: () -> Unit,
 ) {
     val coverUris = remember(tracks, albums) {
@@ -563,24 +541,19 @@ private fun HeroBannerCard(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "Your Music.\nYour Way.",
+                text = "Your Music.\nAlways Offline.",
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 22.sp,
-                    lineHeight = 27.sp,
+                    fontSize = 21.sp,
+                    lineHeight = 26.sp,
                     fontWeight = FontWeight.Bold,
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = if (tracks.isEmpty()) {
-                    "Offline · Fast · Powerful"
-                } else {
-                    "Offline · ${tracks.size} Tracks · Lossless"
-                },
+                text = "${tracks.size} Tracks · Lossless Local Playback",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(2.dp))
             Button(
                 onClick = onPlayAll,
                 enabled = !isScanning,
@@ -592,20 +565,9 @@ private fun HeroBannerCard(
                 ),
                 modifier = Modifier.testTag("home_shuffle_all_card"),
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
+                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = when {
-                        tracks.isNotEmpty() -> "Play All"
-                        !hasAudioPermission -> "Grant Access"
-                        else -> "Scan Music"
-                    },
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                )
+                Text("Play All", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
             }
         }
 
@@ -615,13 +577,13 @@ private fun HeroBannerCard(
             PlaylistCollageArtwork(
                 customCoverUri = null,
                 artworkUris = coverUris,
-                modifier = Modifier.size(104.dp),
+                modifier = Modifier.size(96.dp),
                 cornerRadius = 12.dp,
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(104.dp)
+                    .size(96.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .border(0.75.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
@@ -631,7 +593,7 @@ private fun HeroBannerCard(
                     imageVector = Icons.Rounded.LibraryMusic,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(36.dp),
                 )
             }
         }
@@ -639,45 +601,64 @@ private fun HeroBannerCard(
 }
 
 @Composable
-private fun QuickAccessTile(
-    label: String,
-    icon: ImageVector,
-    badgeBg: Color,
-    badgeFg: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun QuickDjModeCard(
+    isAutomixActive: Boolean,
+    onOpenDjMode: () -> Unit,
 ) {
     val shape = RoundedCornerShape(14.dp)
-    Column(
-        modifier = modifier
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
             .clip(shape)
             .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .border(
+                width = if (isAutomixActive) 1.dp else 0.75.dp,
+                color = if (isAutomixActive) BadgeGoldFg else MaterialTheme.colorScheme.outlineVariant,
+                shape = shape,
+            )
+            .clickable(onClick = onOpenDjMode)
+            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .testTag("home_automix_card"),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(42.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(badgeBg),
+                .background(BadgeGoldBg),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = badgeFg,
-                modifier = Modifier.size(20.dp),
+                imageVector = Icons.Rounded.GraphicEq,
+                contentDescription = "DJ Mode",
+                tint = BadgeGoldFg,
+                modifier = Modifier.size(21.dp),
             )
         }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (isAutomixActive) "DJ Mode · Automix Live" else "DJ Mode & Automix",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = if (isAutomixActive) {
+                    "Dual-deck beatmatching active · Tap for console"
+                } else {
+                    "Harmonic mixing, DJ profiles, BPM & key studio"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = "Open DJ Mode",
+            tint = if (isAutomixActive) BadgeGoldFg else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -773,106 +754,20 @@ private fun EmptyLibraryGuidance(
 }
 
 @Composable
-private fun ContinueListeningCard(
-    track: Track,
-    isPlaying: Boolean,
-    positionMs: Long,
-    onCardClick: () -> Unit,
-    onPlayPauseClick: () -> Unit,
-) {
-    EditorialGroupCard(
-        modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .clickable(onClick = onCardClick),
-        cornerRadius = 14.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ArtworkImage(
-                artworkUri = track.customArtworkUri ?: track.artworkUri,
-                fallbackUri = track.contentUri,
-                modifier = Modifier.size(60.dp),
-                cornerRadius = 10.dp,
-            )
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = track.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = "${track.artist} · ${track.album}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                val dur = track.durationMs.coerceAtLeast(1L)
-                val progress = (positionMs.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.outline),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .height(3.dp)
-                            .background(MaterialTheme.colorScheme.primary),
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (positionMs > 0L) {
-                        "${formatTimecode(positionMs)} / ${formatTimecode(track.durationMs)}"
-                    } else {
-                        formatTimecode(track.durationMs)
-                    },
-                    style = MonoBadgeStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onPlayPauseClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = "Play or pause",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun EditorialSquareTrackCard(
     track: Track,
     onClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
-            .width(124.dp)
+            .width(132.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
         ArtworkImage(
             artworkUri = track.customArtworkUri ?: track.artworkUri,
             fallbackUri = track.contentUri,
-            modifier = Modifier.size(124.dp),
+            modifier = Modifier.size(132.dp),
             cornerRadius = 12.dp,
         )
         Spacer(modifier = Modifier.height(6.dp))
@@ -900,13 +795,13 @@ private fun EditorialAlbumCard(
 ) {
     Column(
         modifier = Modifier
-            .width(124.dp)
+            .width(132.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
     ) {
         ArtworkImage(
             artworkUri = album.artworkUri,
-            modifier = Modifier.size(124.dp),
+            modifier = Modifier.size(132.dp),
             cornerRadius = 12.dp,
             fallbackIcon = Icons.Rounded.Album,
         )

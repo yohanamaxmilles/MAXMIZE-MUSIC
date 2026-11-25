@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.model.Track
 import com.example.ui.theme.LocalDensityMetrics
-import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoTimecodeStyle
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -83,7 +82,6 @@ fun TrackRow(
         else -> MaterialTheme.colorScheme.background
     }
     val shape = RoundedCornerShape(12.dp)
-
     val densityMetrics = LocalDensityMetrics.current
 
     Row(
@@ -100,7 +98,7 @@ fun TrackRow(
                 onClick = onClick,
                 onLongClick = onLongClick,
             )
-            .padding(horizontal = 12.dp, vertical = densityMetrics.rowVerticalPadding)
+            .padding(start = 12.dp, end = 4.dp, top = densityMetrics.rowVerticalPadding, bottom = densityMetrics.rowVerticalPadding)
             .testTag("track_row_${track.id}"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -111,7 +109,7 @@ fun TrackRow(
                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .padding(end = 12.dp)
-                    .size(24.dp),
+                    .size(22.dp),
             )
         }
 
@@ -119,22 +117,22 @@ fun TrackRow(
             ArtworkImage(
                 artworkUri = track.customArtworkUri ?: track.artworkUri,
                 fallbackUri = track.contentUri,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(46.dp),
                 cornerRadius = 8.dp,
             )
             if (isCurrent) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(46.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.65f)),
+                        .background(MaterialTheme.colorScheme.background.copy(alpha = 0.68f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Equalizer,
                         contentDescription = if (isPlaying) "Currently playing" else "Current track",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -142,6 +140,7 @@ fun TrackRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
+        // Uncluttered Editorial Typography: Track Title + Artist
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -155,31 +154,27 @@ fun TrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = "${track.artist} · ${track.album}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                Text(
-                    text = track.formatLabel,
-                    style = MonoBadgeStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .padding(horizontal = 4.dp, vertical = 1.dp),
-                )
-            }
+            Text(
+                text = track.artist,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
 
         Spacer(modifier = Modifier.width(8.dp))
+
+        if (track.isFavorite) {
+            Icon(
+                imageVector = Icons.Rounded.Favorite,
+                contentDescription = stringResource(R.string.cd_favorite),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(13.dp),
+            )
+        }
 
         Text(
             text = formatTimecode(track.durationMs),
@@ -187,39 +182,37 @@ fun TrackRow(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        if (onToggleFavorite != null && !isMultiSelectMode) {
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier.size(40.dp),
-            ) {
-                Icon(
-                    imageVector = if (track.isFavorite) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = stringResource(R.string.cd_favorite),
-                    tint = if (track.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-
         if (!isMultiSelectMode) {
             Box {
                 IconButton(
                     onClick = { menuExpanded = true },
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .testTag("track_more_${track.id}"),
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.MoreVert,
                         contentDescription = stringResource(R.string.cd_more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(19.dp),
                     )
                 }
                 DropdownMenu(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    if (onToggleFavorite != null) {
+                        DropdownMenuItem(
+                            text = { Text(if (track.isFavorite) "Remove Favorite" else "Add to Favorites") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (track.isFavorite) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = { menuExpanded = false; onToggleFavorite() },
+                        )
+                    }
                     if (onPlayNext != null) {
                         DropdownMenuItem(
                             text = { Text("Play Next") },

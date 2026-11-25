@@ -96,6 +96,9 @@ import com.example.data.model.Track
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.MaxmizeSlider
 import com.example.ui.components.formatTimecode
+import com.example.ui.theme.BadgeGoldBg
+import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoTimecodeStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.Locale
@@ -104,7 +107,9 @@ import java.util.Locale
 @Composable
 fun NowPlayingScreen(
     playbackState: PlaybackUiState,
+    isAutomixActive: Boolean = false,
     onCollapse: () -> Unit,
+    onOpenDjMode: () -> Unit = {},
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onSeekForward: () -> Unit,
@@ -176,6 +181,32 @@ fun NowPlayingScreen(
                         )
                     }
 
+                    if (isAutomixActive) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(100.dp))
+                                .background(BadgeGoldBg)
+                                .border(0.75.dp, BadgeGoldFg.copy(alpha = 0.65f), RoundedCornerShape(100.dp))
+                                .clickable(onClick = onOpenDjMode)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .testTag("now_playing_automix_pill"),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.GraphicEq,
+                                contentDescription = "Automix active",
+                                tint = BadgeGoldFg,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = "AUTOMIX ACTIVE",
+                                style = MonoBadgeStyle,
+                                color = BadgeGoldFg,
+                            )
+                        }
+                    }
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(
                             onClick = onOpenSleepTimer,
@@ -201,6 +232,14 @@ fun NowPlayingScreen(
                                 )
                             }
                             DropdownMenu(expanded = moreMenuOpen, onDismissRequest = { moreMenuOpen = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(if (isAutomixActive) "Open DJ Mode" else "Mix in DJ Mode") },
+                                    leadingIcon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+                                    onClick = {
+                                        moreMenuOpen = false
+                                        if (isAutomixActive) onOpenDjMode() else onStartDjMix(track)
+                                    },
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Seek Back 10s") },
                                     leadingIcon = { Icon(Icons.Rounded.Replay10, contentDescription = null) },
@@ -276,7 +315,6 @@ fun NowPlayingScreen(
                                 onCycleRepeat = onCycleRepeat,
                                 onOpenEqualizer = onOpenEqualizer,
                                 onOpenLyrics = { onOpenLyrics(track) },
-                                onStartDjMix = { onStartDjMix(track) },
                                 onOpenQueue = { showQueueScreen = true },
                             )
                         }
@@ -314,7 +352,6 @@ fun NowPlayingScreen(
                             onCycleRepeat = onCycleRepeat,
                             onOpenEqualizer = onOpenEqualizer,
                             onOpenLyrics = { onOpenLyrics(track) },
-                            onStartDjMix = { onStartDjMix(track) },
                             onOpenQueue = { showQueueScreen = true },
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -465,7 +502,6 @@ private fun PlayerControlsBlock(
     onCycleRepeat: () -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLyrics: () -> Unit,
-    onStartDjMix: () -> Unit,
     onOpenQueue: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -633,10 +669,10 @@ private fun PlayerControlsBlock(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 4 Editorial Action Pills: Queue, Lyrics, EQ, DJ Mix
+        // Uncluttered 3-Pill Bottom Action Row: Queue, Lyrics, Audio
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             NowPlayingActionChip(
                 icon = Icons.Rounded.QueueMusic,
@@ -656,19 +692,11 @@ private fun PlayerControlsBlock(
             )
             NowPlayingActionChip(
                 icon = Icons.Rounded.Equalizer,
-                label = "Effects",
+                label = "Audio",
                 onClick = onOpenEqualizer,
                 modifier = Modifier
                     .weight(1f)
                     .testTag("now_playing_eq_btn"),
-            )
-            NowPlayingActionChip(
-                icon = Icons.Rounded.GraphicEq,
-                label = "DJ Mix",
-                onClick = onStartDjMix,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("now_playing_dj_mix_btn"),
             )
         }
 

@@ -91,7 +91,7 @@ fun onAccentColorFor(preset: AccentPreset, isDark: Boolean): Color {
 fun MaxmizeTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
     accentPreset: AccentPreset = AccentPreset.GOLD,
-    fontChoice: FontChoice = FontChoice.INTER,
+    fontChoice: FontChoice = FontChoice.PLUS_JAKARTA,
     fontScale: Float = 1.0f,
     uiDensity: UiDensity = UiDensity.COMFORTABLE,
     content: @Composable () -> Unit,

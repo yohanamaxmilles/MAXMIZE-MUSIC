@@ -64,6 +64,7 @@ import com.example.ui.theme.MonoBadgeStyle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun DjQueueScreen(
@@ -80,6 +81,7 @@ fun DjQueueScreen(
     onStopAutomix: () -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
+    embeddedInHub: Boolean = false,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Queue, 1 = History
 
@@ -89,27 +91,28 @@ fun DjQueueScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("dj_queue_screen"),
     ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                    contentDescription = "Back",
-                    modifier = Modifier.size(30.dp),
+        if (!embeddedInHub) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+                Text(
+                    text = "DJ Queue",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 )
-            }
-            Text(
-                text = "DJ Queue",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            )
-            IconButton(onClick = onOpenSearch) {
-                Icon(Icons.Rounded.Search, contentDescription = "Search library")
+                IconButton(onClick = onOpenSearch) {
+                    Icon(Icons.Rounded.Search, contentDescription = "Search library")
+                }
             }
         }
 
@@ -117,7 +120,7 @@ fun DjQueueScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             listOf("Queue", "History").forEachIndexed { idx, label ->
@@ -126,7 +129,7 @@ fun DjQueueScreen(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(40.dp)
+                        .height(38.dp)
                         .clip(shape)
                         .background(
                             if (selected) MaterialTheme.colorScheme.primary
@@ -139,7 +142,7 @@ fun DjQueueScreen(
                             shape = shape,
                         )
                         .clickable { selectedTab = idx }
-                        .testTag("dj_tab_${label.lowercase()}"),
+                        .testTag("dj_subtab_${label.lowercase()}"),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -161,7 +164,7 @@ fun DjQueueScreen(
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (activeTrack != null) {
@@ -177,10 +180,16 @@ fun DjQueueScreen(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Text(
+                                text = "NOW",
+                                style = MonoBadgeStyle,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.width(30.dp),
+                            )
                             ArtworkImage(
-                                artworkUri = activeTrack.customArtworkUri ?: activeTrack.artworkUri,
+                                artworkUri = activeTrack.displayArtwork,
                                 fallbackUri = activeTrack.contentUri,
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(46.dp),
                                 cornerRadius = 8.dp,
                             )
                             Spacer(modifier = Modifier.width(12.dp))
@@ -193,7 +202,9 @@ fun DjQueueScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = if (a != null) "${activeTrack.artist} · ${a.bpm.toInt()} BPM · ${a.camelotCode}" else activeTrack.artist,
+                                    text = if (a != null) {
+                                        "${activeTrack.artist} · ${a.bpm.roundToInt()} BPM · ${a.camelotCode} · ${a.subgenre.ifBlank { activeTrack.genre }}"
+                                    } else activeTrack.artist,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -226,7 +237,7 @@ fun DjQueueScreen(
                             )
                             Text("No DJ Queue Active", style = MaterialTheme.typography.titleMedium)
                             Text(
-                                text = "Start Automix to build a harmonically matched local queue.",
+                                text = "Start Automix to generate a harmonically matched queue.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -251,14 +262,14 @@ fun DjQueueScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val btnShape = RoundedCornerShape(12.dp)
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(46.dp)
+                        .height(44.dp)
                         .clip(btnShape)
                         .background(MaterialTheme.colorScheme.surface)
                         .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, btnShape)
@@ -273,7 +284,7 @@ fun DjQueueScreen(
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(46.dp)
+                        .height(44.dp)
                         .clip(btnShape)
                         .background(MaterialTheme.colorScheme.surface)
                         .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, btnShape)
@@ -294,7 +305,7 @@ fun DjQueueScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (mixHistory.isEmpty()) {
@@ -372,7 +383,7 @@ fun DjQueueScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(onClick = onClearHistory)
-                        .padding(16.dp),
+                        .padding(14.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("Clear Mix History", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error)
@@ -394,21 +405,36 @@ private fun DjQueueTrackRow(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(12.dp)
+    val a = item.analysis
+    val metaLine = buildString {
+        append(item.track.artist)
+        if (a != null) {
+            append(" · ${a.bpm.roundToInt()} BPM · ${a.camelotCode}")
+            val g = a.subgenre.ifBlank { item.track.genre }
+            if (g.isNotBlank()) append(" · $g")
+        }
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
             .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .clickable(onClick = onMixNow)
             .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text(
+            text = "#${(index + 1).toString().padStart(2, '0')}",
+            style = MonoBadgeStyle,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(28.dp),
+        )
         ArtworkImage(
-            artworkUri = item.track.customArtworkUri ?: item.track.artworkUri,
+            artworkUri = item.track.displayArtwork,
             fallbackUri = item.track.contentUri,
-            modifier = Modifier.size(46.dp),
+            modifier = Modifier.size(44.dp),
             cornerRadius = 8.dp,
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -420,7 +446,7 @@ private fun DjQueueTrackRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${item.track.artist} · ${item.reason}",
+                text = metaLine,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

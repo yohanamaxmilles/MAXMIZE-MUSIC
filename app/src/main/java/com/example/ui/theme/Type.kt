@@ -42,7 +42,7 @@ fun fontFamilyFor(choice: FontChoice): FontFamily = when (choice) {
 }
 
 fun typographyFor(
-    fontChoice: FontChoice = FontChoice.INTER,
+    fontChoice: FontChoice = FontChoice.PLUS_JAKARTA,
     fontScale: Float = 1.0f,
 ): Typography {
     val family = fontFamilyFor(fontChoice)
@@ -60,14 +60,14 @@ fun typographyFor(
             fontWeight = FontWeight.Bold,
             fontSize = (24f * s).sp,
             lineHeight = (30f * s).sp,
-            letterSpacing = (-0.3).sp,
+            letterSpacing = (-0.35).sp,
         ),
         headlineSmall = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.SemiBold,
             fontSize = (20f * s).sp,
             lineHeight = (26f * s).sp,
-            letterSpacing = (-0.2).sp,
+            letterSpacing = (-0.25).sp,
         ),
         titleLarge = TextStyle(
             fontFamily = family,
@@ -81,14 +81,14 @@ fun typographyFor(
             fontWeight = FontWeight.SemiBold,
             fontSize = (15f * s).sp,
             lineHeight = (21f * s).sp,
-            letterSpacing = 0.sp,
+            letterSpacing = (-0.05).sp,
         ),
         titleSmall = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Medium,
             fontSize = (13f * s).sp,
             lineHeight = (18f * s).sp,
-            letterSpacing = 0.1.sp,
+            letterSpacing = 0.05.sp,
         ),
         bodyLarge = TextStyle(
             fontFamily = family,
@@ -102,14 +102,14 @@ fun typographyFor(
             fontWeight = FontWeight.Normal,
             fontSize = (13f * s).sp,
             lineHeight = (18f * s).sp,
-            letterSpacing = 0.1.sp,
+            letterSpacing = 0.05.sp,
         ),
         bodySmall = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Normal,
             fontSize = (12f * s).sp,
             lineHeight = (16f * s).sp,
-            letterSpacing = 0.2.sp,
+            letterSpacing = 0.15.sp,
         ),
         labelLarge = TextStyle(
             fontFamily = family,
@@ -123,14 +123,14 @@ fun typographyFor(
             fontWeight = FontWeight.Medium,
             fontSize = (11f * s).sp,
             lineHeight = (15f * s).sp,
-            letterSpacing = 0.3.sp,
+            letterSpacing = 0.25.sp,
         ),
         labelSmall = TextStyle(
             fontFamily = family,
             fontWeight = FontWeight.Medium,
             fontSize = (10f * s).sp,
             lineHeight = (14f * s).sp,
-            letterSpacing = 0.4.sp,
+            letterSpacing = 0.35.sp,
         ),
     )
 }
@@ -142,6 +142,14 @@ val MonoTimecodeStyle = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 12.sp,
     lineHeight = 16.sp,
+    fontFeatureSettings = "tnum",
+)
+
+val MonoStatStyle = TextStyle(
+    fontFamily = JetBrainsMonoFontFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 15.sp,
+    lineHeight = 20.sp,
     fontFeatureSettings = "tnum",
 )
 

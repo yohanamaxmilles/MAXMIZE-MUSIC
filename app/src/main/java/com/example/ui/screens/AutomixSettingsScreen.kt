@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +50,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.dj.GenreEngine
 import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.model.AutomixConfig
@@ -86,6 +85,7 @@ fun AutomixSettingsScreen(
     onUpsertGenreRule: (String, String, Boolean) -> Unit,
     onDeleteGenreRule: (String, String) -> Unit,
     modifier: Modifier = Modifier,
+    embeddedInHub: Boolean = false,
 ) {
     var showGenreDialog by remember { mutableStateOf(false) }
     var showTransitionDialog by remember { mutableStateOf(false) }
@@ -104,239 +104,243 @@ fun AutomixSettingsScreen(
             .testTag("automix_settings_screen"),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
-        // Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "DJ Intelligence & Automix",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    )
-                }
-                IconButton(
-                    onClick = { showSaveProfileDialog = true },
-                    modifier = Modifier.testTag("save_dj_profile_btn"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.BookmarkAdd,
-                        contentDescription = "Save current settings as custom DJ profile",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
-
-        // DJ Profile Selector
-        item {
-            Column(modifier = Modifier.padding(top = 6.dp, bottom = 12.dp)) {
+        if (!embeddedInHub) {
+            item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = "DJ Profiles",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "${profiles.size} presets",
-                        style = MonoTimecodeStyle,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                                contentDescription = "Back",
+                                modifier = Modifier.size(30.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "DJ Settings",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        )
+                    }
+                    IconButton(
+                        onClick = { showSaveProfileDialog = true },
+                        modifier = Modifier.testTag("save_dj_profile_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.BookmarkAdd,
+                            contentDescription = "Save as custom DJ profile",
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    items(profiles, key = { it.id }) { profile ->
-                        val selected = profile.id == config.activeProfileId
-                        val cardShape = RoundedCornerShape(12.dp)
-                        Column(
-                            modifier = Modifier
-                                .width(196.dp)
-                                .clip(cardShape)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surface
-                                )
-                                .border(
-                                    width = if (selected) 1.5.dp else 0.75.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outlineVariant,
-                                    shape = cardShape,
-                                )
-                                .clickable { onApplyProfile(profile) }
-                                .padding(12.dp)
-                                .testTag("dj_profile_${profile.id}"),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+            }
+        }
+
+        // A. Mixing Intelligence
+        item {
+            DjSettingsSectionTitle("A · MIXING INTELLIGENCE")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Mix Mode", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        MixMode.entries.forEach { mode ->
+                            val selected = config.mode == mode
+                            val shape = RoundedCornerShape(10.dp)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                                    .clip(shape)
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                    .border(
+                                        width = 0.75.dp,
+                                        color = if (selected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.outline,
+                                        shape = shape,
+                                    )
+                                    .clickable { onUpdateConfig { it.copy(mode = mode) } },
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = profile.name,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
+                                    text = mode.label,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                    else MaterialTheme.colorScheme.onSurface,
                                 )
-                                if (!profile.isBuiltIn) {
-                                    IconButton(
-                                        onClick = { onDeleteCustomProfile(profile.id) },
-                                        modifier = Modifier.size(22.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.DeleteOutline,
-                                            contentDescription = "Delete custom profile",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                    }
-                                }
                             }
-                            Text(
-                                text = profile.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = "${profile.bpmMin}-${profile.bpmMax} BPM · ${profile.transitionStyle.label}",
-                                style = MonoTimecodeStyle,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
                         }
                     }
-                }
-                if (activeProfile != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = activeProfile.description,
+                        text = config.mode.description,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp),
                     )
                 }
-            }
-        }
 
-        // Mix Mode Segmented Selector
-        item {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                Text(
-                    text = "Mix Mode",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    MixMode.entries.forEach { mode ->
-                        val selected = config.mode == mode
-                        val shape = RoundedCornerShape(10.dp)
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(42.dp)
-                                .clip(shape)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surface
-                                )
-                                .border(
-                                    width = 0.75.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outline,
-                                    shape = shape,
-                                )
-                                .clickable { onUpdateConfig { it.copy(mode = mode) } },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = mode.label,
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                ParamDivider()
+
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Smart Queue Look-Ahead", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text("${config.lookAheadCount} tracks", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
                     }
+                    MaxmizeSlider(
+                        value = config.lookAheadCount.toFloat(),
+                        onValueChange = { v -> onUpdateConfig { it.copy(lookAheadCount = v.roundToInt().coerceIn(1, 5)) } },
+                        valueRange = 1f..5f,
+                    )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = config.mode.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+
+                ParamDivider()
+
+                val totalW = (config.bpmWeight + config.harmonicWeight + config.energyWeight + config.genreWeight)
+                    .coerceAtLeast(0.01f)
+                WeightSliderRow("Tempo Weight", config.bpmWeight, ((config.bpmWeight / totalW) * 100).roundToInt()) { w ->
+                    onUpdateConfig { it.copy(bpmWeight = w) }
+                }
+                ParamDivider()
+                WeightSliderRow("Harmonic Weight", config.harmonicWeight, ((config.harmonicWeight / totalW) * 100).roundToInt()) { w ->
+                    onUpdateConfig { it.copy(harmonicWeight = w) }
+                }
+                ParamDivider()
+                WeightSliderRow("Energy Weight", config.energyWeight, ((config.energyWeight / totalW) * 100).roundToInt()) { w ->
+                    onUpdateConfig { it.copy(energyWeight = w) }
+                }
+                ParamDivider()
+                WeightSliderRow("Genre Weight", config.genreWeight, ((config.genreWeight / totalW) * 100).roundToInt()) { w ->
+                    onUpdateConfig { it.copy(genreWeight = w) }
+                }
             }
         }
 
-        // DJ Intelligence Settings (Genre, Harmonic Level, Energy Curve, Beam Depth, Rules)
+        // B. Genre Compatibility
         item {
-            Text(
-                text = "DJ Intelligence",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-            )
+            DjSettingsSectionTitle("B · GENRE COMPATIBILITY")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Strict Genre Matching",
                     subtitle = "Prevent incompatible jumps (e.g. Pop -> Hard Techno)",
                     checked = config.strictGenreMatching,
-                    onCheckedChange = { checked ->
-                        onUpdateConfig { it.copy(strictGenreMatching = checked) }
-                    },
                     modifier = Modifier.testTag("switch_strict_genre"),
+                    onCheckedChange = { checked -> onUpdateConfig { it.copy(strictGenreMatching = checked) } },
                 )
                 ParamDivider()
                 ParamSwitchRow(
                     title = "Open-Format Bridging",
                     subtitle = "Allow cross-genre transitions via harmonic & BPM locks",
                     checked = config.openFormatBridging,
-                    onCheckedChange = { checked ->
-                        onUpdateConfig { it.copy(openFormatBridging = checked) }
-                    },
                     modifier = Modifier.testTag("switch_open_format"),
+                    onCheckedChange = { checked -> onUpdateConfig { it.copy(openFormatBridging = checked) } },
                 )
+                ParamDivider()
+                ParamNavRow(
+                    title = "Genre Preference",
+                    value = config.genrePreference,
+                    onClick = { showGenreDialog = true },
+                )
+                ParamDivider()
+                ParamNavRow(
+                    title = "Genre Compatibility Rules",
+                    value = if (genreRules.isEmpty()) "Default" else "${genreRules.size} custom",
+                    onClick = { showRulesDialog = true },
+                    modifier = Modifier.testTag("genre_rules_nav_row"),
+                )
+            }
+        }
+
+        // C. BPM and Beatmatching
+        item {
+            DjSettingsSectionTitle("C · BPM & BEATMATCHING")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("BPM Range", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text(
+                            text = "${config.bpmMin} - ${config.bpmMax} BPM",
+                            style = MonoTimecodeStyle,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Min BPM (${config.bpmMin})", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MaxmizeSlider(
+                        value = config.bpmMin.toFloat(),
+                        onValueChange = { v ->
+                            val nextMin = v.toInt().coerceIn(50, config.bpmMax - 10)
+                            onUpdateConfig { it.copy(bpmMin = nextMin) }
+                        },
+                        valueRange = 50f..170f,
+                    )
+                    Text("Max BPM (${config.bpmMax})", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    MaxmizeSlider(
+                        value = config.bpmMax.toFloat(),
+                        onValueChange = { v ->
+                            val nextMax = v.toInt().coerceIn(config.bpmMin + 10, 220)
+                            onUpdateConfig { it.copy(bpmMax = nextMax) }
+                        },
+                        valueRange = 80f..220f,
+                    )
+                }
+                ParamDivider()
+                ParamSwitchRow(
+                    title = "BPM Matching",
+                    subtitle = "Beatmatch incoming track tempo",
+                    checked = config.bpmMatchEnabled,
+                ) { checked ->
+                    onUpdateConfig { it.copy(bpmMatchEnabled = checked) }
+                }
                 ParamDivider()
                 ParamSwitchRow(
                     title = "Phrase Alignment",
                     subtitle = "Sync incoming track cue to 8-beat phrase boundaries",
                     checked = config.phraseMatchEnabled,
-                    onCheckedChange = { checked ->
-                        onUpdateConfig { it.copy(phraseMatchEnabled = checked) }
-                    },
-                )
-                ParamDivider()
+                ) { checked ->
+                    onUpdateConfig { it.copy(phraseMatchEnabled = checked) }
+                }
+            }
+        }
 
-                // Harmonic Mix Level
+        // D. Harmonic Mixing
+        item {
+            DjSettingsSectionTitle("D · HARMONIC MIXING")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ParamSwitchRow(
+                    title = "Key Matching",
+                    subtitle = "Camelot Wheel harmonic progression",
+                    checked = config.keyMatchingEnabled,
+                ) { checked ->
+                    onUpdateConfig { it.copy(keyMatchingEnabled = checked) }
+                }
+                ParamDivider()
+                ParamSwitchRow(
+                    title = "Key Lock",
+                    subtitle = "Preserve natural vocal & instrument pitch",
+                    checked = config.keyLockEnabled,
+                ) { checked ->
+                    onUpdateConfig { it.copy(keyLockEnabled = checked) }
+                }
+                ParamDivider()
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Harmonic Mixing", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                    Text("Harmonic Mixing Level", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -378,12 +382,15 @@ fun AutomixSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+        }
 
-                ParamDivider()
-
-                // Energy Progression Curve
+        // E. Energy Progression
+        item {
+            DjSettingsSectionTitle("E · ENERGY PROGRESSION")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Energy Progression", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                    Text("Energy Curve", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
                     Spacer(modifier = Modifier.height(8.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -405,195 +412,7 @@ fun AutomixSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
                 ParamDivider()
-
-                // Multi-Track Look-Ahead Beam Depth
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Smart Queue Look-Ahead", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        Text("${config.lookAheadCount} tracks", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
-                    }
-                    MaxmizeSlider(
-                        value = config.lookAheadCount.toFloat(),
-                        onValueChange = { v -> onUpdateConfig { it.copy(lookAheadCount = v.roundToInt().coerceIn(1, 5)) } },
-                        valueRange = 1f..5f,
-                    )
-                }
-
-                ParamDivider()
-
-                // Custom Genre Allow / Block Rules
-                ParamNavRow(
-                    title = "Genre Compatibility Rules",
-                    value = if (genreRules.isEmpty()) "Default" else "${genreRules.size} custom",
-                    onClick = { showRulesDialog = true },
-                    modifier = Modifier.testTag("genre_rules_nav_row"),
-                )
-            }
-        }
-
-        // Custom Scoring Weights
-        item {
-            Text(
-                text = "Transition Scoring Weights",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-            )
-            val totalW = (config.bpmWeight + config.harmonicWeight + config.energyWeight + config.genreWeight)
-                .coerceAtLeast(0.01f)
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                WeightSliderRow("Tempo / BPM", config.bpmWeight, ((config.bpmWeight / totalW) * 100).roundToInt()) { w ->
-                    onUpdateConfig { it.copy(bpmWeight = w) }
-                }
-                ParamDivider()
-                WeightSliderRow("Harmonic Key", config.harmonicWeight, ((config.harmonicWeight / totalW) * 100).roundToInt()) { w ->
-                    onUpdateConfig { it.copy(harmonicWeight = w) }
-                }
-                ParamDivider()
-                WeightSliderRow("Energy Curve", config.energyWeight, ((config.energyWeight / totalW) * 100).roundToInt()) { w ->
-                    onUpdateConfig { it.copy(energyWeight = w) }
-                }
-                ParamDivider()
-                WeightSliderRow("Genre Similarity", config.genreWeight, ((config.genreWeight / totalW) * 100).roundToInt()) { w ->
-                    onUpdateConfig { it.copy(genreWeight = w) }
-                }
-            }
-        }
-
-        // Mix Parameters
-        item {
-            Text(
-                text = "Mix Parameters",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
-            )
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                // BPM Range
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("BPM Range", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        Text(
-                            text = "${config.bpmMin} - ${config.bpmMax} BPM",
-                            style = MonoTimecodeStyle,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Min BPM (${config.bpmMin})", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    MaxmizeSlider(
-                        value = config.bpmMin.toFloat(),
-                        onValueChange = { v ->
-                            val nextMin = v.toInt().coerceIn(50, config.bpmMax - 10)
-                            onUpdateConfig { it.copy(bpmMin = nextMin) }
-                        },
-                        valueRange = 50f..170f,
-                    )
-                    Text("Max BPM (${config.bpmMax})", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    MaxmizeSlider(
-                        value = config.bpmMax.toFloat(),
-                        onValueChange = { v ->
-                            val nextMax = v.toInt().coerceIn(config.bpmMin + 10, 220)
-                            onUpdateConfig { it.copy(bpmMax = nextMax) }
-                        },
-                        valueRange = 80f..220f,
-                    )
-                }
-
-                ParamDivider()
-                ParamSwitchRow("BPM Matching", "Beatmatch incoming track tempo", config.bpmMatchEnabled) { checked ->
-                    onUpdateConfig { it.copy(bpmMatchEnabled = checked) }
-                }
-                ParamDivider()
-                ParamSwitchRow("Key Matching", "Camelot Wheel harmonic progression", config.keyMatchingEnabled) { checked ->
-                    onUpdateConfig { it.copy(keyMatchingEnabled = checked) }
-                }
-                ParamDivider()
-                ParamSwitchRow("Key Lock", "Preserve natural vocal & instrument pitch", config.keyLockEnabled) { checked ->
-                    onUpdateConfig { it.copy(keyLockEnabled = checked) }
-                }
-                ParamDivider()
-                ParamSwitchRow("Auto Gain (LUFS)", "Balance track volume smoothly", config.autoGainEnabled) { checked ->
-                    onUpdateConfig { it.copy(autoGainEnabled = checked) }
-                }
-                ParamDivider()
-                ParamSwitchRow("Avoid Repeats", "Skip recently played songs in session", config.avoidRepeats) { checked ->
-                    onUpdateConfig { it.copy(avoidRepeats = checked) }
-                }
-                ParamDivider()
-
-                // Genre Preference
-                ParamNavRow(
-                    title = "Genre Preference",
-                    value = config.genrePreference,
-                    onClick = { showGenreDialog = true },
-                )
-                ParamDivider()
-
-                // Transition Style
-                ParamNavRow(
-                    title = "Transition Style",
-                    value = config.transitionStyle.label,
-                    onClick = { showTransitionDialog = true },
-                )
-                ParamDivider()
-
-                // Mix Pool Source
-                val poolLabel = config.sourcePlaylistId?.let { id ->
-                    playlists.firstOrNull { it.id == id }?.name
-                } ?: "All Local Songs"
-                ParamNavRow(
-                    title = "Mix Source Pool",
-                    value = poolLabel,
-                    onClick = { showPoolDialog = true },
-                )
-                ParamDivider()
-
-                // Transition Duration
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Transition Duration", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        Text("${config.transitionDurationSec}s", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
-                    }
-                    MaxmizeSlider(
-                        value = config.transitionDurationSec.toFloat(),
-                        onValueChange = { v -> onUpdateConfig { it.copy(transitionDurationSec = v.toInt().coerceIn(2, 16)) } },
-                        valueRange = 2f..16f,
-                    )
-                }
-
-                ParamDivider()
-
-                // Mix Duration
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Mix Duration", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                        Text("${config.mixDurationMinutes} min", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
-                    }
-                    MaxmizeSlider(
-                        value = config.mixDurationMinutes.toFloat(),
-                        onValueChange = { v -> onUpdateConfig { it.copy(mixDurationMinutes = v.toInt().coerceIn(10, 240)) } },
-                        valueRange = 10f..180f,
-                    )
-                }
-
-                ParamDivider()
-
-                // Auto-Select Mood + Chips
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -617,7 +436,7 @@ fun AutomixSettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .height(36.dp)
                                     .clip(shape)
                                     .background(
                                         if (selected) MaterialTheme.colorScheme.primary
@@ -642,6 +461,91 @@ fun AutomixSettingsScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // F. Transition and Crossfade
+        item {
+            DjSettingsSectionTitle("F · TRANSITION & CROSSFADE")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ParamNavRow(
+                    title = "Transition Style",
+                    value = config.transitionStyle.label,
+                    onClick = { showTransitionDialog = true },
+                )
+                ParamDivider()
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Transition Duration", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text("${config.transitionDurationSec}s", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.transitionDurationSec.toFloat(),
+                        onValueChange = { v -> onUpdateConfig { it.copy(transitionDurationSec = v.toInt().coerceIn(2, 16)) } },
+                        valueRange = 2f..16f,
+                    )
+                }
+                ParamDivider()
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Set Target Duration", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text("${config.mixDurationMinutes} min", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.mixDurationMinutes.toFloat(),
+                        onValueChange = { v -> onUpdateConfig { it.copy(mixDurationMinutes = v.toInt().coerceIn(10, 240)) } },
+                        valueRange = 10f..180f,
+                    )
+                }
+            }
+        }
+
+        // G. Dual Deck
+        item {
+            DjSettingsSectionTitle("G · DUAL DECK")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ParamSwitchRow(
+                    title = "Auto Gain (LUFS)",
+                    subtitle = "Balance loudness smoothly across Deck A and Deck B",
+                    checked = config.autoGainEnabled,
+                ) { checked ->
+                    onUpdateConfig { it.copy(autoGainEnabled = checked) }
+                }
+                ParamDivider()
+                val poolLabel = config.sourcePlaylistId?.let { id ->
+                    playlists.firstOrNull { it.id == id }?.name
+                } ?: "All Local Songs"
+                ParamNavRow(
+                    title = "Deck Source Pool",
+                    value = poolLabel,
+                    onClick = { showPoolDialog = true },
+                )
+            }
+        }
+
+        // H. Automix Behavior
+        item {
+            DjSettingsSectionTitle("H · AUTOMIX BEHAVIOR")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ParamSwitchRow(
+                    title = "Avoid Repeats",
+                    subtitle = "Skip recently played songs in the current DJ session",
+                    checked = config.avoidRepeats,
+                ) { checked ->
+                    onUpdateConfig { it.copy(avoidRepeats = checked) }
+                }
+                ParamDivider()
+                ParamNavRow(
+                    title = "Save Configuration as Profile",
+                    value = activeProfile?.name ?: "Custom",
+                    onClick = { showSaveProfileDialog = true },
+                )
             }
         }
     }
@@ -714,7 +618,7 @@ fun AutomixSettingsScreen(
     if (showPoolDialog) {
         AlertDialog(
             onDismissRequest = { showPoolDialog = false },
-            title = { Text("Mix Source Pool") },
+            title = { Text("Deck Source Pool") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
@@ -873,6 +777,19 @@ fun AutomixSettingsScreen(
 }
 
 @Composable
+private fun DjSettingsSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.8.sp,
+        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 8.dp),
+    )
+}
+
+@Composable
 private fun WeightSliderRow(
     title: String,
     rawWeight: Float,
@@ -916,13 +833,22 @@ private fun ParamSwitchRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Spacer(modifier = Modifier.width(10.dp))
         MaxmizeSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -944,13 +870,16 @@ private fun ParamNavRow(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 4.dp),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(end = 6.dp),
         )
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,

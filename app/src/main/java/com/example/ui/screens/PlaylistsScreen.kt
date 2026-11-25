@@ -20,14 +20,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -47,17 +48,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.model.Playlist
 import com.example.data.model.SmartPlaylistType
+import com.example.ui.components.MaxmizeTopHeader
 import com.example.ui.components.PlaylistCollageArtwork
 import com.example.ui.components.formatDurationSummary
 import com.example.ui.theme.BadgeGoldBg
 import com.example.ui.theme.BadgeGoldFg
+import com.example.ui.theme.MonoBadgeStyle
+
+private val SECONDARY_SMART_PLAYLISTS = SmartPlaylistType.entries.filter {
+    it != SmartPlaylistType.FAVORITES && it != SmartPlaylistType.RECENTLY_PLAYED
+}
 
 @Composable
 fun PlaylistsScreen(
@@ -69,7 +76,7 @@ fun PlaylistsScreen(
     onPlayPlaylist: (Long, Boolean) -> Unit,
     onRenamePlaylist: (Long, String, String) -> Unit,
     onDeletePlaylist: (Long) -> Unit,
-    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -82,100 +89,71 @@ fun PlaylistsScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("playlists_screen"),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "Playlists",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onOpenSearch) {
-                    Icon(Icons.Rounded.Search, contentDescription = "Search playlists")
-                }
+        MaxmizeTopHeader(
+            title = "Playlists",
+            subtitle = "${playlists.size} CUSTOM · SMART MIXES",
+            onOpenSettings = onOpenSettings,
+            actions = {
                 IconButton(
                     onClick = { showCreateDialog = true },
                     modifier = Modifier.testTag("create_playlist_btn"),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = "Create playlist")
                 }
-            }
-        }
+            },
+        )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("playlists_list"),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            // Prominent Create Playlist Editorial Banner (Solid tinted surface, zero gradients)
+            // 1. Pinned Top Collections: Favorites & Recently Played (no duplication below)
             item {
-                val bannerShape = RoundedCornerShape(14.dp)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(bannerShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f), bannerShape)
-                        .clickable { showCreateDialog = true }
-                        .padding(16.dp)
-                        .testTag("create_playlist_banner"),
-                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Box(
+                    PinnedSmartTile(
+                        title = "Favorites",
+                        count = smartPlaylistCounts[SmartPlaylistType.FAVORITES] ?: 0,
+                        icon = Icons.Rounded.Favorite,
+                        onClick = { onOpenSmartPlaylist(SmartPlaylistType.FAVORITES) },
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            text = "Create Playlist",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground,
-                        )
-                        Text(
-                            text = "Start your own playlist",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                            .weight(1f)
+                            .testTag("smart_playlist_favorites"),
+                    )
+                    PinnedSmartTile(
+                        title = "Recently Played",
+                        count = smartPlaylistCounts[SmartPlaylistType.RECENTLY_PLAYED] ?: 0,
+                        icon = Icons.Rounded.History,
+                        onClick = { onOpenSmartPlaylist(SmartPlaylistType.RECENTLY_PLAYED) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("smart_playlist_recently_played"),
+                    )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
             }
 
-            // Smart Auto-Generated Playlists
+            // 2. Smart Auto-Generated Playlists (distinct from Favorites & Recently Played)
             item {
                 Text(
                     text = "Smart Playlists",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    items(SmartPlaylistType.entries) { smartType ->
+                    items(SECONDARY_SMART_PLAYLISTS, key = { it.name }) { smartType ->
                         val shape = RoundedCornerShape(14.dp)
                         val count = smartPlaylistCounts[smartType] ?: 0
                         Column(
                             modifier = Modifier
-                                .width(156.dp)
+                                .width(154.dp)
                                 .clip(shape)
                                 .background(MaterialTheme.colorScheme.surface)
                                 .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
@@ -186,7 +164,7 @@ fun PlaylistsScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(32.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(BadgeGoldBg),
                                 contentAlignment = Alignment.Center,
@@ -195,7 +173,7 @@ fun PlaylistsScreen(
                                     imageVector = Icons.Rounded.AutoAwesome,
                                     contentDescription = null,
                                     tint = BadgeGoldFg,
-                                    modifier = Modifier.size(18.dp),
+                                    modifier = Modifier.size(17.dp),
                                 )
                             }
                             Text(
@@ -206,20 +184,71 @@ fun PlaylistsScreen(
                             )
                             Text(
                                 text = "$count songs",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MonoBadgeStyle,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Your Playlists",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+            }
+
+            // 3. Your Playlists + Create Playlist row
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Your Playlists",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                val bannerShape = RoundedCornerShape(14.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(bannerShape)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .border(0.75.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), bannerShape)
+                        .clickable { showCreateDialog = true }
+                        .padding(14.dp)
+                        .testTag("create_playlist_banner"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "Create Playlist",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            text = "Curate a custom mix from your local tracks",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             if (playlists.isEmpty()) {
@@ -227,20 +256,20 @@ fun PlaylistsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 48.dp, horizontal = 16.dp),
+                            .padding(vertical = 36.dp, horizontal = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.QueueMusic,
+                            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier.size(40.dp),
                         )
-                        Text("No Playlists Yet", style = MaterialTheme.typography.titleLarge)
+                        Text("No Custom Playlists Yet", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "Create custom playlists to organize your local tracks, albums, and listening sessions.",
-                            style = MaterialTheme.typography.bodyMedium,
+                            "Tap Create Playlist above to organize your local songs.",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -264,7 +293,7 @@ fun PlaylistsScreen(
                         PlaylistCollageArtwork(
                             customCoverUri = playlist.customCoverUri,
                             artworkUris = playlist.artworkUris,
-                            modifier = Modifier.size(58.dp),
+                            modifier = Modifier.size(56.dp),
                             cornerRadius = 10.dp,
                         )
                         Spacer(modifier = Modifier.width(14.dp))
@@ -373,6 +402,56 @@ fun PlaylistsScreen(
                 TextButton(onClick = { deletingPlaylist = null }) { Text("Cancel") }
             },
         )
+    }
+}
+
+@Composable
+private fun PinnedSmartTile(
+    title: String,
+    count: Int,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(BadgeGoldBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = BadgeGoldFg,
+                modifier = Modifier.size(19.dp),
+            )
+        }
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "$count songs",
+                style = MonoBadgeStyle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

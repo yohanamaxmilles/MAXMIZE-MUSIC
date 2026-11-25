@@ -2,15 +2,15 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Deep Black & Gold Editorial Dark Palette (per specification)
-val DeepBlack = Color(0xFF080808)
-val DarkSurface = Color(0xFF111111)
-val DarkElevatedSurface = Color(0xFF191919)
-val DarkSurfaceVariant = Color(0xFF151515)
-val DarkPrimaryText = Color(0xFFFFFFFF)
-val DarkSecondaryText = Color(0xFFA0A0A0)
-val DarkOutline = Color(0xFF262626)
-val DarkOutlineVariant = Color(0xFF1D1D1D)
+// Deep Black & Gold Editorial Dark Palette (zero gradients, restrained warmth)
+val DeepBlack = Color(0xFF08080A)
+val DarkSurface = Color(0xFF111114)
+val DarkElevatedSurface = Color(0xFF18181C)
+val DarkSurfaceVariant = Color(0xFF141418)
+val DarkPrimaryText = Color(0xFFF6F6F7)
+val DarkSecondaryText = Color(0xFF9A9AA4)
+val DarkOutline = Color(0xFF26262D)
+val DarkOutlineVariant = Color(0xFF1C1C22)
 val MonochromeAccentDark = Color(0xFFFAFAFA)
 
 // Refined Light Palette
@@ -25,8 +25,8 @@ val LightOutlineVariant = Color(0xFFEAEAEF)
 val MonochromeAccentLight = Color(0xFF111115)
 
 // Gold & Editorial Accent Swatches (Solid Colors, Zero Gradients)
-val GoldAccentDark = Color(0xFFF5B91B)
-val GoldAccentLight = Color(0xFFC99000)
+val GoldAccentDark = Color(0xFFE8B422)
+val GoldAccentLight = Color(0xFFC28E00)
 
 val CrimsonAccentDark = Color(0xFFE51D3D)
 val CrimsonAccentLight = Color(0xFFD11132)
@@ -46,9 +46,9 @@ val RoseAccentLight = Color(0xFFDB2777)
 val ErrorRedDark = Color(0xFFFF4D4D)
 val ErrorRedLight = Color(0xFFC62828)
 
-// Subtle Solid Icon Badge Tints (for Quick Access & Library Categories)
-val BadgeGoldBg = Color(0xFF231B08)
-val BadgeGoldFg = Color(0xFFF5B91B)
+// Subtle Solid Icon Badge Tints
+val BadgeGoldBg = Color(0xFF211B09)
+val BadgeGoldFg = Color(0xFFE8B422)
 
 val BadgeRedBg = Color(0xFF261216)
 val BadgeRedFg = Color(0xFFE5484D)
@@ -60,7 +60,7 @@ val BadgePurpleBg = Color(0xFF1D1729)
 val BadgePurpleFg = Color(0xFFA388FF)
 
 val BadgeAmberBg = Color(0xFF251E0E)
-val BadgeAmberFg = Color(0xFFF5B91B)
+val BadgeAmberFg = Color(0xFFE8B422)
 
 val BadgePinkBg = Color(0xFF26141F)
 val BadgePinkFg = Color(0xFFEC5A9B)
