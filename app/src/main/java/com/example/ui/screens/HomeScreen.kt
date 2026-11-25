@@ -562,7 +562,7 @@ private fun HeroBannerCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(shape)
-            .background(LavenderCard)
+             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -578,12 +578,12 @@ private fun HeroBannerCard(
                     lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
                 ),
-                color = LavenderCardText,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = "${tracks.size} songs · Offline",
                 style = MaterialTheme.typography.bodySmall,
-                color = LavenderCardText.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Button(
@@ -592,8 +592,8 @@ private fun HeroBannerCard(
                 shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = LavenderCardDeep,
-                    contentColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
                 modifier = Modifier.testTag("home_shuffle_all_card"),
             ) {
@@ -617,13 +617,13 @@ private fun HeroBannerCard(
                 modifier = Modifier
                     .size(104.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(LavenderCardDeep.copy(alpha = 0.14f)),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.LibraryMusic,
                     contentDescription = null,
-                    tint = LavenderCardDeep,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp),
                 )
             }
@@ -657,13 +657,13 @@ private fun QuickDjModeCard(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (isAutomixActive) MaterialTheme.colorScheme.primary else LavenderCardDeep),
+                .background(if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = Icons.Rounded.GraphicEq,
                 contentDescription = "DJ Mode",
-                tint = if (isAutomixActive) MaterialTheme.colorScheme.onPrimary else LavenderCard,
+                tint = if (isAutomixActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.size(22.dp),
             )
         }
