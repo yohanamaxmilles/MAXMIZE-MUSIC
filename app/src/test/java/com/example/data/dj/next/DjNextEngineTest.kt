@@ -199,4 +199,40 @@ class DjNextEngineTest {
         assertTrue(plan.explanation.contains("moved earlier"))
     }
 
+    @Test
+    fun bassSwapEqMovesLowBandBetweenDecksWithoutChangingMidOrHigh() {
+        val start = DjEqAutomation.bassSwap(0f)
+        val middle = DjEqAutomation.bassSwap(0.5f)
+        val end = DjEqAutomation.bassSwap(1f)
+
+        assertEquals(1f, start.outgoingLow, 0.001f)
+        assertEquals(0.1f, start.incomingLow, 0.001f)
+        assertTrue(middle.outgoingLow < start.outgoingLow)
+        assertTrue(middle.incomingLow > start.incomingLow)
+        assertEquals(1f, end.outgoingMid, 0.001f)
+        assertEquals(1f, end.incomingHigh, 0.001f)
+        assertEquals(0.1f, end.outgoingLow, 0.001f)
+        assertEquals(1f, end.incomingLow, 0.001f)
+    }
+
+    @Test
+    fun eqFilterAutomationIsBoundedAndRestoresIncomingDeck() {
+        val start = DjEqAutomation.eqFilter(0f)
+        val middle = DjEqAutomation.eqFilter(0.5f)
+        val end = DjEqAutomation.eqFilter(1f)
+
+        assertTrue(middle.outgoingLow in 0f..1f)
+        assertTrue(middle.outgoingMid in 0f..1f)
+        assertTrue(middle.outgoingHigh in 0f..1f)
+        assertTrue(middle.incomingLow in 0f..1f)
+        assertTrue(middle.incomingMid in 0f..1f)
+        assertTrue(middle.outgoingLow < start.outgoingLow)
+        assertTrue(middle.outgoingMid < start.outgoingMid)
+        assertTrue(middle.incomingLow > start.incomingLow)
+        assertTrue(middle.incomingMid > start.incomingMid)
+        assertEquals(1f, end.incomingLow, 0.001f)
+        assertEquals(1f, end.incomingMid, 0.001f)
+        assertEquals(1f, end.incomingHigh, 0.001f)
+    }
+
 }
