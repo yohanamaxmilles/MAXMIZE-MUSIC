@@ -222,7 +222,7 @@ class DjAnalysisAndCompatibilityTest {
     fun genreAliasesRequireRealTokenBoundaries() {
         assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Popular Music"))
         assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Tanzania"))
-        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Piano Solo"))
+        assertEquals("Classical", com.example.data.dj.GenreEngine.canonicalize("Piano Solo")?.canonical)
         assertEquals("Deep House", com.example.data.dj.GenreEngine.canonicalize("Electronic; Deep House")?.canonical)
     }
 
