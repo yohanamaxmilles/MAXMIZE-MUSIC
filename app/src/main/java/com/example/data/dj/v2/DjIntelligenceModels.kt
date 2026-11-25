@@ -1,8 +1,6 @@
 package com.example.data.dj.v2
 
 /** Evidence-aware contracts. Missing measurements stay null, never guessed. */
-enum class DjOperatingMode { AUTOMIX, INTELLIGENT_DJ }
-enum class AutomixTechnique { BEAT_SYNC, HARMONIC, PHRASE_MATCH, ENERGY_FLOW, GENRE_MATCH, HUMAN_STYLE }
 enum class DjSessionPhase(val targetEnergyDelta: Float) {
     OPENING(0.04f), WARM_UP(0.07f), BUILD_UP(0.12f), PEAK_TIME(0.0f),
     BREATHER(-0.16f), COOL_DOWN(-0.10f), CLOSING(-0.12f), FLOW(0.0f),
