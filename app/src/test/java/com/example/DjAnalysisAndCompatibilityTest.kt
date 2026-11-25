@@ -123,6 +123,8 @@ class DjAnalysisAndCompatibilityTest {
         assertTrue(result.loudnessLufs < 0f && result.loudnessLufs > -40f)
         assertEquals("A min", result.musicalKey)
         assertEquals("8A", result.camelotCode)
+        assertTrue("Stable synthetic beat should produce measurable tempo stability", result.tempoStability >= 0.5f)
+        assertEquals(3, result.analysisVersion)
     }
 
     @Test
@@ -284,5 +286,33 @@ class DjAnalysisAndCompatibilityTest {
         assertEquals("--", result.camelotCode)
         assertEquals(0L, result.beatIntervalMs)
         assertEquals(0L, result.phraseLengthMs)
+    }
+
+    @Test
+    fun `key analysis samples the full analysis window instead of only the opening seconds`() {
+        val sampleRate = 22_050
+        val seconds = 12
+        val samples = FloatArray(sampleRate * seconds)
+        for (i in samples.indices) {
+            val t = i.toDouble() / sampleRate
+            val tone = if (t < 2.0) {
+                0.45 * sin(2.0 * PI * 261.63 * t) +
+                    0.35 * sin(2.0 * PI * 329.63 * t) +
+                    0.25 * sin(2.0 * PI * 392.0 * t)
+            } else {
+                0.45 * sin(2.0 * PI * 220.0 * t) +
+                    0.35 * sin(2.0 * PI * 261.63 * t) +
+                    0.25 * sin(2.0 * PI * 329.63 * t)
+            }
+            samples[i] = tone.toFloat()
+        }
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "full-window-key-test",
+            samples = samples,
+            sampleRate = sampleRate,
+            durationMs = seconds * 1000L,
+        )
+        assertEquals("A min", result.musicalKey)
+        assertEquals(3, result.analysisVersion)
     }
 }
