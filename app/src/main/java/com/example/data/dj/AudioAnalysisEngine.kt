@@ -684,7 +684,7 @@ class AudioAnalysisEngine(
             return num / den
         }
 
-        private fun genrePriorBpm(genre: String): Float {
+        private fun genrePriorBpm(genre: String): Float? {
             val g = genre.lowercase()
             return when {
                 "drum" in g || "dnb" in g -> 170f
@@ -696,7 +696,7 @@ class AudioAnalysisEngine(
                 "afro" in g || "bongo" in g -> 108f
                 "reggae" in g || "dub" in g -> 82f
                 "rock" in g || "metal" in g -> 130f
-                else -> 116f
+                else -> null
             }
         }
     }
