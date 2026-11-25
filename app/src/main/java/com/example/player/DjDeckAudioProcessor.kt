@@ -86,7 +86,7 @@ class DjDeckAudioProcessor : BaseAudioProcessor() {
         val rate = sampleRate.toFloat()
         lowShelf = shelf(rate, 120f, lowGainDb, true)
         midPeak = peak(rate, 1_000f, midGainDb, 0.9f)
-        highShelf = shelf(rate, 8_000f, highGainDb, false)
+        highShelf = shelf(rate, minOf(8_000f, rate * 0.40f), highGainDb, false)
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
