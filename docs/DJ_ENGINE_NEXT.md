@@ -78,3 +78,11 @@ returns a conservative plan and leaves the transition under manual control.
 - `TrackAnalysis` and its Room entity now retain average/peak singing probability, vocal active ratio, average speech probability, confidence, candidate segment JSON and an analysis version. Room migration 3 to 4 adds these fields without dropping existing analysis data.
 - If decoding or inference is unavailable, vocal status remains UNKNOWN. It is never converted into an instrumental classification.
 - This is an initial production integration. Device testing and labelled EDM validation are required before vocal-aware transition rules are enabled.
+
+
+## Production BPM confidence refinement
+- Replaced raw onset autocorrelation with mean-centred normalized autocorrelation to reduce dependence on track loudness and broad RMS changes.
+- Reduced the tempo prior so measured periodicity dominates candidate selection.
+- Weak or non-periodic signals now retain a neutral display BPM with zero confidence because the persisted model requires a non-null BPM field. The new DJ profile adapter rejects that value, so it cannot drive beat sync or tempo matching.
+- Added synthetic production-pipeline tests at 90, 128 and 174 BPM plus a low-level flat-signal confidence test.
+- These tests verify the DSP path on synthetic PCM. A labelled real-world EDM reference set and device listening tests are still required before claiming production-grade BPM accuracy.
