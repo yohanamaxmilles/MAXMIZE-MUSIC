@@ -562,7 +562,7 @@ private fun HeroBannerCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
