@@ -7,9 +7,9 @@ import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
 import com.example.data.local.prefs.UserPreferencesRepository
+import com.example.data.model.DjVoiceGender
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
@@ -112,7 +112,7 @@ class DjVoiceDirector(
     fun availableVoiceNames(): List<String> =
         textToSpeech?.voices.orEmpty()
             .filter { it.locale.language == locale.language && !it.isNetworkConnectionRequired }
-            .map(Voice::getName)
+            .map { it.name }
             .sorted()
 
     fun selectedVoiceName(): String = textToSpeech?.voice?.name.orEmpty()
