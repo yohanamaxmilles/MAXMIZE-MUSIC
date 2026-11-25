@@ -84,6 +84,7 @@ fun DjModeScreen(
     onDeleteCustomProfile: (String) -> Unit,
     onUpsertGenreRule: (String, String, Boolean) -> Unit,
     onDeleteGenreRule: (String, String) -> Unit,
+    onPreviewVoice: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (selectedTab != DjSectionTab.HOME) {
@@ -226,6 +227,7 @@ fun DjModeScreen(
                     onDeleteCustomProfile = onDeleteCustomProfile,
                     onUpsertGenreRule = onUpsertGenreRule,
                     onDeleteGenreRule = onDeleteGenreRule,
+                    onPreviewVoice = onPreviewVoice,
                     embeddedInHub = true,
                 )
             }
