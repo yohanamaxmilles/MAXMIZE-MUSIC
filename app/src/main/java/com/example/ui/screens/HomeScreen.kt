@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -74,6 +75,9 @@ import com.example.ui.components.PlaylistCollageArtwork
 import com.example.ui.components.TrackRow
 import com.example.ui.components.formatTimecode
 import com.example.ui.theme.BadgeBlueBg
+import com.example.ui.theme.LavenderCard
+import com.example.ui.theme.LavenderCardDeep
+import com.example.ui.theme.LavenderCardText
 import com.example.ui.theme.BadgeBlueFg
 import com.example.ui.theme.BadgeGoldBg
 import com.example.ui.theme.BadgeGoldFg
@@ -102,6 +106,7 @@ fun HomeScreen(
     onOpenNowPlaying: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenAutomix: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenCategory: (LibraryCategory) -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
@@ -148,30 +153,37 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
+                    val greeting = remember {
+                        when (java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)) {
+                            in 5..11 -> "Good morning"
+                            in 12..16 -> "Good afternoon"
+                            else -> "Good evening"
+                        }
+                    }
                     Text(
-                        text = "Maxmize",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 26.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
+                        text = greeting,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = "Music",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontSize = 24.sp,
+                        text = "Maxmize",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
-                            lineHeight = 26.sp,
+                            lineHeight = 38.sp,
                         ),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = onOpenSearch,
-                        modifier = Modifier.testTag("home_search_btn"),
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .testTag("home_search_btn"),
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Search,
@@ -179,10 +191,25 @@ fun HomeScreen(
                             tint = MaterialTheme.colorScheme.onBackground,
                         )
                     }
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.testTag("home_settings_btn"),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
                     Box {
                         IconButton(
                             onClick = { overflowOpen = true },
-                            modifier = Modifier.testTag("home_rescan_btn"),
+                            modifier = Modifier
+                                .padding(start = 8.dp, end = 12.dp)
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .testTag("home_rescan_btn"),
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.MoreVert,
@@ -240,6 +267,44 @@ fun HomeScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+        }
+
+        // Quick filter pills (jump into library categories)
+        item {
+            val chips = listOf(
+                "All" to LibraryCategory.SONGS,
+                "Recent" to LibraryCategory.RECENTLY_PLAYED,
+                "Favorites" to LibraryCategory.FAVORITES,
+                "Most played" to LibraryCategory.MOST_PLAYED,
+                "Albums" to LibraryCategory.ALBUMS,
+                "Artists" to LibraryCategory.ARTISTS,
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.padding(bottom = 14.dp),
+            ) {
+                itemsIndexed(chips, key = { _, c -> c.first }) { index, (label, category) ->
+                    val selected = index == 0
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            )
+                            .clickable { onOpenCategory(category) }
+                            .padding(horizontal = 20.dp, vertical = 11.dp),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }
@@ -545,16 +610,15 @@ private fun HeroBannerCard(
         if (albumArts.isNotEmpty()) albumArts.take(4)
         else tracks.mapNotNull { it.displayArtwork }.distinct().take(4)
     }
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(32.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-            .padding(18.dp),
+            .background(LavenderCard)
+            .padding(22.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -569,7 +633,7 @@ private fun HeroBannerCard(
                     lineHeight = 27.sp,
                     fontWeight = FontWeight.Bold,
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = LavenderCardText,
             )
             Text(
                 text = if (tracks.isEmpty()) {
@@ -578,17 +642,17 @@ private fun HeroBannerCard(
                     "Offline · ${tracks.size} Tracks · Lossless"
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = LavenderCardText.copy(alpha = 0.7f),
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Button(
                 onClick = onPlayAll,
                 enabled = !isScanning,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = LavenderCardDeep,
+                    contentColor = Color.White,
                 ),
                 modifier = Modifier.testTag("home_shuffle_all_card"),
             ) {
@@ -616,21 +680,20 @@ private fun HeroBannerCard(
                 customCoverUri = null,
                 artworkUris = coverUris,
                 modifier = Modifier.size(104.dp),
-                cornerRadius = 12.dp,
+                cornerRadius = 22.dp,
             )
         } else {
             Box(
                 modifier = Modifier
                     .size(104.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(0.75.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp)),
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(LavenderCardDeep.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Rounded.LibraryMusic,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = LavenderCardDeep,
                     modifier = Modifier.size(40.dp),
                 )
             }

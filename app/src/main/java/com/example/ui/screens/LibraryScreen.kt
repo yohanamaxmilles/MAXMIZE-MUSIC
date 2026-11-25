@@ -325,58 +325,111 @@ fun LibraryScreen(
         }
 
         if (selectedCategory == null) {
-            // Editorial Library Category Directory (matches showcase)
+            val primaryEntries = directoryEntries.filter {
+                it.category in setOf(
+                    LibraryCategory.SONGS,
+                    LibraryCategory.ALBUMS,
+                    LibraryCategory.ARTISTS,
+                    LibraryCategory.GENRES,
+                    LibraryCategory.FOLDERS,
+                )
+            }
+            val quickEntries = directoryEntries.filter {
+                it.category in setOf(
+                    LibraryCategory.FAVORITES,
+                    LibraryCategory.RECENTLY_ADDED,
+                    LibraryCategory.RECENTLY_PLAYED,
+                    LibraryCategory.MOST_PLAYED,
+                )
+            }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(directoryEntries, key = { it.category.name }) { entry ->
-                    val shape = RoundedCornerShape(14.dp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(shape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                            .clickable { onSelectCategory(entry.category) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                            .testTag("lib_dir_${entry.category.name.lowercase()}"),
-                        verticalAlignment = Alignment.CenterVertically,
+                item {
+                    Text(
+                        text = "BROWSE YOUR MUSIC",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 2.dp),
+                    )
+                }
+                item {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxWidth().height(288.dp),
+                        contentPadding = PaddingValues(bottom = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        userScrollEnabled = false,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(11.dp))
-                                .background(entry.badgeBg),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = entry.icon,
-                                contentDescription = null,
-                                tint = entry.badgeFg,
-                                modifier = Modifier.size(22.dp),
+                        items(primaryEntries, key = { it.category.name }) { entry ->
+                            val shape = RoundedCornerShape(16.dp)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(89.dp)
+                                    .clip(shape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                                    .clickable { onSelectCategory(entry.category) }
+                                    .padding(12.dp)
+                                    .testTag("lib_dir_${entry.category.name.lowercase()}"),
+                                verticalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(RoundedCornerShape(9.dp))
+                                        .background(entry.badgeBg),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = entry.icon,
+                                        contentDescription = null,
+                                        tint = entry.badgeFg,
+                                        modifier = Modifier.size(17.dp),
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = entry.title,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = entry.subtitle,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        text = "QUICK ACCESS",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 2.dp, top = 4.dp),
+                    )
+                }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(quickEntries, key = { it.category.name }) { entry ->
+                            EditorialChip(
+                                label = entry.title,
+                                selected = false,
+                                onClick = { onSelectCategory(entry.category) },
+                                modifier = Modifier.testTag("lib_quick_${entry.category.name.lowercase()}"),
                             )
                         }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = entry.title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = entry.subtitle,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
-                        )
                     }
                 }
                 item { Spacer(modifier = Modifier.height(16.dp)) }

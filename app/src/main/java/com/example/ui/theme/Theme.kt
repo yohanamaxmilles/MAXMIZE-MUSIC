@@ -49,15 +49,16 @@ val LocalDensityMetrics = staticCompositionLocalOf { uiDensityMetrics(UiDensity.
 
 val MaxmizeShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(20.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )
 
 fun accentColorFor(preset: AccentPreset, isDark: Boolean): Color {
     return if (isDark) {
         when (preset) {
+            AccentPreset.LIME -> LimeAccentDark
             AccentPreset.GOLD -> GoldAccentDark
             AccentPreset.CRIMSON -> CrimsonAccentDark
             AccentPreset.SLATE -> BlueAccentDark
@@ -68,6 +69,7 @@ fun accentColorFor(preset: AccentPreset, isDark: Boolean): Color {
         }
     } else {
         when (preset) {
+            AccentPreset.LIME -> LimeAccentLight
             AccentPreset.GOLD -> GoldAccentLight
             AccentPreset.CRIMSON -> CrimsonAccentLight
             AccentPreset.SLATE -> BlueAccentLight
@@ -81,6 +83,7 @@ fun accentColorFor(preset: AccentPreset, isDark: Boolean): Color {
 
 fun onAccentColorFor(preset: AccentPreset, isDark: Boolean): Color {
     return when {
+        preset == AccentPreset.LIME && isDark -> DeepBlack
         preset == AccentPreset.GOLD && isDark -> DeepBlack
         preset == AccentPreset.MONOCHROME && isDark -> DeepBlack
         else -> Color.White
@@ -90,7 +93,7 @@ fun onAccentColorFor(preset: AccentPreset, isDark: Boolean): Color {
 @Composable
 fun MaxmizeTheme(
     themeMode: ThemeMode = ThemeMode.DARK,
-    accentPreset: AccentPreset = AccentPreset.GOLD,
+    accentPreset: AccentPreset = AccentPreset.LIME,
     fontChoice: FontChoice = FontChoice.INTER,
     fontScale: Float = 1.0f,
     uiDensity: UiDensity = UiDensity.COMFORTABLE,

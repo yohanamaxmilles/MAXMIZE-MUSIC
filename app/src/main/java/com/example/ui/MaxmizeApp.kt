@@ -26,13 +26,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -71,6 +71,7 @@ import com.example.ui.screens.AutomixSettingsScreen
 import com.example.ui.screens.CollectionDetailScreen
 import com.example.ui.screens.CreateOrEditPlaylistDialog
 import com.example.ui.screens.DjQueueScreen
+import com.example.ui.screens.DjModeScreen
 import com.example.ui.screens.EqualizerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
@@ -260,6 +261,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                 MaxmizeRoute.Library,
             ),
             TopRouteBinding(
+                NavDestinationItem("dj", "DJ Mode", Icons.Rounded.GraphicEq, Icons.Outlined.GraphicEq, "nav_dj"),
+                MaxmizeRoute.DjMode,
+            ),
+            TopRouteBinding(
                 NavDestinationItem("playlists", "Playlists", Icons.Rounded.QueueMusic, Icons.Outlined.QueueMusic, "nav_playlists"),
                 MaxmizeRoute.Playlists,
             ),
@@ -267,18 +272,29 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                 NavDestinationItem("search", "Search", Icons.Rounded.Search, Icons.Outlined.Search, "nav_search"),
                 MaxmizeRoute.Search,
             ),
-            TopRouteBinding(
-                NavDestinationItem("settings", "Settings", Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings"),
-                MaxmizeRoute.Settings,
-            ),
         )
     }
 
     val navItems = remember(topBindings) { topBindings.map { it.navItem } }
     val selectedNavId = remember(currentDestination, topBindings) {
-        topBindings.firstOrNull { binding ->
-            currentDestination?.hasRoute(binding.route::class) == true
-        }?.navItem?.id
+        when {
+            currentDestination?.hasRoute(MaxmizeRoute.DjMode::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.Automix::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.AutomixSettings::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.DjQueue::class) == true -> "dj"
+            currentDestination?.hasRoute(MaxmizeRoute.Library::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.AlbumDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.ArtistDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.GenreDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.FolderDetail::class) == true -> "library"
+            currentDestination?.hasRoute(MaxmizeRoute.Playlists::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.PlaylistDetail::class) == true ||
+                currentDestination?.hasRoute(MaxmizeRoute.SmartPlaylistDetail::class) == true -> "playlists"
+            currentDestination?.hasRoute(MaxmizeRoute.Settings::class) == true -> "home"
+            else -> topBindings.firstOrNull { binding ->
+                currentDestination?.hasRoute(binding.route::class) == true
+            }?.navItem?.id
+        }
     }
 
     val handleTrackMenu: (Track, TrackMenuEvent) -> Unit = { track, event ->
@@ -414,6 +430,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onOpenNowPlaying = { isNowPlayingOpen = true },
                                             onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
                                             onOpenAutomix = { navController.navigate(MaxmizeRoute.Automix) },
+                                             onOpenSettings = { navigateTopLevel(MaxmizeRoute.Settings) },
                                             onOpenCategory = { category ->
                                                 viewModel.selectLibraryCategory(category)
                                                 navigateTopLevel(MaxmizeRoute.Library)
@@ -499,6 +516,16 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onOpenFolder = { path -> navController.navigate(MaxmizeRoute.FolderDetail(path)) },
                                             onOpenPlaylist = { id -> navController.navigate(MaxmizeRoute.PlaylistDetail(id)) },
                                             onTrackMenuAction = handleTrackMenu,
+                                        )
+                                    }
+
+                                    composable<MaxmizeRoute.DjMode> {
+                                        DjModeScreen(
+                                            isAutomixActive = automixState.isActive,
+                                            onOpenAutomix = { navController.navigate(MaxmizeRoute.Automix) },
+                                            onOpenQueue = { navController.navigate(MaxmizeRoute.DjQueue) },
+                                            onOpenProfiles = { navController.navigate(MaxmizeRoute.AutomixSettings) },
+                                            onOpenAnalysis = { navController.navigate(MaxmizeRoute.Automix) },
                                         )
                                     }
 

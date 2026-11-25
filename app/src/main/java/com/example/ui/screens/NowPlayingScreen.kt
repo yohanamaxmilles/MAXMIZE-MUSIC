@@ -82,6 +82,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -155,6 +158,8 @@ fun NowPlayingScreen(
                 .testTag("now_playing_screen"),
         ) {
             val isWideOrLandscape = maxWidth > maxHeight || maxWidth >= 600.dp
+
+            NowPlayingBackdrop(track = track)
 
             Column(modifier = Modifier.fillMaxSize()) {
                 // Minimal Top Bar
@@ -409,6 +414,33 @@ fun NowPlayingScreen(
 }
 
 @Composable
+private fun NowPlayingBackdrop(track: Track) {
+    // Blur is only available on Android 12+ (API 31); older devices keep the clean solid background.
+    if (android.os.Build.VERSION.SDK_INT < 31) return
+    val bg = MaterialTheme.colorScheme.background
+    Box(modifier = Modifier.fillMaxSize()) {
+        ArtworkImage(
+            artworkUri = track.customArtworkUri ?: track.artworkUri,
+            fallbackUri = track.contentUri,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(70.dp)
+                .alpha(0.5f),
+            cornerRadius = 0.dp,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, bg.copy(alpha = 0.85f), bg),
+                    ),
+                ),
+        )
+    }
+}
+
+@Composable
 private fun ArtworkPager(
     queue: List<Track>,
     currentIndex: Int,
@@ -445,8 +477,8 @@ private fun ArtworkPager(
             fallbackUri = pageTrack.contentUri,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(2.dp),
-            cornerRadius = 16.dp,
+                .padding(6.dp),
+            cornerRadius = 500.dp,
         )
     }
 }
@@ -585,7 +617,7 @@ private fun PlayerControlsBlock(
 
             Box(
                 modifier = Modifier
-                    .size(66.dp)
+                    .size(76.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
                     .clickable(onClick = onTogglePlayPause)

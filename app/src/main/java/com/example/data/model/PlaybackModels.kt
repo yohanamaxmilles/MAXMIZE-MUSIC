@@ -10,6 +10,7 @@ enum class ThemeMode {
 }
 
 enum class AccentPreset(val displayName: String) {
+    LIME("Lime"),
     GOLD("Gold"),
     CRIMSON("Crimson"),
     SLATE("Blue"),
