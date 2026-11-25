@@ -12,6 +12,7 @@ class DjDecisionEngine {
         recentTrackIds: Set<String>,
         config: DjDecisionConfig = DjDecisionConfig(),
         count: Int = 8,
+        recentArtistNames: Set<String> = emptySet(),
     ): DjRankingResult {
         require(count >= 0)
         val ranked = mutableListOf<DjCandidateScore>()
@@ -29,7 +30,7 @@ class DjDecisionEngine {
         candidates.forEach { candidate ->
             val reason = rejectionReason(current, candidate, recentTrackIds, config)
             if (reason != null) rejected += DjRejection(candidate.trackId, reason)
-            else ranked += scoreCandidate(current, candidate, config)
+            else ranked += scoreCandidate(current, candidate, config, recentArtistNames)
         }
 
         return DjRankingResult(
@@ -90,6 +91,7 @@ class DjDecisionEngine {
         current: DjTrackProfile,
         candidate: DjTrackProfile,
         config: DjDecisionConfig,
+        recentArtistNames: Set<String>,
     ): DjCandidateScore {
         val ratio = tempoRatio(current.bpm, candidate.bpm)
         val bpmScore = ratio?.let { (100f - abs(it - 1f) * 1000f).toInt().coerceIn(0, 100) }
@@ -100,6 +102,10 @@ class DjDecisionEngine {
             candidate.energy,
             config.targetEnergyDelta ?: config.sessionPhase.targetEnergyDelta,
         )
+        val artist = candidate.artistName?.trim()?.lowercase().orEmpty()
+        val artistPenalty = if (artist.isNotBlank() && artist != "unknown artist" &&
+            recentArtistNames.any { it.trim().equals(artist, ignoreCase = true) }
+        ) 12 else 0
 
         val dimensions = listOf(
             bpmScore to config.bpmWeight,
@@ -117,11 +123,13 @@ class DjDecisionEngine {
             add("Genre match: $genreScore/100")
             if (energyScore != null) add("Energy flow: $energyScore/100")
             ratio?.let { add("Incoming tempo rate: " + String.format(Locale.US, "%.3f", it) + "x") }
+            if (artistPenalty > 0) add("Recent artist rotation penalty: -$artistPenalty")
         }
 
         return DjCandidateScore(
             trackId = candidate.trackId,
-            totalScore = weightedScore.toInt().coerceIn(0, 100),
+            totalScore = (weightedScore.toInt() - artistPenalty).coerceIn(0, 100),
+            artistPenalty = artistPenalty,
             bpmScore = bpmScore,
             keyScore = keyScore,
             genreScore = genreScore,
