@@ -699,7 +699,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val outGain = computeAutoGainMultiplier(activePlayer.currentMediaItem?.mediaId)
         val inGain = computeAutoGainMultiplier(preloadedTrack?.id)
 
-        val (rawOut, rawIn) = when (automixConfig.transitionStyle) {
+        val (rawOut, rawIn) = when (effectiveTransitionStyle()) {
             TransitionStyle.SMOOTH_FADE -> {
                 val angle = p * (PI / 2.0)
                 cos(angle).toFloat() to sin(angle).toFloat()
@@ -740,9 +740,19 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         }
     }
 
+    private fun effectiveTransitionStyle(): TransitionStyle {
+        return when (activeTransitionPlan?.curve) {
+            DjTransitionCurve.BASS_SWAP -> TransitionStyle.BASS_SWAP
+            DjTransitionCurve.VOCAL_AWARE_EQ -> TransitionStyle.EQ_FILTER
+            DjTransitionCurve.PHRASE_CUT -> TransitionStyle.BEAT_CUT
+            DjTransitionCurve.EQUAL_POWER -> TransitionStyle.SMOOTH_FADE
+            null -> automixConfig.transitionStyle
+        }
+    }
+
     private fun applyTransitionEq(progress: Float) {
         val p = progress.coerceIn(0f, 1f)
-        when (automixConfig.transitionStyle) {
+        when (effectiveTransitionStyle()) {
             TransitionStyle.BASS_SWAP -> {
                 activeDjProcessor.setEq(lowDb = -12f * p, midDb = 0f, highDb = 0f)
                 standbyDjProcessor.setEq(lowDb = -12f * (1f - p), midDb = 0f, highDb = 0f)
