@@ -618,7 +618,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val inAnalysis = container.audioAnalysisEngine.getAnalysisForTrack(nextTrack)
         incomingTrackAnalysis = inAnalysis
         val outgoingTrack = activePlayer.currentMediaItem?.mediaId?.let { allTracksCache[it] }
-        val outgoingAnalysis = outgoingTrack?.let { analysesCache[it.id] ?: activeTrackAnalysis }
+        val outgoingAnalysis = outgoingTrack?.let {
+            analysesCache[it.id] ?: activeTrackAnalysis?.takeIf { analysis -> analysis.trackId == it.id }
+        }
         activeTransitionPlan = if (outgoingTrack != null) {
             val outgoingProfile = DjTrackProfileFactory.from(outgoingTrack, outgoingAnalysis)
             val incomingProfile = DjTrackProfileFactory.from(nextTrack, inAnalysis)
@@ -929,7 +931,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         val currentProfile = DjTrackProfileFactory.from(
             pivotTrack,
-            analysesCache[pivotTrack.id] ?: activeTrackAnalysis,
+            analysesCache[pivotTrack.id] ?: activeTrackAnalysis?.takeIf { it.trackId == pivotTrack.id },
         )
         val candidateProfiles = pool.asSequence()
             .filter { it.id != pivotTrack.id }
