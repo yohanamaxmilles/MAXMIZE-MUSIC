@@ -268,4 +268,22 @@ class DjIntelligenceV2Test {
         assertTrue(result is DjTransitionPlanningResult.Ready)
         assertEquals(240L, (result as DjTransitionPlanningResult.Ready).plan.incomingStartMs)
     }
+    @Test
+    fun `unknown genre is not treated as proof of an incompatible genre`() {
+        val current = profile("current")
+        val untagged = profile("untagged").copy(
+            primaryGenre = null,
+            subgenre = null,
+            genreFamily = null,
+            genreConfidence = 0f,
+        )
+        val result = DjDecisionEngine().rankNextTracks(
+            current = current,
+            candidates = listOf(untagged),
+            recentTrackIds = emptySet(),
+            config = DjDecisionConfig(strictGenreMatching = true),
+        )
+        assertEquals(listOf("untagged"), result.rankedCandidates.map { it.trackId })
+    }
+
 }
