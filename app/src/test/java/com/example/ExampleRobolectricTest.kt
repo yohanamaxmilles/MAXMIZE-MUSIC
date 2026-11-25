@@ -1,7 +1,6 @@
 package com.example
 
 import android.content.Context
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -113,7 +112,7 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_console_mode_title").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("technique_human_style").assertDoesNotExist()
+        assertEquals(0, composeTestRule.onAllNodesWithTag("technique_human_style").fetchSemanticsNodes().size)
     }
 
     @Test
