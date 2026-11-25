@@ -1050,7 +1050,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             else -> 0.12f
         }
         val decisionConfig = DjDecisionConfig(
-            strictGenreMatching = automixConfig.strictGenreMatching,
+            strictGenreMatching = automixConfig.strictGenreMatching ||
+                automixConfig.technique == AutomixTechnique.GENRE_MATCH,
             allowOpenFormatBridging = automixConfig.openFormatBridging,
             requireReliableTempo = automixConfig.bpmMatchEnabled ||
                 automixConfig.technique == AutomixTechnique.BEAT_SYNC ||
@@ -1061,6 +1062,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 (automixConfig.keyMatchingEnabled &&
                     automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT),
             requirePhraseStructure = automixConfig.technique == AutomixTechnique.PHRASE_MATCH,
+            strictHarmonicMatching = automixConfig.technique == AutomixTechnique.HARMONIC ||
+                (automixConfig.keyMatchingEnabled &&
+                    automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT),
             maxTempoAdjustment = maxTempoAdjustment,
             minTrackDurationMs = 45_000L,
             maxUnknownContentDurationMs = 12L * 60L * 1000L,
