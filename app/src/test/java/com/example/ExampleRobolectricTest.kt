@@ -53,7 +53,8 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("search_screen").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("settings_open_automix").assertIsDisplayed()
@@ -62,7 +63,7 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("theme_chip_dark").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_chip_light").assertIsDisplayed()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("accent_swatch_gold"))
-        composeTestRule.onNodeWithTag("accent_swatch_gold").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("accent_swatch_lime").assertIsDisplayed()
     }
 
     @Test
