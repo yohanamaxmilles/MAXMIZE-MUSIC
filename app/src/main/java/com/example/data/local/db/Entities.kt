@@ -177,6 +177,7 @@ data class TrackAnalysisEntity(
     val vocalAverageSpeechProbability: Float? = null,
     val vocalConfidence: String = "UNKNOWN",
     val vocalSegmentsJson: String = "[]",
+    val vocalAnalysisVersion: Int = 0,
 )
 
 @Entity(tableName = "custom_dj_profiles")
