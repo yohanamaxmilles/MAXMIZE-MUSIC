@@ -29,3 +29,12 @@ Live Automix uses two ExoPlayer instances with volume curves and per-deck three-
 ## Safety rule
 Automatic beat sync must require a reliable beatgrid. When confidence is low, the engine
 returns a conservative plan and leaves the transition under manual control.
+
+
+## Latest refinement
+- DJ Voice now uses Android speech/navigation audio attributes and reports speech start/end to the service.
+- During an announcement, both decks are gently reduced to 72% of their current transition level. The original transition curve remains in control, and the deck levels return automatically when speech ends.
+- Phrase candidate markers in the PCM analyser now mark every 32 beats (eight 4/4 bars), and Automix phrase alignment uses the track's stored phrase length, choosing the nearest safe phrase boundary.
+- Phrase markers are still grid-based candidates, not a semantic musical-phrase model. A labelled reference set and real-device listening tests are still required.
+- Vocal detection is not implemented. The current repository has no validated vocal classifier or vocal/instrumental separation model. Frequency-band or energy heuristics are not accepted as proof of vocals.
+- Intro/outro detection is still heuristic. The current decoder samples a middle window for longer tracks and does not yet decode dedicated intro and outro windows. Do not treat those cue points as verified.
