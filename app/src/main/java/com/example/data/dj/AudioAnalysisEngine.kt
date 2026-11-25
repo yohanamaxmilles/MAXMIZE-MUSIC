@@ -185,7 +185,7 @@ class AudioAnalysisEngine(
             codec.configure(format, null, null, 0)
             codec.start()
 
-            val seekUs = if (durationMs > 45_000L) 20_000_000L else 0L
+            val seekUs = 0L
             if (seekUs > 0L) extractor.seekTo(seekUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
             val targetSamples = minOf(sampleRate * 24, 1_100_000)
@@ -344,7 +344,7 @@ class AudioAnalysisEngine(
             val energy = (normLoudness * 0.65f + normOnset * 0.35f).coerceIn(0.05f, 1.0f)
 
             val envRateHz = sampleRate.toFloat() / hopSize.toFloat()
-            val (bpm, bpmConf, tempoStability) = estimateBpmFromOnsets(onsetEnv, envRateHz)
+            val (bpm, bpmConf, tempoStability) = estimateBpmFromOnsets(onsetEnv, envRateHz, trackHint?.genre.orEmpty())
             val beatIntervalMs = if (bpm > 0f) {
                 (60_000f / bpm).roundToInt().toLong().coerceAtLeast(250L)
             } else 0L
@@ -465,42 +465,77 @@ class AudioAnalysisEngine(
         private fun estimateBpmFromOnsets(
             onsetEnv: FloatArray,
             envRateHz: Float,
+            genreHint: String = "",
         ): Triple<Float, Float, Float> {
-            val minBpm = 65
-            val maxBpm = 185
-            if (onsetEnv.isEmpty() || (onsetEnv.maxOrNull() ?: 0f) < 1e-5f) {
-                return Triple(0f, 0f, 0f)
-            }
-            var bestBpm = 0f
-            var bestWeightedScore = -1f
-            var totalScore = 0f
+            val minBpm = 55
+            val maxBpm = 200
+            if (onsetEnv.size < (envRateHz * 4f).roundToInt() ||
+                (onsetEnv.maxOrNull() ?: 0f) < 1e-5f
+            ) return Triple(0f, 0f, 0f)
+
+            val mean = onsetEnv.average().toFloat()
+            val centered = FloatArray(onsetEnv.size) { onsetEnv[it] - mean }
             val scores = FloatArray(maxBpm - minBpm + 1)
+            var bestIndex = -1
+            var bestScore = -1f
+
+            val knownGenre = GenreEngine.canonicalize(genreHint)
+            val priorBpm = knownGenre?.let { genrePriorBpm(it.canonical) }
 
             for (bpm in minBpm..maxBpm) {
                 val lag = ((60f / bpm) * envRateHz).roundToInt().coerceAtLeast(1)
-                if (lag >= onsetEnv.size / 2) continue
-                var corr = 0f
-                val limit = onsetEnv.size - lag
+                if (lag >= centered.size / 2) continue
+                val limit = centered.size - lag
+                var dot = 0.0
+                var energyA = 0.0
+                var energyB = 0.0
                 for (i in 0 until limit) {
-                    corr += onsetEnv[i] * onsetEnv[i + lag]
+                    val a = centered[i].toDouble()
+                    val b = centered[i + lag].toDouble()
+                    dot += a * b
+                    energyA += a * a
+                    energyB += b * b
                 }
-                val normCorr = corr / limit.coerceAtLeast(1)
-                val octavePrior = exp(-0.5 * ((bpm - 118.0) / 38.0).pow(2)).toFloat()
-                val weighted = normCorr * (0.75f + 0.25f * octavePrior)
-                scores[bpm - minBpm] = weighted
-                totalScore += weighted
-                if (weighted > bestWeightedScore) {
-                    bestWeightedScore = weighted
-                    bestBpm = bpm.toFloat()
+                val denominator = sqrt(energyA * energyB).coerceAtLeast(1e-12)
+                val correlation = (dot / denominator).toFloat().coerceIn(-1f, 1f)
+                val priorWeight = if (priorBpm != null) {
+                    exp(-0.5 * ((bpm - priorBpm) / 28.0).pow(2)).toFloat() * 0.10f
+                } else 0f
+                val score = correlation + priorWeight
+                scores[bpm - minBpm] = score
+                if (score > bestScore) {
+                    bestScore = score
+                    bestIndex = bpm - minBpm
                 }
             }
 
-            val avgScore = (totalScore / scores.size).coerceAtLeast(1e-7f)
-            val prominence = (bestWeightedScore / avgScore).coerceIn(1f, 6f)
-            val confidence = ((prominence - 1f) / 3.5f).coerceIn(0f, 0.98f)
-            if (bestWeightedScore <= 1e-6f || confidence < 0.25f) return Triple(0f, 0f, 0f)
-            val stability = confidence
-            return Triple(bestBpm, confidence, stability)
+            if (bestIndex < 0 || bestScore <= 0.03f) return Triple(0f, 0f, 0f)
+
+            val bestBpm = (bestIndex + minBpm).toFloat()
+            var secondBest = -1f
+            for (i in scores.indices) {
+                val bpm = i + minBpm
+                if (kotlin.math.abs(bpm - bestBpm) <= 3f) continue
+                if (scores[i] > secondBest) secondBest = scores[i]
+            }
+            val meanScore = scores.filter { it > -0.5f }.average().toFloat()
+            val prominence = ((bestScore - meanScore) / (abs(meanScore) + 0.08f)).coerceIn(0f, 4f)
+            val separation = ((bestScore - secondBest) / (abs(bestScore) + 0.08f)).coerceIn(0f, 1f)
+            val octaveAmbiguity = listOf(bestBpm * 0.5f, bestBpm * 2f)
+                .filter { it in minBpm.toFloat()..maxBpm.toFloat() }
+                .mapNotNull { candidate ->
+                    val index = candidate.roundToInt() - minBpm
+                    scores.getOrNull(index)
+                }
+                .maxOrNull() ?: -1f
+            val ambiguityPenalty = if (octaveAmbiguity > bestScore * 0.94f) 0.35f else 0f
+            val confidence = (
+                prominence * 0.28f + separation * 0.72f - ambiguityPenalty
+            ).coerceIn(0f, 0.98f)
+            if (confidence < 0.35f) return Triple(0f, 0f, 0f)
+
+            val tempoStability = confidence
+            return Triple(bestBpm, confidence, tempoStability)
         }
 
         private fun estimateMusicalKey(
