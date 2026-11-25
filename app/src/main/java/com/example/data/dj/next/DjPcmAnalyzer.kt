@@ -95,7 +95,7 @@ class DjPcmAnalyzer(
             if (tempo.first == null) add("No stable tempo peak was found.")
             if (band == DjConfidence.LOW) add("Tempo is uncertain. Do not enable automatic beat sync from this result.")
             add("Key, vocals and genre are intentionally unclassified by this PCM pass.")
-            add("Section labels are energy-based estimates, not semantic vocal/drop recognition.")
+            add("Drop candidates use energy jumps only. They are not confirmed musical drops or vocal detections.")
         }
 
         return DjAudioAnalysis(
@@ -198,6 +198,10 @@ class DjPcmAnalyzer(
             val type = when {
                 index == 0 -> DjSectionType.INTRO
                 index == chunks.lastIndex -> DjSectionType.OUTRO
+                // Mark only a measurable low-to-high energy jump after a quiet
+                // section. This is a candidate marker, not semantic drop recognition.
+                previous < average * 0.62f && level > average * 1.22f ->
+                    DjSectionType.DROP_CANDIDATE
                 level < average * 0.62f -> DjSectionType.BREAKDOWN
                 level > average * 1.22f && level > previous * 1.12f -> DjSectionType.BUILD
                 level > average * 1.12f -> DjSectionType.HIGH_ENERGY
