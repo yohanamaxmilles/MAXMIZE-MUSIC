@@ -1,5 +1,6 @@
 package com.example.data.local.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -175,9 +176,9 @@ data class TrackAnalysisEntity(
     val vocalPeakProbability: Float? = null,
     val vocalActiveRatio: Float? = null,
     val vocalAverageSpeechProbability: Float? = null,
-    val vocalConfidence: String = "UNKNOWN",
-    val vocalSegmentsJson: String = "[]",
-    val vocalAnalysisVersion: Int = 0,
+    @ColumnInfo(defaultValue = "'UNKNOWN'") val vocalConfidence: String = "UNKNOWN",
+    @ColumnInfo(defaultValue = "'[]'") val vocalSegmentsJson: String = "[]",
+    @ColumnInfo(defaultValue = "0") val vocalAnalysisVersion: Int = 0,
 )
 
 @Entity(tableName = "custom_dj_profiles")
