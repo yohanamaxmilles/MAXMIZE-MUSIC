@@ -42,12 +42,12 @@ object GenreEngine {
         "House", "Deep House", "Tech House", "Afro House", "Progressive House",
         "Techno", "Hard Techno", "Melodic Techno", "Minimal Techno",
         "Trance", "Psytrance",
-        "Drum and Bass", "Dubstep", "Future Bass", "Electro", "EDM",
+        "Drum and Bass", "Dubstep", "Future Bass", "Midtempo Bass", "Electro", "EDM",
         // Hip-Hop / Urban / Pop
         "Hip-Hop", "Trap", "Drill", "Rap", "R&B", "Soul", "Funk", "Disco",
         "Pop", "Dance Pop", "Indie Pop",
         // African & Global
-        "Afrobeats", "Afrobeat", "Bongo Flava", "Amapiano", "Afropop",
+        "Afrobeats", "Afrobeat", "Bongo Flava", "Amapiano", "3-Step", "Afropop",
         "Reggae", "Dancehall", "Reggaeton", "Latin", "Salsa",
         // Rock / Acoustic / Classics
         "Rock", "Alternative", "Indie", "Metal",
