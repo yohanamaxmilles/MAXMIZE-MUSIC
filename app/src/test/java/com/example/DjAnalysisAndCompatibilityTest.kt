@@ -242,4 +242,27 @@ class DjAnalysisAndCompatibilityTest {
         assertEquals(1, flexibleRes.queue.size)
         assertEquals(clashKeyPop.id, flexibleRes.queue.first().track.id)
     }
+    @Test
+    fun `audio features alone do not invent a genre from BPM`() {
+        val fastTechno = analysis("fast-techno", bpm = 174f, key = "A min")
+        val inferred = com.example.data.dj.GenreEngine.inferFromAudioFeatures(fastTechno)
+        assertEquals("Unknown", inferred.subgenre)
+        assertEquals(com.example.data.dj.GenreFamily.UNKNOWN, inferred.family)
+        assertTrue(inferred.confidence < 0.30f)
+    }
+
+    @Test
+    fun `explicit midtempo and 3-step tags are retained as distinct genres`() {
+        val midtempo = com.example.data.dj.GenreEngine.classifyTrack(
+            track("midtempo", "Dark track", genre = "Midtempo Bass"), null,
+        )
+        val threeStep = com.example.data.dj.GenreEngine.classifyTrack(
+            track("three-step", "Afro rhythm", genre = "3-Step"), null,
+        )
+        assertEquals("Midtempo Bass", midtempo.subgenre)
+        assertEquals(com.example.data.dj.GenreFamily.BASS, midtempo.family)
+        assertEquals("3-Step", threeStep.subgenre)
+        assertEquals(com.example.data.dj.GenreFamily.AFRO, threeStep.family)
+    }
+
 }
