@@ -171,6 +171,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     private var speechDuckActive: Boolean = false
     private var automixActive: Boolean = false
     private var automixStartTimeMs: Long = 0L
+    private var activeSessionPhase: DjSessionPhase = DjSessionPhase.OPENING
     private var isMixingTransition: Boolean = false
     private var transitionStartElapsedMs: Long = 0L
     private var transitionDurationActiveMs: Long = 8000L
@@ -911,6 +912,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
             automixActive = true
             automixStartTimeMs = System.currentTimeMillis()
+            activeSessionPhase = DjSessionPhase.OPENING
             isMixingTransition = false
             preloadedTrack = null
             recentDjHistoryIds.clear()
@@ -995,19 +997,33 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             ((System.currentTimeMillis() - automixStartTimeMs).toFloat() /
                 (automixConfig.mixDurationMinutes * 60_000f)).coerceIn(0f, 1f)
         } else 0f
+        val plannedSessionPhase = when (automixConfig.energyProgression) {
+            com.example.data.model.EnergyProgression.BUILD_UP -> DjSessionArcPlanner.phaseFor(sessionProgress)
+            com.example.data.model.EnergyProgression.PEAK_HOUR -> DjSessionPhase.PEAK_TIME
+            com.example.data.model.EnergyProgression.STEADY -> DjSessionPhase.FLOW
+            com.example.data.model.EnergyProgression.CHILL_DOWN -> DjSessionPhase.COOL_DOWN
+            com.example.data.model.EnergyProgression.WAVE -> {
+                val waveProgress = (sessionProgress * 2f).let { if (it <= 1f) it else 2f - it }
+                DjSessionArcPlanner.phaseFor(waveProgress)
+            }
+        }
+        val recentEnergyValues = recentDjHistoryIds.mapNotNull { id ->
+            analysesCache[id]?.takeIf { it.bpmConfidence >= 0.40f }?.energy
+        }.takeLast(5)
+        val recentAverageEnergy = recentEnergyValues.takeIf { it.isNotEmpty() }?.average()?.toFloat()
         val sessionPhase = if (automixConfig.operatingMode == DjOperatingMode.AUTOMIX) {
             DjSessionPhase.FLOW
         } else {
-            when (automixConfig.energyProgression) {
-                com.example.data.model.EnergyProgression.BUILD_UP -> DjSessionArcPlanner.phaseFor(sessionProgress)
-                com.example.data.model.EnergyProgression.PEAK_HOUR -> DjSessionPhase.PEAK_TIME
-                com.example.data.model.EnergyProgression.STEADY -> DjSessionPhase.FLOW
-                com.example.data.model.EnergyProgression.CHILL_DOWN -> DjSessionPhase.COOL_DOWN
-                com.example.data.model.EnergyProgression.WAVE -> {
-                    val waveProgress = (sessionProgress * 2f).let { if (it <= 1f) it else 2f - it }
-                    DjSessionArcPlanner.phaseFor(waveProgress)
-                }
+            if (activeSessionPhase == DjSessionPhase.FLOW || recentAverageEnergy == null ||
+                !DjSessionArcPlanner.shouldHoldPhase(
+                    current = activeSessionPhase,
+                    recentAverageEnergy = recentAverageEnergy,
+                    targetEnergy = activeSessionPhase.targetEnergy,
+                )
+            ) {
+                activeSessionPhase = plannedSessionPhase
             }
+            activeSessionPhase
         }
         val techniqueWeights = when (automixConfig.technique) {
             AutomixTechnique.BEAT_SYNC -> listOf(0.65f, 0.10f, 0.15f, 0.10f)
