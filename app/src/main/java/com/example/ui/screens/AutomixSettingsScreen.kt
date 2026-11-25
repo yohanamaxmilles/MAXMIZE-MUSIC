@@ -55,6 +55,7 @@ import com.example.data.dj.GenreEngine
 import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.model.AutomixConfig
 import com.example.data.model.DjProfile
+import com.example.data.model.DjVoiceGender
 import com.example.data.model.EnergyProgression
 import com.example.data.model.GenreSummary
 import com.example.data.model.HarmonicMixLevel
@@ -545,6 +546,65 @@ fun AutomixSettingsScreen(
                     title = "Save Configuration as Profile",
                     value = activeProfile?.name ?: "Custom",
                     onClick = { showSaveProfileDialog = true },
+                )
+            }
+        }
+
+        // I. DJ Voice
+        item {
+            DjSettingsSectionTitle("I · DJ VOICE")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Text(
+                    "Choose the announcer voice used during DJ sessions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+                DjVoiceGender.entries.forEach { option ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable { onUpdateConfig { it.copy(djVoiceGender = option) } }
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = config.djVoiceGender == option,
+                            onClick = { onUpdateConfig { it.copy(djVoiceGender = option) } },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(option.label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                ParamDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Speaking speed", style = MaterialTheme.typography.bodyMedium)
+                        Text("${config.djVoiceRate}x", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.djVoiceRate,
+                        onValueChange = { value -> onUpdateConfig { it.copy(djVoiceRate = value) } },
+                        valueRange = 0.75f..1.15f,
+                    )
+                }
+                ParamDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Voice level", style = MaterialTheme.typography.bodyMedium)
+                        Text("${(config.djVoiceVolume * 100).roundToInt()}%", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.djVoiceVolume,
+                        onValueChange = { value -> onUpdateConfig { it.copy(djVoiceVolume = value) } },
+                        valueRange = 0.25f..1.0f,
+                    )
+                }
+                ParamDivider()
+                Text(
+                    "Music lowers while the DJ speaks.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
         }
