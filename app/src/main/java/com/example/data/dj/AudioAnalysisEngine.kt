@@ -36,7 +36,7 @@ class AudioAnalysisEngine(
 
     suspend fun getAnalysisForTrack(track: Track): TrackAnalysis = withContext(Dispatchers.IO) {
         val existing = analysisDao.getAnalysisOnce(track.id)
-        if (existing != null && existing.phraseLengthMs > 0L) {
+        if (existing != null && (existing.userCorrected || existing.phraseLengthMs > 0L || existing.bpmConfidence == 0f)) {
             return@withContext existing.toDomain()
         }
 
@@ -52,7 +52,7 @@ class AudioAnalysisEngine(
         val existingById = analysisDao.getAllAnalysesOnce().associateBy { it.trackId }
         val missing = tracks.filter {
             val existing = existingById[it.id]
-            existing == null || existing.phraseLengthMs <= 0L
+            existing == null || (!existing.userCorrected && existing.phraseLengthMs <= 0L && existing.bpmConfidence > 0f)
         }
         if (missing.isEmpty()) {
             onProgress(tracks.size, tracks.size)
@@ -110,33 +110,33 @@ class AudioAnalysisEngine(
             }
         }
         val safeDur = track.durationMs.coerceAtLeast(60_000L)
-        val fallbackBpm = genrePriorBpm(track.genre)
-        val beatMs = (60_000f / fallbackBpm).roundToInt().toLong().coerceAtLeast(250L)
-        val phraseBeats = if (fallbackBpm >= 115f) 32L else 16L
+        val fallbackBpm = 0f
+        val beatMs = 0L
+        val phraseBeats = 0L
         val partial = TrackAnalysis(
             trackId = track.id,
             bpm = fallbackBpm,
-            bpmConfidence = 0.2f,
-            tempoStability = 0.5f,
-            musicalKey = "A min",
-            camelotCode = "8A",
-            keyConfidence = 0.2f,
-            energy = 0.55f,
-            rmsDb = -14.0f,
-            loudnessLufs = -14.0f,
-            dynamicRangeDb = 8.0f,
-            onsetDensity = 2.0f,
+            bpmConfidence = 0.0f,
+            tempoStability = 0.0f,
+            musicalKey = "Unknown",
+            camelotCode = "--",
+            keyConfidence = 0.0f,
+            energy = 0.0f,
+            rmsDb = -60.0f,
+            loudnessLufs = -60.0f,
+            dynamicRangeDb = 0.0f,
+            onsetDensity = 0.0f,
             firstBeatMs = 0L,
             beatIntervalMs = beatMs,
-            introEndMs = minOf(12_000L, (safeDur * 0.12f).toLong()),
-            outroStartMs = max(safeDur - 14_000L, (safeDur * 0.85f).toLong()),
+            introEndMs = 0L,
+            outroStartMs = 0L,
             durationMs = safeDur,
             userCorrected = false,
             phraseLengthMs = beatMs * phraseBeats,
-            danceability = 0.52f,
-            rhythmSignature = "4/4",
-            downbeatConfidence = 0.3f,
-            spectralCentroidHz = 1500f,
+            danceability = 0.0f,
+            rhythmSignature = "Unknown",
+            downbeatConfidence = 0.0f,
+            spectralCentroidHz = 0f,
         )
         val genre = GenreEngine.classifyTrack(track, partial)
         return partial.copy(
@@ -343,9 +343,13 @@ class AudioAnalysisEngine(
 
             val envRateHz = sampleRate.toFloat() / hopSize.toFloat()
             val (bpm, bpmConf, tempoStability) = estimateBpmFromOnsets(onsetEnv, envRateHz)
-            val beatIntervalMs = (60_000f / bpm).roundToInt().toLong().coerceAtLeast(250L)
+            val beatIntervalMs = if (bpm > 0f) {
+                (60_000f / bpm).roundToInt().toLong().coerceAtLeast(250L)
+            } else 0L
 
-            val framesPerBeat = ((beatIntervalMs / 1000f) * envRateHz).roundToInt().coerceAtLeast(1)
+            val framesPerBeat = if (beatIntervalMs > 0L) {
+                ((beatIntervalMs / 1000f) * envRateHz).roundToInt().coerceAtLeast(1)
+            } else 1
             var bestPhase = 0
             var bestPhaseScore = -1f
             var totalPhaseScore = 0f
@@ -362,23 +366,26 @@ class AudioAnalysisEngine(
                     bestPhase = phase
                 }
             }
-            val firstBeatMs = ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
+            val firstBeatMs = if (beatIntervalMs > 0L && bpmConf >= 0.45f) {
+                ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
+            } else 0L
             val avgPhaseScore = (totalPhaseScore / framesPerBeat).coerceAtLeast(1e-5f)
-            val downbeatConfidence = ((bestPhaseScore / avgPhaseScore - 1f) * 0.45f + bpmConf * 0.55f)
-                .coerceIn(0.15f, 0.98f)
+            val downbeatConfidence = if (beatIntervalMs > 0L) {
+                ((bestPhaseScore / avgPhaseScore - 1f) * 0.45f + bpmConf * 0.55f).coerceIn(0f, 0.98f)
+            } else 0f
 
-            val phraseBeats = if (bpm >= 115f) 32L else 16L
+            val phraseBeats = if (bpm <= 0f) 0L else if (bpm >= 115f) 32L else 16L
             val phraseLengthMs = beatIntervalMs * phraseBeats
 
-            val tempoGroove = exp(-0.5 * ((bpm - 116.0) / 28.0).pow(2)).toFloat()
+            val tempoGroove = if (bpm > 0f) exp(-0.5 * ((bpm - 116.0) / 28.0).pow(2)).toFloat() else 0f
             val danceability = (bpmConf * 0.42f + tempoGroove * 0.36f + normOnset * 0.22f)
                 .coerceIn(0.12f, 0.98f)
 
             val (musicalKey, keyConfidence) = estimateMusicalKey(samples, sampleRate)
-            val camelotCode = HarmonicCompatibility.camelotForKey(musicalKey)
+            val camelotCode = if (keyConfidence >= 0.45f) HarmonicCompatibility.camelotForKey(musicalKey) else "--"
 
-            val introEndMs = minOf(16_000L, (safeDur * 0.14f).toLong())
-            val outroStartMs = max(safeDur - 18_000L, (safeDur * 0.84f).toLong())
+            val introEndMs = 0L
+            val outroStartMs = 0L
 
             val base = TrackAnalysis(
                 trackId = trackId,
@@ -458,7 +465,10 @@ class AudioAnalysisEngine(
         ): Triple<Float, Float, Float> {
             val minBpm = 65
             val maxBpm = 185
-            var bestBpm = 120f
+            if (onsetEnv.isEmpty() || (onsetEnv.maxOrNull() ?: 0f) < 1e-5f) {
+                return Triple(0f, 0f, 0f)
+            }
+            var bestBpm = 0f
             var bestWeightedScore = -1f
             var totalScore = 0f
             val scores = FloatArray(maxBpm - minBpm + 1)
@@ -484,8 +494,9 @@ class AudioAnalysisEngine(
 
             val avgScore = (totalScore / scores.size).coerceAtLeast(1e-7f)
             val prominence = (bestWeightedScore / avgScore).coerceIn(1f, 6f)
-            val confidence = ((prominence - 1f) / 3.5f).coerceIn(0.15f, 0.98f)
-            val stability = confidence.coerceIn(0.2f, 0.98f)
+            val confidence = ((prominence - 1f) / 3.5f).coerceIn(0f, 0.98f)
+            if (bestWeightedScore <= 1e-6f || confidence < 0.25f) return Triple(0f, 0f, 0f)
+            val stability = confidence
             return Triple(bestBpm, confidence, stability)
         }
 
@@ -524,7 +535,9 @@ class AudioAnalysisEngine(
             val maxChroma = chroma.maxOrNull()?.coerceAtLeast(1e-6f) ?: 1f
             for (i in 0 until 12) chroma[i] /= maxChroma
 
-            var bestKey = "A min"
+            if (chroma.sum() < 1e-4f) return "Unknown" to 0f
+
+            var bestKey = "Unknown"
             var bestCorr = -1f
             var secondCorr = -1f
 
@@ -548,8 +561,8 @@ class AudioAnalysisEngine(
                 }
             }
 
-            val confidence = ((bestCorr - secondCorr) * 4f + 0.4f).coerceIn(0.25f, 0.98f)
-            return bestKey to confidence
+            val confidence = ((bestCorr - secondCorr) * 4f + 0.4f).coerceIn(0f, 0.98f)
+            return if (confidence >= 0.45f) bestKey to confidence else "Unknown" to confidence
         }
 
         private fun correlateCircular(
