@@ -567,15 +567,19 @@ class AudioAnalysisEngine(
             val priorBpm = knownGenre?.let { genrePriorBpm(it.canonical) }
 
             for (bpm in minBpm..maxBpm) {
-                val lag = ((60f / bpm) * envRateHz).roundToInt().coerceAtLeast(1)
-                if (lag >= centered.size / 2) continue
-                val limit = centered.size - lag
+                val lagFloat = (60f / bpm) * envRateHz
+                val lag = kotlin.math.floor(lagFloat).toInt().coerceAtLeast(1)
+                if (lag + 1 >= centered.size / 2) continue
+                val fraction = lagFloat - lag
+                val limit = centered.size - lag - 1
                 var dot = 0.0
                 var energyA = 0.0
                 var energyB = 0.0
                 for (i in 0 until limit) {
                     val a = centered[i].toDouble()
-                    val b = centered[i + lag].toDouble()
+                    val b0 = centered[i + lag].toDouble()
+                    val b1 = centered[i + lag + 1].toDouble()
+                    val b = b0 * (1.0 - fraction) + b1 * fraction
                     dot += a * b
                     energyA += a * a
                     energyB += b * b
