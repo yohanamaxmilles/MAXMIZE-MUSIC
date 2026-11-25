@@ -1,8 +1,10 @@
 package com.example.player
 
 import android.content.Context
+import android.media.AudioAttributes as PlatformAudioAttributes
+import android.os.Bundle
 import android.speech.tts.TextToSpeech
-import android.speech.tts.Voice
+import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 /**
@@ -15,6 +17,9 @@ class DjVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     private var ready = false
     private var pendingAnnouncement: String? = null
     private var released = false
+    @Volatile private var speaking = false
+
+    val isSpeaking: Boolean get() = speaking
 
     init {
         textToSpeech = TextToSpeech(appContext, this)
@@ -23,6 +28,30 @@ class DjVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     override fun onInit(status: Int) {
         if (released || status != TextToSpeech.SUCCESS) return
         val engine = textToSpeech ?: return
+        engine.setAudioAttributes(
+            PlatformAudioAttributes.Builder()
+                .setUsage(PlatformAudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                .setContentType(PlatformAudioAttributes.CONTENT_TYPE_SPEECH)
+                .build(),
+        )
+        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {
+                speaking = true
+            }
+
+            override fun onDone(utteranceId: String?) {
+                speaking = false
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) {
+                speaking = false
+            }
+
+            override fun onError(utteranceId: String?, errorCode: Int) {
+                speaking = false
+            }
+        })
         val locale = Locale.getDefault()
         val languageResult = engine.setLanguage(locale)
         if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
@@ -68,6 +97,7 @@ class DjVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
     fun shutdown() {
         released = true
         ready = false
+        speaking = false
         pendingAnnouncement = null
         textToSpeech?.stop()
         textToSpeech?.shutdown()
