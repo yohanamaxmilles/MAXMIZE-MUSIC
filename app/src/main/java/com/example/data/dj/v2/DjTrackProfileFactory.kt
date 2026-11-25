@@ -29,7 +29,7 @@ object DjTrackProfileFactory {
             it.confidence >= 0.60f && it.subgenre.isNotBlank() && it.subgenre != "Unknown"
         }
         val energyReliable = analysis?.takeIf {
-            it.energy in 0f..1f && it.analysisVersion >= 2
+            it.energy in 0f..1f && it.analysisVersion >= 3
         }
         val moodTags = buildSet {
             if (energyReliable != null) {
