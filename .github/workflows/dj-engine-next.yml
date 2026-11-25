@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: dj-engine-next-${{ github.event.pull_request.number || github.ref }}
+  group: dj-engine-next-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
