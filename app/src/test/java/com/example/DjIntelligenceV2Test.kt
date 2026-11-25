@@ -117,6 +117,20 @@ class DjIntelligenceV2Test {
     }
 
     @Test
+    fun phraseMatchTechniqueRejectsTracksWithoutReliablePhraseGrids() {
+        val current = profile("current", boundaries = emptyList())
+        val candidate = profile("candidate", boundaries = emptyList())
+        val result = DjDecisionEngine().rankNextTracks(
+            current = current,
+            candidates = listOf(candidate),
+            recentTrackIds = emptySet(),
+            config = DjDecisionConfig(requirePhraseStructure = true),
+        )
+        assertTrue(result.rankedCandidates.isEmpty())
+        assertTrue(result.rejectedCandidates.single().reason.contains("phrase grid"))
+    }
+
+    @Test
     fun `planner refuses to invent missing phrase structure`() {
         val outgoing = profile("outgoing", boundaries = emptyList())
         val incoming = profile("incoming")
