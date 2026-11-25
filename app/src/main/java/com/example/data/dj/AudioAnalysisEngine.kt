@@ -420,7 +420,8 @@ class AudioAnalysisEngine(
                 }
             }
             val firstBeatMs = if (beatIntervalMs > 0L && bpmConf >= 0.45f) {
-                sampleOffsetMs + ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
+                val localPhaseMs = ((bestPhase / envRateHz) * 1000f).roundToInt().toLong()
+                (sampleOffsetMs + localPhaseMs) % beatIntervalMs
             } else 0L
             val avgPhaseScore = (totalPhaseScore / framesPerBeat).coerceAtLeast(1e-5f)
             val downbeatConfidence = if (beatIntervalMs > 0L) {
