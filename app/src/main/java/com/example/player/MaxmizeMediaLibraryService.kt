@@ -42,6 +42,8 @@ import com.example.data.model.DjQueuedTrack
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
 import com.example.data.model.TransitionStyle
+import com.example.player.djvoice.DjVoiceDirector
+import java.util.Locale
 import com.example.widget.MaxmizeWidgetProvider
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
@@ -145,6 +147,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     // Dual-Deck Automix runtime state (background-independent)
     private val djQueueMutex = Mutex()
     private var automixActive: Boolean = false
+    private var djVoiceDirector: DjVoiceDirector? = null
+    @Volatile private var speechDuckActive: Boolean = false
     private var automixStartTimeMs: Long = 0L
     private var isMixingTransition: Boolean = false
     private var transitionStartElapsedMs: Long = 0L
@@ -172,6 +176,22 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         balanceProcessorA.emitSpectrum = true
         balanceProcessorB.emitSpectrum = false
+        djVoiceDirector = DjVoiceDirector(
+            context = applicationContext,
+            locale = Locale.ENGLISH,
+            onSpeechStarted = {
+                serviceScope.launch {
+                    speechDuckActive = true
+                    updateSpeechDuck()
+                }
+            },
+            onSpeechFinished = {
+                serviceScope.launch {
+                    speechDuckActive = false
+                    updateSpeechDuck()
+                }
+            },
+        )
 
         deckA = buildDeckPlayer(balanceProcessorA, handleFocus = true)
         deckB = buildDeckPlayer(balanceProcessorB, handleFocus = false)
@@ -327,6 +347,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 if (deckIndex != activeDeckIndex) return
                 if (!isPlaying && !isMixingTransition) {
                     RealtimeSpectrumBus.reset()
+        djVoiceDirector?.close()
+        djVoiceDirector = null
                 }
                 updateWidgetFromPlayer()
                 if (!isPlaying) {
@@ -542,6 +564,25 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         }
     }
 
+    private fun updateSpeechDuck() {
+        if (!::deckA.isInitialized || !::deckB.isInitialized) return
+        if (isMixingTransition) {
+            val elapsed = (System.currentTimeMillis() - transitionStartElapsedMs).coerceAtLeast(0L)
+            val progress = (elapsed.toFloat() / transitionDurationActiveMs.toFloat()).coerceIn(0f, 1f)
+            applyTransitionVolumeCurves(progress)
+            return
+        }
+        val gain = if (speechDuckActive) 0.24f else 1f
+        if (automixActive) {
+            activePlayer.volume = computeAutoGainMultiplier(activePlayer.currentMediaItem?.mediaId) * gain
+            standbyPlayer.volume = if (standbyPlayer.isPlaying) {
+                computeAutoGainMultiplier(preloadedTrack?.id) * gain
+            } else 0f
+        } else {
+            activePlayer.volume = gain
+        }
+    }
+
     private fun alignToNearestBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
         if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
@@ -598,6 +639,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         transitionStartElapsedMs = System.currentTimeMillis()
         standbyPlayer.volume = 0f
         standbyPlayer.play()
+        djVoiceDirector?.announceTrack(incoming.title, incoming.artist)
         publishAutomixRuntime(statusOverride = "Mixing into ${incoming.title}...")
     }
 
@@ -628,8 +670,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             }
         }
 
-        activePlayer.volume = (rawOut * outGain).coerceIn(0f, 1f)
-        standbyPlayer.volume = (rawIn * inGain).coerceIn(0f, 1f)
+        val speechGain = if (speechDuckActive) 0.24f else 1f
+        activePlayer.volume = (rawOut * outGain * speechGain).coerceIn(0f, 1f)
+        standbyPlayer.volume = (rawIn * inGain * speechGain).coerceIn(0f, 1f)
     }
 
     private fun completeDualDeckSwap() {
@@ -651,7 +694,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         balanceProcessorA.emitSpectrum = (activeDeckIndex == 0)
         balanceProcessorB.emitSpectrum = (activeDeckIndex == 1)
         incoming.setAudioAttributes(audioAttributes, true)
-        incoming.volume = computeAutoGainMultiplier(inTrack?.id)
+        incoming.volume = computeAutoGainMultiplier(inTrack?.id) * if (speechDuckActive) 0.24f else 1f
         updateProcessorNormalization()
         mediaLibrarySession?.player = incoming
         container.audioEffectsManager.attachToAudioSession(incoming.audioSessionId)
@@ -783,7 +826,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             }
 
             activeTrackAnalysis = container.audioAnalysisEngine.getAnalysisForTrack(seedTrack)
-            activePlayer.volume = computeAutoGainMultiplier(seedTrack.id)
+            activePlayer.volume = computeAutoGainMultiplier(seedTrack.id) * if (speechDuckActive) 0.24f else 1f
+            djVoiceDirector?.welcome()
             recomputeDjQueueInternal(seedTrack)
             publishAutomixRuntime()
         }
@@ -798,6 +842,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         standbyPlayer.pause()
         standbyPlayer.stop()
         standbyPlayer.clearMediaItems()
+        djVoiceDirector?.farewell()
         activePlayer.volume = 1.0f
         activePlayer.playbackParameters = PlaybackParameters(currentPlaybackSpeed)
         serviceScope.launch {
