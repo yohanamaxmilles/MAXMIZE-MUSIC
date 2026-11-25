@@ -1,10 +1,22 @@
 name: DJ Engine Next Validation
 
 on:
+  push:
+    branches: [feature/maxmize-dj-engine-next]
+    paths:
+      - "app/src/main/java/com/example/data/dj/next/**"
+      - "app/src/main/java/com/example/player/**"
+      - "app/src/test/java/com/example/data/dj/next/**"
+      - "app/build.gradle.kts"
+      - "gradle/**"
+      - "settings.gradle.kts"
+      - ".github/workflows/dj-engine-next.yml"
+      - "build.gradle.kts"
   pull_request:
     branches: [main]
     paths:
       - "app/src/main/java/com/example/data/dj/next/**"
+      - "app/src/main/java/com/example/player/**"
       - "app/src/test/java/com/example/data/dj/next/**"
       - "app/build.gradle.kts"
       - "gradle/**"
