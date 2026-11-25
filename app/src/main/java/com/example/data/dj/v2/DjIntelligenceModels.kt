@@ -1,6 +1,12 @@
 package com.example.data.dj.v2
 
 /** Evidence-aware contracts. Missing measurements stay null, never guessed. */
+enum class DjOperatingMode { AUTOMIX, INTELLIGENT_DJ }
+enum class AutomixTechnique { BEAT_SYNC, HARMONIC, PHRASE_MATCH, ENERGY_FLOW, GENRE_MATCH, HUMAN_STYLE }
+enum class DjSessionPhase(val targetEnergyDelta: Float) {
+    OPENING(0.04f), WARM_UP(0.07f), BUILD_UP(0.12f), PEAK_TIME(0.0f),
+    BREATHER(-0.16f), COOL_DOWN(-0.10f), CLOSING(-0.12f), FLOW(0.0f),
+}
 enum class AudioContentKind { MUSIC, PODCAST, SPOKEN_WORD, AUDIOBOOK, SOUND_EFFECT, UNKNOWN }
 enum class MusicalSectionType { INTRO, OUTRO, VERSE, CHORUS, VOCAL, INSTRUMENTAL, BUILD_UP, BREAKDOWN, DROP, SILENCE }
 
@@ -69,7 +75,8 @@ data class DjDecisionConfig(
     val maxTempoAdjustment: Float = 0.08f,
     val minTrackDurationMs: Long = 45_000L,
     val maxUnknownContentDurationMs: Long = 12L * 60L * 1000L,
-    val targetEnergyDelta: Float = 0f,
+    val targetEnergyDelta: Float? = null,
+    val sessionPhase: DjSessionPhase = DjSessionPhase.FLOW,
     val bpmWeight: Float = 0.28f,
     val keyWeight: Float = 0.24f,
     val genreWeight: Float = 0.30f,
@@ -78,7 +85,7 @@ data class DjDecisionConfig(
     init {
         require(maxTempoAdjustment in 0f..0.20f)
         require(minTrackDurationMs > 0L && maxUnknownContentDurationMs >= minTrackDurationMs)
-        require(targetEnergyDelta in -1f..1f)
+        require(targetEnergyDelta == null || targetEnergyDelta in -1f..1f)
         require(listOf(bpmWeight, keyWeight, genreWeight, energyWeight).all { it >= 0f })
         require(bpmWeight + keyWeight + genreWeight + energyWeight > 0f)
     }
