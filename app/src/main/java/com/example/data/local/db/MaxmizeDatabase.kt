@@ -194,6 +194,7 @@ abstract class MaxmizeDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalAverageSpeechProbability REAL")
                 db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalConfidence TEXT NOT NULL DEFAULT 'UNKNOWN'")
                 db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalSegmentsJson TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalAnalysisVersion INTEGER NOT NULL DEFAULT 0")
             }
         }
 
