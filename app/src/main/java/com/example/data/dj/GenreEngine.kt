@@ -78,6 +78,8 @@ object GenreEngine {
         GenreSpec("Drum and Bass", GenreFamily.BASS, listOf("drum and bass", "drum & bass", "dnb", "d&b", "liquid dnb", "jungle")),
         GenreSpec("Dubstep", GenreFamily.BASS, listOf("dubstep", "riddim", "brostep")),
         GenreSpec("Future Bass", GenreFamily.BASS, listOf("future bass")),
+        GenreSpec("Midtempo Bass", GenreFamily.BASS, listOf("midtempo bass", "midtempo", "dark midtempo", "industrial bass", "rezz style", "rezz")),
+        GenreSpec("3-Step", GenreFamily.AFRO, listOf("3-step", "3 step", "three step", "afro 3-step", "afro three step")),
 
         GenreSpec("Electro", GenreFamily.ELECTRONIC, listOf("electro", "electro house", "synthwave")),
         GenreSpec("EDM", GenreFamily.ELECTRONIC, listOf("edm", "big room", "festival", "dance", "electronica", "electronic", "club")),
@@ -229,7 +231,7 @@ object GenreEngine {
 
     private fun extractTitleRemixGenreHint(title: String): GenreSpec? {
         val lower = title.lowercase()
-        val markers = listOf("amapiano", "deep house", "afro house", "tech house", "hard techno",
+        val markers = listOf("midtempo bass", "dark midtempo", "industrial bass", "rezz style", "3-step", "3 step", "three step", "amapiano", "deep house", "afro house", "tech house", "hard techno",
             "psytrance", "bongo flava", "dancehall", "reggaeton", "dubstep", "dnb", "acoustic", "lo-fi")
         for (m in markers) {
             if (lower.contains(m)) return canonicalize(m)
@@ -237,35 +239,20 @@ object GenreEngine {
         return null
     }
 
+    /**
+     * Tempo, energy and spectral brightness describe sound and rhythm, not genre identity.
+     * In particular, BPM-only rules confuse fast techno with DnB and mislabel midtempo
+     * bass as DnB. Until a validated subgenre model is installed, audio-only guesses
+     * stay Unknown. Reliable tags and explicit title hints are handled above.
+     */
     fun inferFromAudioFeatures(a: TrackAnalysis): GenreClassification {
-        val bpm = a.bpm
-        val energy = a.energy
-        val onsets = a.onsetDensity
-        val centroid = a.spectralCentroidHz
-        val dr = a.dynamicRangeDb
-
-        return when {
-            bpm >= 162f && onsets >= 2.8f ->
-                GenreClassification("Bass", "Drum and Bass", "Electronic", GenreFamily.BASS, 0.56f)
-            bpm in 137f..155f && energy >= 0.68f && centroid >= 2200f ->
-                GenreClassification("Techno", "Hard Techno", "Psytrance", GenreFamily.TECHNO, 0.52f)
-            bpm in 134f..145f && onsets in 1.6f..3.6f && energy >= 0.55f ->
-                GenreClassification("Trance", "Trance", "Techno", GenreFamily.TRANCE, 0.48f)
-            bpm in 119f..131f && onsets >= 2.0f && energy >= 0.52f ->
-                GenreClassification("House", "Tech House", "House", GenreFamily.HOUSE, 0.54f)
-            bpm in 118f..126f && energy in 0.35f..0.62f ->
-                GenreClassification("House", "Deep House", "Afro House", GenreFamily.HOUSE, 0.50f)
-            bpm in 108f..118f && energy in 0.42f..0.75f ->
-                GenreClassification("Afro", "Amapiano", "Afrobeats", GenreFamily.AFRO, 0.46f)
-            bpm in 85f..104f && onsets >= 1.8f && centroid < 1800f ->
-                GenreClassification("Hip-Hop", "Hip-Hop", "R&B", GenreFamily.HIP_HOP, 0.48f)
-            bpm in 70f..98f && energy < 0.46f ->
-                GenreClassification("R&B / Soul", "R&B", "Chillout", GenreFamily.RNB_SOUL, 0.44f)
-            dr >= 12f && energy < 0.38f ->
-                GenreClassification("Jazz / Classical / Chill", "Acoustic", "Ambient", GenreFamily.ACOUSTIC_HERITAGE, 0.45f)
-            else ->
-                GenreClassification("Pop", "Pop", "Dance Pop", GenreFamily.POP, 0.36f)
-        }
+        return GenreClassification(
+            primaryGenre = "Unknown",
+            subgenre = "Unknown",
+            secondaryGenre = "",
+            family = GenreFamily.UNKNOWN,
+            confidence = 0.15f,
+        )
     }
 
     fun evaluateCompatibility(
