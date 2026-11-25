@@ -121,7 +121,9 @@ class DjDecisionEngine {
             return "Tempo adjustment exceeds the configured limit"
         }
 
-        if (config.strictGenreMatching && genreCompatibility(current, candidate, config) < 80) {
+        if (config.strictGenreMatching && current.hasReliableGenre && candidate.hasReliableGenre &&
+            genreCompatibility(current, candidate, config) < 80
+        ) {
             return "Genre family is incompatible in Strict mode"
         }
         if (config.strictHarmonicMatching) {
