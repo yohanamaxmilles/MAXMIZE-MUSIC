@@ -31,6 +31,7 @@ import com.example.R
 import com.example.data.dj.DjProfiles
 import com.example.data.dj.GenreEngine
 import com.example.data.dj.next.DjIntelligenceEngine
+import com.example.data.dj.next.DjBeatSyncPlanner
 import com.example.data.dj.next.DjTrackProfileFactory
 import com.example.data.dj.next.DjTransitionPlan
 import com.example.data.dj.HarmonicCompatibility
@@ -561,14 +562,18 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     }
 
     private fun alignToNearestBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
-        if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
+        if (analysis == null || analysis.beatIntervalMs <= 0L ||
+            analysis.bpmConfidence < 0.62f || analysis.bpm !in 45f..220f
+        ) return targetMs
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
         val beatIndex = (offset.toDouble() / analysis.beatIntervalMs).toLong()
         return (analysis.firstBeatMs + beatIndex * analysis.beatIntervalMs).coerceAtLeast(0L)
     }
 
     private fun alignToPhraseOrBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
-        if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
+        if (analysis == null || analysis.beatIntervalMs <= 0L ||
+            analysis.bpmConfidence < 0.62f || analysis.bpm !in 45f..220f
+        ) return targetMs
         val phraseMs = analysis.phraseLengthMs.takeIf { it > 0L }
             ?: (analysis.beatIntervalMs * 32L)
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
@@ -620,17 +625,18 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         sb.pause()
         sb.volume = 0f
 
-        val introSeek = activeTransitionPlan?.startIncomingAtMs
-            ?: inAnalysis.firstBeatMs.coerceIn(0L, (nextTrack.durationMs / 4).coerceAtLeast(0L))
+        val outgoingProfile = outgoingTrack?.let {
+            DjTrackProfileFactory.fromLibrary(it, activeTrackAnalysis)
+        }
+        val incomingProfile = DjTrackProfileFactory.fromLibrary(nextTrack, inAnalysis)
+        // Never seek or change playback speed from fallback BPM/beat estimates.
+        val introSeek = incomingProfile.firstBeatMs ?: 0L
         if (introSeek > 0L) sb.seekTo(introSeek)
 
-        val outBpm = activeTransitionPlan?.bpm ?: activeTrackAnalysis?.bpm ?: 120f
-        val incomingBpm = inAnalysis.bpm.takeIf { it > 0f } ?: outBpm
-        val tempoRatio = if (automixConfig.bpmMatchEnabled && activeTransitionPlan?.bpm != null) {
-            HarmonicCompatibility.computeBeatmatchRatio(outBpm, incomingBpm)
-        } else if (automixConfig.bpmMatchEnabled) {
-            HarmonicCompatibility.computeBeatmatchRatio(outBpm, incomingBpm)
-        } else 1.0f
+        val beatSyncPlan = if (automixConfig.bpmMatchEnabled && outgoingProfile != null) {
+            DjBeatSyncPlanner.plan(outgoingProfile, incomingProfile)
+        } else null
+        val tempoRatio = beatSyncPlan?.takeIf { it.enabled }?.speedRatio ?: 1.0f
         val pitch = if (automixConfig.keyLockEnabled) 1.0f else tempoRatio
         sb.playbackParameters = PlaybackParameters(tempoRatio, pitch)
     }
