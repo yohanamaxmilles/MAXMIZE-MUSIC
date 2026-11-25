@@ -61,17 +61,16 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("theme_chip_dark"))
         composeTestRule.onNodeWithTag("theme_chip_dark").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_chip_light").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("accent_swatch_gold"))
+        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("accent_swatch_lime"))
         composeTestRule.onNodeWithTag("accent_swatch_lime").assertIsDisplayed()
     }
 
     @Test
     fun `automix hub settings and dj queue screens navigate cleanly`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_home").performClick()
-        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
+        composeTestRule.onNodeWithTag("nav_dj").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("settings_open_automix").performClick()
+        composeTestRule.onNodeWithTag("dj_open_automix").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_screen").performScrollToNode(hasTestTag("start_automix_btn"))
@@ -103,9 +102,8 @@ class ExampleRobolectricTest {
     @Test
     fun `settings displays typography artwork and library health controls`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_dj").performClick()
-        composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("dj_open_automix").performClick()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_library_stats"))
         composeTestRule.onNodeWithTag("settings_library_stats").assertIsDisplayed()
