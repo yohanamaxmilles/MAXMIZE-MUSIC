@@ -231,7 +231,7 @@ object GenreEngine {
 
     private fun extractTitleRemixGenreHint(title: String): GenreSpec? {
         val lower = title.lowercase()
-        val markers = listOf("midtempo bass", "dark midtempo", "industrial bass", "rezz style", "3-step", "3 step", "three step", "amapiano", "deep house", "afro house", "tech house", "hard techno",
+        val markers = listOf("midtempo bass", "midtempo", "dark midtempo", "industrial bass", "rezz style", "3-step", "3 step", "three step", "amapiano", "deep house", "afro house", "tech house", "hard techno",
             "psytrance", "bongo flava", "dancehall", "reggaeton", "dubstep", "dnb", "acoustic", "lo-fi")
         for (m in markers) {
             if (lower.contains(m)) return canonicalize(m)
