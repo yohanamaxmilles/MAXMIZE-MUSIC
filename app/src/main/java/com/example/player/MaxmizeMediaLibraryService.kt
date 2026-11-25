@@ -1076,6 +1076,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             recentTrackIds = if (automixConfig.avoidRepeats) recentDjHistoryIds.toSet() else emptySet(),
             config = decisionConfig,
             count = 15,
+            recentArtistNames = recentDjHistoryIds.mapNotNull { allTracksCache[it]?.artist }
+                .filter { it.isNotBlank() && !it.equals("Unknown Artist", ignoreCase = true) }
+                .takeLast(5)
+                .toSet(),
         )
         val rankedQueue = ranking.rankedCandidates.mapNotNull { score ->
             val track = allTracksCache[score.trackId] ?: return@mapNotNull null
