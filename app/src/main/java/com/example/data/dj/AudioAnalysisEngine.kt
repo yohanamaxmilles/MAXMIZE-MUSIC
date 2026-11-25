@@ -36,7 +36,7 @@ class AudioAnalysisEngine(
 
     suspend fun getAnalysisForTrack(track: Track): TrackAnalysis = withContext(Dispatchers.IO) {
         val existing = analysisDao.getAnalysisOnce(track.id)
-        if (existing != null && (existing.userCorrected || existing.phraseLengthMs > 0L || existing.bpmConfidence == 0f)) {
+        if (existing != null && (existing.userCorrected || existing.analysisVersion >= 2)) {
             return@withContext existing.toDomain()
         }
 
@@ -52,7 +52,7 @@ class AudioAnalysisEngine(
         val existingById = analysisDao.getAllAnalysesOnce().associateBy { it.trackId }
         val missing = tracks.filter {
             val existing = existingById[it.id]
-            existing == null || (!existing.userCorrected && existing.phraseLengthMs <= 0L && existing.bpmConfidence > 0f)
+            existing == null || (!existing.userCorrected && existing.analysisVersion < 2)
         }
         if (missing.isEmpty()) {
             onProgress(tracks.size, tracks.size)
@@ -89,6 +89,7 @@ class AudioAnalysisEngine(
             beatIntervalMs = beatIntervalMs,
             phraseLengthMs = beatIntervalMs * phraseBeats,
             userCorrected = true,
+            analysisVersion = 2,
         )
         analysisDao.upsertAnalysis(updated.toEntity())
         updated
@@ -411,6 +412,7 @@ class AudioAnalysisEngine(
                 phraseLengthMs = phraseLengthMs,
                 downbeatConfidence = downbeatConfidence,
                 spectralCentroidHz = spectralCentroidHz,
+                analysisVersion = 2,
             )
 
             val genreClass = if (trackHint != null) {
@@ -638,6 +640,7 @@ private fun TrackAnalysisEntity.toDomain(): TrackAnalysis = TrackAnalysis(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    analysisVersion = analysisVersion,
 )
 
 private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
