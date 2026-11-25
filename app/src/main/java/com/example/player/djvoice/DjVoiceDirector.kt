@@ -128,10 +128,13 @@ class DjVoiceDirector(
             DjVoiceGender.DEFAULT -> emptyList()
         }
         if (tokens.isEmpty()) return
-        val match = voices.firstOrNull { voice ->
-            val id = voice.name.lowercase(Locale.ROOT)
-            tokens.any(id::contains)
-        }
+        val match = voices
+            .filter { voice ->
+                val id = voice.name.lowercase(Locale.ROOT)
+                tokens.any(id::contains)
+            }
+            .sortedWith(compareByDescending<Voice> { it.quality }.thenBy { it.latency })
+            .firstOrNull()
         if (match != null) engine.voice = match
     }
 
