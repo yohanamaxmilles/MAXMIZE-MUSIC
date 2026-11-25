@@ -71,77 +71,62 @@ fun MaxmizeBottomBar(
     onSelect: (NavDestinationItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val barShape = RoundedCornerShape(32.dp)
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
-            .navigationBarsPadding(),
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .height(66.dp)
+                .clip(barShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, barShape)
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEach { item ->
                 val selected = item.id == selectedId
-                val iconTint by animateColorAsState(
-                    targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "navTint",
+                val circleBg by animateColorAsState(
+                    targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    label = "navCircleBg",
                 )
-                val badgeBg by animateColorAsState(
-                    targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    label = "navBg",
+                val iconTint by animateColorAsState(
+                    targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    label = "navIconTint",
                 )
                 val interactionSource = remember { MutableInteractionSource() }
 
-                Column(
+                Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(10.dp))
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(circleBg)
                         .clickable(
                             interactionSource = interactionSource,
                             indication = ripple(bounded = true),
                             onClick = { onSelect(item) },
                         )
                         .testTag(item.testTag),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 36.dp, height = 28.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(badgeBg),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = item.label,
-                            tint = iconTint,
-                            modifier = Modifier.size(21.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        ),
-                        color = iconTint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Icon(
+                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                        contentDescription = item.label,
+                        tint = iconTint,
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun MaxmizeNavigationRail(
