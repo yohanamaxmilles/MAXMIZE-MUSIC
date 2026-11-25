@@ -86,6 +86,10 @@ object DjTrackProfileFactory {
         )
     }
 
+    private fun containsMarker(text: String, marker: String): Boolean =
+        Regex("(^|[^a-z0-9])" + Regex.escape(marker) + "([^a-z0-9]|$)")
+            .containsMatchIn(text)
+
     private fun classifyContent(
         track: Track,
         analysis: TrackAnalysis?,
@@ -95,15 +99,14 @@ object DjTrackProfileFactory {
 
         val descriptors = listOf(track.title, track.album, track.genre, track.folderPath)
             .joinToString(" ").lowercase()
-        if (descriptors.contains("sound effect") || descriptors.contains("sound effects") ||
-            descriptors.contains("sfx") || descriptors.contains("notification tone") ||
-            descriptors.contains("ringtone") || descriptors.contains("alarm tone")
+        if (listOf("sound effect", "sound effects", "sfx", "notification tone", "ringtone", "alarm tone")
+                .any { marker -> containsMarker(descriptors, marker) }
         ) return AudioContentKind.SOUND_EFFECT to 0.96f
-        if (descriptors.contains("audiobook") || descriptors.contains("audio book")) {
+        if (containsMarker(descriptors, "audiobook") || containsMarker(descriptors, "audio book")) {
             return AudioContentKind.AUDIOBOOK to 0.98f
         }
-        if (descriptors.contains("podcast")) return AudioContentKind.PODCAST to 0.98f
-        if (spokenMarkers.any { marker -> descriptors.contains(marker) }) {
+        if (containsMarker(descriptors, "podcast")) return AudioContentKind.PODCAST to 0.98f
+        if (spokenMarkers.any { marker -> containsMarker(descriptors, marker) }) {
             return AudioContentKind.SPOKEN_WORD to 0.90f
         }
 
