@@ -183,7 +183,7 @@ fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp),
+                .padding(start = 10.dp, end = 10.dp, top = 16.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -201,7 +201,7 @@ fun SettingsScreen(
                 Text(
                     text = "Settings",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 30.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
@@ -219,7 +219,7 @@ fun SettingsScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .testTag("settings_screen"),
-            contentPadding = PaddingValues(bottom = 36.dp),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 40.dp),
         ) {
 
         // 0. App summary
