@@ -695,7 +695,7 @@ private fun DeckTelemetryChip(label: String, value: String) {
     Column {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(

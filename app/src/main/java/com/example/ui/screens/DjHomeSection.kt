@@ -119,7 +119,7 @@ fun DjHomeSection(
                                     ),
                             )
                             Text(
-                                text = if (automixState.isActive) "AUTOMIX ACTIVE" else "AUTOMIX STANDBY",
+                                text = if (automixState.isActive) "Automix on" else "Automix ready",
                                 style = MonoBadgeStyle,
                                 color = if (automixState.isActive) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -475,13 +475,13 @@ private fun TelemetryMetricCell(
     Column(horizontalAlignment = Alignment.Start) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
-            style = MonoStatStyle.copy(fontSize = 13.5.sp, fontWeight = FontWeight.Medium),
+            style = MonoStatStyle.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

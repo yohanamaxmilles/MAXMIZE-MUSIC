@@ -186,7 +186,7 @@ fun LibraryScreen(
                 LibraryCategory.ARTISTS -> "${artists.size} ARTISTS"
                 LibraryCategory.GENRES -> "${genres.size} GENRES"
                 LibraryCategory.FOLDERS -> "${folders.size} FOLDERS"
-                else -> "${activeCategory.label.uppercase()} · ${displayedTracks.size} SONGS"
+                else -> "${activeCategory.label} · ${displayedTracks.size} songs"
             },
             onOpenSettings = onOpenSettings,
             actions = {
@@ -215,28 +215,6 @@ fun LibraryScreen(
                     if (isTrackListCategory) {
                         IconButton(onClick = { multiSelectMode = true }) {
                             Icon(Icons.Rounded.Checklist, contentDescription = "Select songs")
-                        }
-                    }
-                    Box {
-                        IconButton(onClick = { overflowMenuOpen = true }) {
-                            Icon(Icons.Rounded.MoreVert, contentDescription = "Library options")
-                        }
-                        DropdownMenu(expanded = overflowMenuOpen, onDismissRequest = { overflowMenuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Rescan Library") },
-                                leadingIcon = { Icon(Icons.Rounded.Refresh, contentDescription = null) },
-                                onClick = { overflowMenuOpen = false; onRescan(false) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Refresh Metadata") },
-                                leadingIcon = { Icon(Icons.Rounded.Refresh, contentDescription = null) },
-                                onClick = { overflowMenuOpen = false; onRescan(true) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Import Folder") },
-                                leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, contentDescription = null) },
-                                onClick = { overflowMenuOpen = false; onImportFolder() },
-                            )
                         }
                     }
                 }
@@ -447,12 +425,12 @@ fun LibraryScreen(
                     EmptyCategoryState(
                         title = "Nothing in ${activeCategory.label}",
                         subtitle = if (allTracks.isEmpty()) {
-                            "Scan your device or import a music folder to start listening."
+                            "Music on your phone appears here automatically."
                         } else {
                             "Tracks matching ${activeCategory.label.lowercase()} will appear here as you listen."
                         },
-                        onAction = if (allTracks.isEmpty()) ({ onRescan(false) }) else null,
-                        actionLabel = if (allTracks.isEmpty()) "Scan Device" else null,
+                        onAction = null,
+                        actionLabel = null,
                     )
                 } else {
                     LazyColumn(
@@ -495,7 +473,7 @@ fun LibraryScreen(
 
             LibraryCategory.ALBUMS -> {
                 if (sortedAlbums.isEmpty()) {
-                    EmptyCategoryState("No Albums", "Scan your local music library to browse albums.")
+                    EmptyCategoryState("No Albums", "Albums from your music will appear here.")
                 } else if (useGridLayout) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 152.dp),
@@ -571,7 +549,7 @@ fun LibraryScreen(
 
             LibraryCategory.ARTISTS -> {
                 if (sortedArtists.isEmpty()) {
-                    EmptyCategoryState("No Artists", "Scan your local music library to browse artists.")
+                    EmptyCategoryState("No Artists", "Artists from your music will appear here.")
                 } else if (useGridLayout) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 144.dp),
@@ -636,7 +614,7 @@ fun LibraryScreen(
 
             LibraryCategory.GENRES -> {
                 if (sortedGenres.isEmpty()) {
-                    EmptyCategoryState("No Genres", "Genre metadata will appear after scanning tracks.")
+                    EmptyCategoryState("No Genres", "Genres from your music will appear here.")
                 } else if (useGridLayout) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 152.dp),
@@ -693,7 +671,7 @@ fun LibraryScreen(
 
             LibraryCategory.FOLDERS -> {
                 if (sortedFolders.isEmpty()) {
-                    EmptyCategoryState("No Folders", "Scan device storage or import a folder to browse directories.")
+                    EmptyCategoryState("No Folders", "Folders with music will appear here.")
                 } else if (useGridLayout) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 152.dp),

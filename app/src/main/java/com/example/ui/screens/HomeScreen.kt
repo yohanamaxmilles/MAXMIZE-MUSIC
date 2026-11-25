@@ -44,6 +44,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -164,48 +167,6 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Box {
-                        IconButton(
-                            onClick = { overflowOpen = true },
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                                .testTag("home_rescan_btn"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.MoreVert,
-                                contentDescription = "Library scan options",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = overflowOpen,
-                            onDismissRequest = { overflowOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Rescan Library") },
-                                leadingIcon = { Icon(Icons.Rounded.Refresh, contentDescription = null) },
-                                onClick = { overflowOpen = false; onRescan(false) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Refresh Metadata") },
-                                leadingIcon = { Icon(Icons.Rounded.Refresh, contentDescription = null) },
-                                onClick = { overflowOpen = false; onRescan(true) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Import Folder") },
-                                leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, contentDescription = null) },
-                                onClick = { overflowOpen = false; onImportFolder() },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Add Audio File") },
-                                leadingIcon = { Icon(Icons.Rounded.AudioFile, contentDescription = null) },
-                                onClick = { overflowOpen = false; onImportAudioFile() },
-                            )
-                        }
-                    }
                     TopProfileSettingsButton(onClick = onOpenSettings)
                 }
             }
@@ -227,7 +188,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = scanState.statusMessage ?: "Scanning device audio...",
+                        text = "Updating your library…",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -620,11 +581,7 @@ private fun HeroBannerCard(
                 color = LavenderCardText,
             )
             Text(
-                text = if (tracks.isEmpty()) {
-                    "Offline · Local · Lossless"
-                } else {
-                    "Offline · ${tracks.size} Tracks · Lossless"
-                },
+                text = "${tracks.size} songs · Offline",
                 style = MaterialTheme.typography.bodySmall,
                 color = LavenderCardText.copy(alpha = 0.7f),
             )
@@ -746,82 +703,67 @@ private fun EmptyLibraryGuidance(
     onImportFolder: () -> Unit,
     onImportAudioFile: () -> Unit,
 ) {
-    EditorialGroupCard(
+    // The library is filled automatically in the background. The only action a listener ever
+    // needs here is allowing access to their music (an Android requirement).
+    Column(
         modifier = Modifier
-            .padding(horizontal = 20.dp, vertical = 14.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 72.dp)
             .testTag("empty_library_card"),
-        cornerRadius = 16.dp,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = if (hasAudioPermission) "No local audio files found" else "Access your offline music",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            )
-            Text(
-                text = if (hasAudioPermission) {
-                    "Add MP3, FLAC, WAV, AAC, M4A, OGG, or OPUS files to your device, rescan storage, or import a specific music folder."
-                } else {
-                    "Maxmize scans and plays audio stored directly on your device with zero internet connection or account required."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            if (!hasAudioPermission) {
-                Button(
-                    onClick = onRequestPermission,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("grant_audio_permission_btn"),
-                ) {
-                    Text("Grant Audio Access")
-                }
+            if (hasAudioPermission && isScanning) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(34.dp),
+                    strokeWidth = 3.dp,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             } else {
-                Button(
-                    onClick = onRescan,
-                    enabled = !isScanning,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("empty_rescan_btn"),
-                ) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isScanning) "Scanning..." else "Rescan Device")
-                }
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(38.dp),
+                )
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+        }
+        Text(
+            text = when {
+                !hasAudioPermission -> "Play the music on your phone"
+                isScanning -> "Finding your music…"
+                else -> "No music yet"
+            },
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = when {
+                !hasAudioPermission -> "Allow access so Maxmize can find your songs. Everything stays on your device."
+                isScanning -> "This only takes a moment."
+                else -> "Songs on your phone will appear here automatically."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (!hasAudioPermission) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Button(
+                onClick = onRequestPermission,
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp),
+                modifier = Modifier.testTag("grant_audio_permission_btn"),
             ) {
-                OutlinedButton(
-                    onClick = onImportFolder,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("import_folder_btn"),
-                ) {
-                    Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Import Folder", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                OutlinedButton(
-                    onClick = onImportAudioFile,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("import_file_btn"),
-                ) {
-                    Icon(Icons.Rounded.AudioFile, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add File", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Text("Allow access", style = MaterialTheme.typography.labelLarge)
             }
         }
     }

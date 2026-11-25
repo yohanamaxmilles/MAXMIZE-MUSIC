@@ -201,7 +201,7 @@ fun SettingsScreen(
                 Text(
                     text = "Settings",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 25.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                 )
@@ -213,7 +213,6 @@ fun SettingsScreen(
                 Icon(Icons.Rounded.Search, contentDescription = "Search library")
             }
         }
-        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
         LazyColumn(
             modifier = Modifier
@@ -222,6 +221,46 @@ fun SettingsScreen(
                 .testTag("settings_screen"),
             contentPadding = PaddingValues(bottom = 36.dp),
         ) {
+
+        // 0. App summary
+        item {
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.GraphicEq,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(30.dp),
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Maxmize",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "$trackCount songs · Offline",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
 
         // 1. APPEARANCE
         item {
@@ -240,7 +279,7 @@ fun SettingsScreen(
                     )
                     themeItems.forEach { (mode, label, icon) ->
                         val selected = prefs.themeMode == mode
-                        val tileShape = RoundedCornerShape(12.dp)
+                        val tileShape = RoundedCornerShape(18.dp)
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -249,13 +288,12 @@ fun SettingsScreen(
                                     if (selected) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceContainerHigh
                                 )
-                                .border(
-                                    width = if (selected) 1.5.dp else 0.75.dp,
-                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    shape = tileShape,
+                                .then(
+                                    if (selected) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, tileShape)
+                                    else Modifier,
                                 )
                                 .clickable { onSetThemeMode(mode) }
-                                .padding(vertical = 12.dp)
+                                .padding(vertical = 16.dp)
                                 .testTag("theme_chip_${mode.name.lowercase()}"),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -350,7 +388,7 @@ fun SettingsScreen(
                             val selected = prefs.accentPreset == preset
                             Box(
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(40.dp)
                                     .clip(CircleShape)
                                     .let {
                                         if (selected) {
@@ -398,12 +436,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Loop,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
+                            SettingsIconBadge(Icons.Rounded.Loop)
                             Column {
                                 Text(
                                     text = "Crossfade",
@@ -916,21 +949,36 @@ fun SettingsScreen(
 @Composable
 private fun SettingsCategoryLabel(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge.copy(
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.8.sp,
-        ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+        text = title.lowercase().replaceFirstChar { it.uppercase() },
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.padding(start = 24.dp, end = 20.dp, top = 28.dp, bottom = 12.dp),
     )
+}
+
+@Composable
+private fun SettingsIconBadge(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(21.dp),
+        )
+    }
 }
 
 @Composable
 private fun RowDivider() {
     HorizontalDivider(
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
         modifier = Modifier.padding(horizontal = 16.dp),
     )
 }
@@ -947,15 +995,10 @@ private fun SettingsNavRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
-        )
+        SettingsIconBadge(icon)
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = title,
@@ -994,15 +1037,10 @@ private fun SettingsSwitchRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp),
-        )
+        SettingsIconBadge(icon)
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

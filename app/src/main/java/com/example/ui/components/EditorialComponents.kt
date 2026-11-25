@@ -307,7 +307,7 @@ fun MaxmizeSwitch(
         label = "switchTrack",
     )
     val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 20.dp else 3.dp,
+        targetValue = if (checked) 23.dp else 3.dp,
         animationSpec = spring(stiffness = 600f),
         label = "switchThumb",
     )
@@ -325,7 +325,7 @@ fun MaxmizeSwitch(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 44.dp, height = 26.dp)
+                .size(width = 52.dp, height = 32.dp)
                 .clip(CircleShape)
                 .background(trackColor),
             contentAlignment = Alignment.CenterStart,
@@ -333,7 +333,7 @@ fun MaxmizeSwitch(
             Box(
                 modifier = Modifier
                     .offset(x = thumbOffset)
-                    .size(20.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .background(
                         if (checked && MaterialTheme.colorScheme.primary == Color(0xFFFAFAFA)) {
@@ -443,7 +443,7 @@ fun EditorialChip(
 ) {
     val bgColor = when {
         selected -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surface
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val textColor = when {
         selected -> MaterialTheme.colorScheme.onPrimary
@@ -454,12 +454,11 @@ fun EditorialChip(
 
     Box(
         modifier = modifier
-            .height(34.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .height(40.dp)
+            .clip(RoundedCornerShape(50))
             .background(bgColor)
-            .border(0.75.dp, borderColor, RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 13.dp),
+            .padding(horizontal = 18.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -476,17 +475,18 @@ fun EditorialChip(
 @Composable
 fun EditorialGroupCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 14.dp,
+    cornerRadius: Dp = 24.dp,
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(cornerRadius)
+    val shape = RoundedCornerShape(maxOf(cornerRadius, 24.dp))
+    val defaultBorder = MaterialTheme.colorScheme.outlineVariant
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, borderColor, shape),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .then(if (borderColor != defaultBorder) Modifier.border(1.dp, borderColor, shape) else Modifier),
         content = content,
     )
 }

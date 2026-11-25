@@ -98,7 +98,7 @@ fun DjModeScreen(
     ) {
         MaxmizeTopHeader(
             title = "DJ Mode",
-            subtitle = if (automixState.isActive) "LIVE · ${automixState.activeProfileName.uppercase()}" else "INTELLIGENT MIX ENGINE",
+            subtitle = if (automixState.isActive) "Live · ${automixState.activeProfileName}" else "Smart mixing",
             onOpenSettings = onOpenSettings,
         )
 

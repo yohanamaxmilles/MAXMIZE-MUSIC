@@ -21,6 +21,7 @@ enum class AccentPreset(val displayName: String) {
 }
 
 enum class FontChoice(val label: String) {
+    FIGTREE("Figtree"),
     INTER("Inter"),
     MANROPE("Manrope"),
     PLUS_JAKARTA("Plus Jakarta"),

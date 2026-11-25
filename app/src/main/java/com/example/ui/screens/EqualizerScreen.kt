@@ -236,7 +236,7 @@ fun EqualizerScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = freqLabel,
-                                    style = MonoBadgeStyle.copy(fontSize = 10.sp),
+                                    style = MonoBadgeStyle.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
