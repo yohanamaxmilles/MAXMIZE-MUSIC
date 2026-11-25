@@ -807,9 +807,13 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
         if (automixState.value.isActive) stopAutomix() else startAutomix()
     }
 
+    fun updateAutomixConfig(transform: (AutomixConfig) -> AutomixConfig) {
+        updateAutomixConfig(transform, null)
+    }
+
     fun updateAutomixConfig(
         transform: (AutomixConfig) -> AutomixConfig,
-        onUpdated: (() -> Unit)? = null,
+        onUpdated: (() -> Unit)?,
     ) {
         viewModelScope.launch {
             prefsRepo.updateAutomixConfig(transform)
