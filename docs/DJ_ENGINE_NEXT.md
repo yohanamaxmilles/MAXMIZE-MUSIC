@@ -14,6 +14,8 @@ It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 - Equal-power crossfade envelope and low-frequency handover curve.
 - Library metadata adapter that rejects low-confidence BPM/key values before they enter DJ decisions.
 - Session arc planner that selects tracks phase-by-phase across opening, warm-up, build, peak, breather and closing.
+- Live Automix queue ranking now uses the independent engine and iteratively selects a compatible session sequence.
+- Dual-deck cue planning now uses measured outgoing outro and incoming first-beat offsets, with a phrase-length transition duration.
 - Unit tests for silence, synthetic 120 BPM pulses, ranking and mix curves.
 
 ## Deliberate limitations
