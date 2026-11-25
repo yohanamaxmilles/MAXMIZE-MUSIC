@@ -6,7 +6,7 @@ package com.example.data.dj.next
  */
 enum class DjConfidence { LOW, MEDIUM, HIGH }
 
-enum class DjSectionType { INTRO, LOW_ENERGY, BUILD, HIGH_ENERGY, BREAKDOWN, OUTRO, UNKNOWN }
+enum class DjSectionType { INTRO, LOW_ENERGY, BUILD, HIGH_ENERGY, DROP_CANDIDATE, BREAKDOWN, OUTRO, UNKNOWN }
 
 data class DjSection(
     val startMs: Long,
