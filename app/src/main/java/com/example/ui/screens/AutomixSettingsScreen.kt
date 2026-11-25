@@ -85,6 +85,7 @@ fun AutomixSettingsScreen(
     onDeleteCustomProfile: (String) -> Unit,
     onUpsertGenreRule: (String, String, Boolean) -> Unit,
     onDeleteGenreRule: (String, String) -> Unit,
+    onPreviewVoice: () -> Unit,
     modifier: Modifier = Modifier,
     embeddedInHub: Boolean = false,
 ) {
@@ -574,6 +575,12 @@ fun AutomixSettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(option.label, style = MaterialTheme.typography.bodyMedium)
                     }
+                }
+                OutlinedButton(
+                    onClick = onPreviewVoice,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text("Preview selected voice")
                 }
                 ParamDivider()
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
