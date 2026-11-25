@@ -121,8 +121,10 @@ class DjDecisionEngine {
             return "Tempo adjustment exceeds the configured limit"
         }
 
+        val customGenreOverride = customGenreRule(current, candidate, config)
+        if (customGenreOverride == false) return "Blocked by a custom genre rule"
         if (config.strictGenreMatching && current.hasReliableGenre && candidate.hasReliableGenre &&
-            genreCompatibility(current, candidate, config) < 80
+            customGenreOverride != true && genreCompatibility(current, candidate, config) < 80
         ) {
             return "Genre family is incompatible in Strict mode"
         }
@@ -229,11 +231,25 @@ class DjDecisionEngine {
             config: DjDecisionConfig,
         ): Int {
             if (!a.hasReliableGenre || !b.hasReliableGenre) return 35
+            if (customGenreRule(a, b, config) == true) return 100
             if (a.subgenre.equals(b.subgenre, ignoreCase = true)) return 100
             if (!a.genreFamily.isNullOrBlank() &&
                 a.genreFamily.equals(b.genreFamily, ignoreCase = true)
             ) return 88
             return if (config.allowOpenFormatBridging) 62 else 0
+        }
+
+
+        private fun customGenreRule(
+            a: DjTrackProfile,
+            b: DjTrackProfile,
+            config: DjDecisionConfig,
+        ): Boolean? {
+            val first = a.subgenre?.trim()?.lowercase().orEmpty()
+            val second = b.subgenre?.trim()?.lowercase().orEmpty()
+            if (first.isBlank() || second.isBlank()) return null
+            val key = listOf(first, second).sorted().joinToString("|")
+            return config.customGenreRules[key]
         }
 
         private fun energyCompatibility(current: Float?, incoming: Float?, targetDelta: Float): Int? {
