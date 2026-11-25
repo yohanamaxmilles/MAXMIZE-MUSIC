@@ -103,6 +103,7 @@ class AudioAnalysisEngine(
                     samples = decoded.samples,
                     sampleRate = decoded.sampleRate,
                     durationMs = track.durationMs,
+                    sampleOffsetMs = decoded.analysisStartMs,
                     introRms = decoded.introRms,
                     outroRms = decoded.outroRms,
                     trackHint = track,
@@ -152,6 +153,7 @@ class AudioAnalysisEngine(
         val sampleRate: Int,
         val introRms: FloatArray,
         val outroRms: FloatArray,
+        val analysisStartMs: Long,
     )
 
     private fun decodePcmWindows(uri: Uri, durationMs: Long): DecodedAudioWindow? {
@@ -193,16 +195,20 @@ class AudioAnalysisEngine(
                 uri, audioTrackIdx, format, mime, sampleRate, channelCount,
                 startMs = outroStartMs, lengthMs = segmentMs,
             )
-            val mainSamples = centerSamples?.takeIf { it.size >= sampleRate * 2 }
-                ?: introSamples?.takeIf { it.size >= sampleRate * 2 }
-                ?: outroSamples?.takeIf { it.size >= sampleRate * 2 }
-                ?: return null
+            val analysisSegment = centerSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to centerStartMs
+            } ?: introSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to 0L
+            } ?: outroSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to outroStartMs
+            } ?: return null
 
             DecodedAudioWindow(
-                samples = mainSamples,
+                samples = analysisSegment.first,
                 sampleRate = sampleRate,
                 introRms = calculateRmsFrames(introSamples.orEmpty(), sampleRate),
                 outroRms = calculateRmsFrames(outroSamples.orEmpty(), sampleRate),
+                analysisStartMs = analysisSegment.second,
             )
         } catch (_: Throwable) {
             null
@@ -346,6 +352,7 @@ class AudioAnalysisEngine(
             samples: FloatArray,
             sampleRate: Int,
             durationMs: Long,
+            sampleOffsetMs: Long = 0L,
             introRms: FloatArray = FloatArray(0),
             outroRms: FloatArray = FloatArray(0),
             trackHint: Track? = null,
@@ -432,7 +439,8 @@ class AudioAnalysisEngine(
                     bestPhase = phase
                 }
             }
-            val firstBeatMs = ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
+            val firstBeatMs = sampleOffsetMs.coerceAtLeast(0L) +
+                ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
             val avgPhaseScore = (totalPhaseScore / framesPerBeat).coerceAtLeast(1e-5f)
             val downbeatConfidence = ((bestPhaseScore / avgPhaseScore - 1f) * 0.45f + bpmConf * 0.55f)
                 .coerceIn(0.15f, 0.98f)
