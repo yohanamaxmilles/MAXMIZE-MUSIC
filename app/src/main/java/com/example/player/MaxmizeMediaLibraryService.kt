@@ -30,6 +30,8 @@ import com.example.MaxmizeApplication
 import com.example.R
 import com.example.data.dj.DjProfiles
 import com.example.data.dj.GenreEngine
+import com.example.data.dj.next.DjIntelligenceEngine
+import com.example.data.dj.next.DjTrackProfileFactory
 import com.example.data.dj.HarmonicCompatibility
 import com.example.data.local.db.CustomDjProfileEntity
 import com.example.data.local.db.GenreRuleOverrideEntity
@@ -144,6 +146,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     // Dual-Deck Automix runtime state (background-independent)
     private val djQueueMutex = Mutex()
+    private val nextDjIntelligence = DjIntelligenceEngine()
     private var automixActive: Boolean = false
     private var automixStartTimeMs: Long = 0L
     private var isMixingTransition: Boolean = false
@@ -829,27 +832,72 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         withContext(Dispatchers.IO) {
             val unanalyzed = pool.filter { it.id !in analysesCache }.take(16)
-            for (t in unanalyzed) {
-                val res = container.audioAnalysisEngine.getAnalysisForTrack(t)
-                analysesCache = analysesCache + (t.id to res)
+            for (track in unanalyzed) {
+                val analysis = container.audioAnalysisEngine.getAnalysisForTrack(track)
+                analysesCache = analysesCache + (track.id to analysis)
             }
         }
 
-        val result = HarmonicCompatibility.selectSmartQueueWithStatus(
-            currentTrack = pivotTrack,
-            allTracks = pool,
-            analyses = analysesCache,
-            recentTrackIds = recentDjHistoryIds.toSet(),
-            config = automixConfig,
-            count = 15,
-            customRules = customRulesCache,
-        )
+        // New engine owns ranking. Existing library analysis is adapted into the
+        // independent profile model, with uncertain BPM/key values excluded.
+        val profiles = pool.associate { track ->
+            track.id to DjTrackProfileFactory.fromLibrary(track, analysesCache[track.id])
+        }
+        val pivotProfile = profiles[pivotTrack.id]
+            ?: DjTrackProfileFactory.fromLibrary(pivotTrack, analysesCache[pivotTrack.id])
+        val usedIds = recentDjHistoryIds.toMutableSet().apply { add(pivotTrack.id) }
+        val plannedQueue = mutableListOf<DjQueuedTrack>()
+        var currentProfile = pivotProfile
+        val targetEnergy = when (automixConfig.energyProgression) {
+            com.example.data.model.EnergyProgression.BUILD_UP -> (pivotProfile.energy + 0.18f).coerceAtMost(0.92f)
+            com.example.data.model.EnergyProgression.PEAK_HOUR -> 0.88f
+            com.example.data.model.EnergyProgression.CHILL_DOWN -> (pivotProfile.energy - 0.16f).coerceAtLeast(0.18f)
+            com.example.data.model.EnergyProgression.WAVE -> (pivotProfile.energy + 0.10f).coerceIn(0.25f, 0.90f)
+            com.example.data.model.EnergyProgression.STEADY -> pivotProfile.energy
+        }
+
+        repeat(15) {
+            val candidates = pool.asSequence()
+                .filter { it.id !in usedIds }
+                .filter { track ->
+                    val bpm = analysesCache[track.id]?.bpm
+                    bpm == null || bpm <= 0f || bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat()
+                }
+                .mapNotNull { track -> profiles[track.id]?.let { track to it } }
+                .toList()
+            val ranked = nextDjIntelligence.rankNextTracks(
+                current = currentProfile,
+                candidates = candidates.map { it.second },
+                recentlyPlayedIds = usedIds,
+                targetEnergy = targetEnergy,
+                allowGenreBridging = automixConfig.openFormatBridging,
+            )
+            val best = ranked.firstOrNull() ?: return@repeat
+            val selectedTrack = candidates.firstOrNull { it.second.trackId == best.track.trackId }?.first
+                ?: return@repeat
+            plannedQueue += DjQueuedTrack(
+                track = selectedTrack,
+                analysis = analysesCache[selectedTrack.id],
+                compatibilityScore = (best.totalScore * 100f).toInt().coerceIn(0, 100),
+                reason = best.reason,
+            )
+            usedIds += selectedTrack.id
+            currentProfile = best.track
+        }
+
+        val noMatchReason = if (plannedQueue.isEmpty()) {
+            when {
+                pool.size <= 1 -> "Add more tracks to build a DJ session."
+                else -> "No suitable next track met the new DJ engine's compatibility rules."
+            }
+        } else null
+
         djQueueMutex.withLock {
             val previousFirstId = djQueue.firstOrNull()?.track?.id
             djQueue.clear()
-            djQueue.addAll(result.queue)
-            noSuitableTrackReason = result.noSuitableTrackReason
-            if (!isMixingTransition && previousFirstId != result.queue.firstOrNull()?.track?.id) {
+            djQueue.addAll(plannedQueue)
+            noSuitableTrackReason = noMatchReason
+            if (!isMixingTransition && previousFirstId != plannedQueue.firstOrNull()?.track?.id) {
                 preloadedTrack = null
             }
         }
