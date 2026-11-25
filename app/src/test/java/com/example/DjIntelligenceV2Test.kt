@@ -281,7 +281,7 @@ class DjIntelligenceV2Test {
             current = current,
             candidates = listOf(untagged),
             recentTrackIds = emptySet(),
-            config = DjDecisionConfig(strictGenreMatching = true),
+            config = DjDecisionConfig(strictGenreMatching = true, requireReliableGenre = false),
         )
         assertEquals(listOf("untagged"), result.rankedCandidates.map { it.trackId })
     }
