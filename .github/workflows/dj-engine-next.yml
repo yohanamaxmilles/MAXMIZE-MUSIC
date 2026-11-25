@@ -8,8 +8,8 @@ on:
       - "app/src/test/java/com/example/data/dj/next/**"
       - "app/build.gradle.kts"
       - "gradle/**"
-      - "gradlew"
       - "settings.gradle.kts"
+      - "build.gradle.kts"
   push:
     branches: [feature/maxmize-dj-engine-next]
 
@@ -28,7 +28,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Set up Gradle
+      - name: Install and configure Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
       - name: Run app unit tests
-        run: ./gradlew --no-daemon :app:testDebugUnitTest
+        run: gradle --no-daemon :app:testDebugUnitTest
