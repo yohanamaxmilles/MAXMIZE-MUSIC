@@ -37,7 +37,7 @@ class AudioAnalysisEngine(
 
     suspend fun getAnalysisForTrack(track: Track): TrackAnalysis = withContext(Dispatchers.IO) {
         val existing = analysisDao.getAnalysisOnce(track.id)
-        if (existing != null && (existing.userCorrected || existing.analysisVersion >= 2)) {
+        if (existing != null && (existing.userCorrected || existing.analysisVersion >= 3)) {
             return@withContext existing.toDomain()
         }
 
@@ -53,7 +53,7 @@ class AudioAnalysisEngine(
         val existingById = analysisDao.getAllAnalysesOnce().associateBy { it.trackId }
         val missing = tracks.filter {
             val existing = existingById[it.id]
-            existing == null || (!existing.userCorrected && existing.analysisVersion < 2)
+            existing == null || (!existing.userCorrected && existing.analysisVersion < 3)
         }
         if (missing.isEmpty()) {
             onProgress(tracks.size, tracks.size)
@@ -90,7 +90,7 @@ class AudioAnalysisEngine(
             beatIntervalMs = beatIntervalMs,
             phraseLengthMs = beatIntervalMs * phraseBeats,
             userCorrected = true,
-            analysisVersion = 2,
+            analysisVersion = 3,
         )
         analysisDao.upsertAnalysis(updated.toEntity())
         updated
@@ -396,7 +396,11 @@ class AudioAnalysisEngine(
             val energy = (normLoudness * 0.65f + normOnset * 0.35f).coerceIn(0.05f, 1.0f)
 
             val envRateHz = sampleRate.toFloat() / hopSize.toFloat()
-            val (bpm, bpmConf, tempoStability) = estimateBpmFromOnsets(onsetEnv, envRateHz, trackHint?.genre.orEmpty())
+            val (bpm, rawBpmConfidence, _) = estimateBpmFromOnsets(onsetEnv, envRateHz, trackHint?.genre.orEmpty())
+            val tempoStability = estimateTempoStability(onsetEnv, envRateHz, bpm)
+            val bpmConf = if (bpm > 0f) {
+                rawBpmConfidence * (0.65f + 0.35f * tempoStability)
+            } else 0f
             val beatIntervalMs = if (bpm > 0f) {
                 (60_000f / bpm).roundToInt().toLong().coerceAtLeast(250L)
             } else 0L
@@ -547,6 +551,32 @@ class AudioAnalysisEngine(
             return (goertzelCentroid * 0.7f + zcrFreqHz.coerceIn(150f, 7000f) * 0.3f).coerceIn(180f, 7500f)
         }
 
+        private fun estimateTempoStability(
+            onsetEnv: FloatArray,
+            envRateHz: Float,
+            referenceBpm: Float,
+        ): Float {
+            if (referenceBpm !in 55f..200f || onsetEnv.size < (envRateHz * 8f).toInt()) return 0f
+            val midpoint = onsetEnv.size / 2
+            val windows = listOf(
+                onsetEnv.copyOfRange(0, midpoint),
+                onsetEnv.copyOfRange(midpoint, onsetEnv.size),
+            )
+            val localTempos = windows.mapNotNull { window ->
+                val (localBpm, confidence, _) = estimateBpmFromOnsets(window, envRateHz)
+                localBpm.takeIf { it > 0f && confidence >= 0.30f }
+            }
+            if (localTempos.size < 2) return 0f
+            val matches = localTempos.count { localBpm ->
+                val equivalents = listOf(referenceBpm, referenceBpm * 0.5f, referenceBpm * 2f)
+                    .filter { it in 55f..200f }
+                equivalents.any { target ->
+                    abs(localBpm - target) <= max(2.5f, target * 0.035f)
+                }
+            }
+            return matches.toFloat() / localTempos.size.toFloat()
+        }
+
         private fun estimateBpmFromOnsets(
             onsetEnv: FloatArray,
             envRateHz: Float,
@@ -639,9 +669,12 @@ class AudioAnalysisEngine(
             val imag = DoubleArray(fftSize)
             val chroma = DoubleArray(12)
             var frameCount = 0
+            val targetFrames = 48
+            val frameStride = ((samples.size - fftSize).coerceAtLeast(0) / (targetFrames - 1))
+                .coerceAtLeast(hopSize)
             var offset = 0
 
-            while (offset + fftSize <= samples.size && frameCount < 48) {
+            while (offset + fftSize <= samples.size && frameCount < targetFrames) {
                 for (i in 0 until fftSize) {
                     val hann = 0.5 - 0.5 * cos(2.0 * PI * i / (fftSize - 1))
                     real[i] = samples[offset + i].toDouble() * hann
@@ -661,7 +694,7 @@ class AudioAnalysisEngine(
                     chroma[Math.floorMod(nearestMidi, 12)] += magnitude * tuningWeight
                 }
                 frameCount++
-                offset += hopSize
+                offset += frameStride
             }
 
             if (frameCount < 4 || chroma.sum() < 1e-8) return "Unknown" to 0f
