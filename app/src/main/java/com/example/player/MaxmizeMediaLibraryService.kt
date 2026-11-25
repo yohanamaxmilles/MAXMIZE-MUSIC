@@ -47,6 +47,8 @@ import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.local.db.MixHistoryEntity
 import com.example.data.local.db.PlaybackSnapshotEntity
 import com.example.data.model.AutomixConfig
+import com.example.data.model.AutomixTechnique
+import com.example.data.model.DjOperatingMode
 import com.example.data.model.AutomixUiState
 import com.example.data.model.DeckState
 import com.example.data.model.DjQueuedTrack
@@ -983,36 +985,55 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             ((System.currentTimeMillis() - automixStartTimeMs).toFloat() /
                 (automixConfig.mixDurationMinutes * 60_000f)).coerceIn(0f, 1f)
         } else 0f
-        val sessionPhase = when (automixConfig.energyProgression) {
-            com.example.data.model.EnergyProgression.BUILD_UP -> DjSessionArcPlanner.phaseFor(sessionProgress)
-            com.example.data.model.EnergyProgression.PEAK_HOUR -> DjSessionPhase.PEAK_TIME
-            com.example.data.model.EnergyProgression.STEADY -> DjSessionPhase.FLOW
-            com.example.data.model.EnergyProgression.CHILL_DOWN -> DjSessionPhase.COOL_DOWN
-            com.example.data.model.EnergyProgression.WAVE -> {
-                val waveProgress = (sessionProgress * 2f).let { if (it <= 1f) it else 2f - it }
-                DjSessionArcPlanner.phaseFor(waveProgress)
+        val sessionPhase = if (automixConfig.operatingMode == DjOperatingMode.AUTOMIX) {
+            DjSessionPhase.FLOW
+        } else {
+            when (automixConfig.energyProgression) {
+                com.example.data.model.EnergyProgression.BUILD_UP -> DjSessionArcPlanner.phaseFor(sessionProgress)
+                com.example.data.model.EnergyProgression.PEAK_HOUR -> DjSessionPhase.PEAK_TIME
+                com.example.data.model.EnergyProgression.STEADY -> DjSessionPhase.FLOW
+                com.example.data.model.EnergyProgression.CHILL_DOWN -> DjSessionPhase.COOL_DOWN
+                com.example.data.model.EnergyProgression.WAVE -> {
+                    val waveProgress = (sessionProgress * 2f).let { if (it <= 1f) it else 2f - it }
+                    DjSessionArcPlanner.phaseFor(waveProgress)
+                }
             }
         }
-        val maxTempoAdjustment = when (automixConfig.harmonicMixLevel) {
-            com.example.data.model.HarmonicMixLevel.STRICT -> 0.04f
-            com.example.data.model.HarmonicMixLevel.BALANCED -> 0.08f
-            com.example.data.model.HarmonicMixLevel.FLEXIBLE -> 0.12f
+        val techniqueWeights = when (automixConfig.technique) {
+            AutomixTechnique.BEAT_SYNC -> listOf(0.65f, 0.10f, 0.15f, 0.10f)
+            AutomixTechnique.HARMONIC -> listOf(0.20f, 0.55f, 0.15f, 0.10f)
+            AutomixTechnique.PHRASE_MATCH -> listOf(0.45f, 0.10f, 0.20f, 0.25f)
+            AutomixTechnique.ENERGY_FLOW -> listOf(0.15f, 0.10f, 0.20f, 0.55f)
+            AutomixTechnique.GENRE_MATCH -> listOf(0.15f, 0.10f, 0.60f, 0.15f)
+            AutomixTechnique.HUMAN_STYLE -> listOf(
+                automixConfig.bpmWeight, automixConfig.harmonicWeight,
+                automixConfig.genreWeight, automixConfig.energyWeight,
+            )
+        }
+        val maxTempoAdjustment = when {
+            automixConfig.technique == AutomixTechnique.BEAT_SYNC -> 0.04f
+            automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT -> 0.04f
+            automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.BALANCED -> 0.08f
+            else -> 0.12f
         }
         val decisionConfig = DjDecisionConfig(
             strictGenreMatching = automixConfig.strictGenreMatching,
             allowOpenFormatBridging = automixConfig.openFormatBridging,
-            requireReliableTempo = automixConfig.bpmMatchEnabled,
+            requireReliableTempo = automixConfig.bpmMatchEnabled ||
+                automixConfig.technique == AutomixTechnique.BEAT_SYNC ||
+                automixConfig.technique == AutomixTechnique.PHRASE_MATCH,
             requireReliableGenre = true,
             requireReliableKey = automixConfig.keyMatchingEnabled &&
-                automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT,
+                (automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT ||
+                    automixConfig.technique == AutomixTechnique.HARMONIC),
             maxTempoAdjustment = maxTempoAdjustment,
             minTrackDurationMs = 45_000L,
             maxUnknownContentDurationMs = 12L * 60L * 1000L,
             sessionPhase = sessionPhase,
-            bpmWeight = automixConfig.bpmWeight,
-            keyWeight = automixConfig.harmonicWeight,
-            genreWeight = automixConfig.genreWeight,
-            energyWeight = automixConfig.energyWeight,
+            bpmWeight = techniqueWeights[0],
+            keyWeight = techniqueWeights[1],
+            genreWeight = techniqueWeights[2],
+            energyWeight = techniqueWeights[3],
         )
         val eligibleTrackIds = pool.filter { candidate ->
             if (candidate.id == pivotTrack.id) return@filter false
