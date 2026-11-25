@@ -82,6 +82,7 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("automix_settings_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_settings_screen").performScrollToNode(hasTestTag("switch_strict_genre"))
         composeTestRule.onNodeWithTag("switch_strict_genre").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("automix_settings_screen").performScrollToNode(hasTestTag("harmonic_level_strict"))
         composeTestRule.onNodeWithTag("harmonic_level_strict").assertIsDisplayed()
 
         composeTestRule.activityRule.scenario.onActivity { activity ->
@@ -107,6 +108,7 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_library_stats"))
         composeTestRule.onNodeWithTag("settings_library_stats").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_metadata_health"))
         composeTestRule.onNodeWithTag("settings_metadata_health").assertIsDisplayed()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("font_choice_inter"))
         composeTestRule.onNodeWithTag("font_choice_inter").assertIsDisplayed()
