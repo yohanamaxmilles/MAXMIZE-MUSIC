@@ -1,9 +1,15 @@
 package com.example.data.dj.v2
 
 /** Evidence-aware contracts. Missing measurements stay null, never guessed. */
-enum class DjSessionPhase(val targetEnergyDelta: Float) {
-    OPENING(0.04f), WARM_UP(0.07f), BUILD_UP(0.12f), PEAK_TIME(0.0f),
-    BREATHER(-0.16f), COOL_DOWN(-0.10f), CLOSING(-0.12f), FLOW(0.0f),
+enum class DjSessionPhase(val targetEnergyDelta: Float, val targetEnergy: Float) {
+    OPENING(0.04f, 0.42f),
+    WARM_UP(0.07f, 0.55f),
+    BUILD_UP(0.12f, 0.72f),
+    PEAK_TIME(0.0f, 0.90f),
+    BREATHER(-0.16f, 0.62f),
+    COOL_DOWN(-0.10f, 0.45f),
+    CLOSING(-0.12f, 0.30f),
+    FLOW(0.0f, 0.55f),
 }
 enum class AudioContentKind { MUSIC, PODCAST, SPOKEN_WORD, AUDIOBOOK, SOUND_EFFECT, UNKNOWN }
 enum class MusicalSectionType { INTRO, OUTRO, VERSE, CHORUS, VOCAL, INSTRUMENTAL, BUILD_UP, BREAKDOWN, DROP, SILENCE }
