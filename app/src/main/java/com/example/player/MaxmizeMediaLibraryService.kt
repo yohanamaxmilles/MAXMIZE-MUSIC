@@ -621,7 +621,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val outgoingAnalysis = outgoingTrack?.let {
             analysesCache[it.id] ?: activeTrackAnalysis?.takeIf { analysis -> analysis.trackId == it.id }
         }
-        activeTransitionPlan = if (outgoingTrack != null) {
+        activeTransitionPlan = if (outgoingTrack != null && automixConfig.bpmMatchEnabled && automixConfig.phraseMatchEnabled) {
             val outgoingProfile = DjTrackProfileFactory.from(outgoingTrack, outgoingAnalysis)
             val incomingProfile = DjTrackProfileFactory.from(nextTrack, inAnalysis)
             val curve = when (automixConfig.transitionStyle) {
@@ -936,6 +936,11 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val candidateProfiles = pool.asSequence()
             .filter { it.id != pivotTrack.id }
             .map { track -> DjTrackProfileFactory.from(track, analysesCache[track.id]) }
+            .filter { profile ->
+                val bpm = profile.bpm
+                !automixConfig.bpmMatchEnabled || bpm == null ||
+                    bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat()
+            }
             .toList()
         val progress = if (automixConfig.mixDurationMinutes > 0) {
             ((System.currentTimeMillis() - automixStartTimeMs).toFloat() /
@@ -949,13 +954,19 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             config = DjDecisionConfig(
                 strictGenreMatching = automixConfig.strictGenreMatching,
                 allowOpenFormatBridging = automixConfig.openFormatBridging,
-                requireReliableTempo = true,
+                requireReliableTempo = automixConfig.bpmMatchEnabled,
                 requireReliableGenre = false,
                 requireReliableKey = false,
                 requirePhraseStructure = false,
-                maxTempoAdjustment = 0.08f,
+                strictHarmonicMatching = automixConfig.keyMatchingEnabled &&
+                    automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT,
+                maxTempoAdjustment = if (automixConfig.bpmMatchEnabled) 0.08f else 0.20f,
                 sessionPhase = phase,
                 targetEnergyDelta = phase.targetEnergyDelta,
+                bpmWeight = if (automixConfig.bpmMatchEnabled) automixConfig.bpmWeight else 0f,
+                keyWeight = if (automixConfig.keyMatchingEnabled) automixConfig.harmonicWeight else 0f,
+                genreWeight = automixConfig.genreWeight,
+                energyWeight = automixConfig.energyWeight,
             ),
             count = 15,
         )
