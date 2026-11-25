@@ -941,6 +941,13 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 !automixConfig.bpmMatchEnabled || bpm == null ||
                     bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat()
             }
+            .filter { profile ->
+                val preferred = automixConfig.genrePreference
+                preferred == "All Genres" ||
+                    profile.subgenre.equals(preferred, ignoreCase = true) ||
+                    (profile.subgenre != null &&
+                        GenreEngine.familyFor(profile.subgenre) == GenreEngine.familyFor(preferred))
+            }
             .toList()
         val progress = if (automixConfig.mixDurationMinutes > 0) {
             ((System.currentTimeMillis() - automixStartTimeMs).toFloat() /
@@ -965,7 +972,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 targetEnergyDelta = phase.targetEnergyDelta,
                 bpmWeight = if (automixConfig.bpmMatchEnabled) automixConfig.bpmWeight else 0f,
                 keyWeight = if (automixConfig.keyMatchingEnabled) automixConfig.harmonicWeight else 0f,
-                genreWeight = automixConfig.genreWeight,
+                genreWeight = automixConfig.genreWeight.coerceAtLeast(0.01f),
                 energyWeight = automixConfig.energyWeight,
             ),
             count = 15,
