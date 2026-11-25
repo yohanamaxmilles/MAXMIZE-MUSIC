@@ -504,10 +504,10 @@ class AudioAnalysisEngine(
             if (body.isEmpty()) return 0L
             val baseline = body[body.size / 2]
             if (baseline < 0.005f) return 0L
-            val threshold = baseline * 0.48f
+            val threshold = baseline * 0.42f
             val startIndex = (windowRms.size - 14).coerceAtLeast(3)
-            for (index in startIndex until windowRms.size - 2) {
-                val sustained = (windowRms[index] + windowRms[index + 1] + windowRms[index + 2]) / 3f
+            for (index in startIndex until windowRms.size - 3) {
+                val sustained = (windowRms[index] + windowRms[index + 1] + windowRms[index + 2] + windowRms[index + 3]) / 4f
                 val cue = windowOffsetMs + index * 1_000L
                 if (sustained <= threshold && cue < durationMs - 3_000L) return cue
             }
