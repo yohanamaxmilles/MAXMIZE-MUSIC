@@ -18,8 +18,6 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-enum class DjVoiceGender { FEMALE, MALE, DEFAULT }
-
 /**
  * Offline DJ announcements backed by installed Android TTS voices.
  * Voice gender is inferred from installed voice identifiers where possible.
