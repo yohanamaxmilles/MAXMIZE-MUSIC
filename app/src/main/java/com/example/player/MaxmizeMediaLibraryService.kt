@@ -577,7 +577,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     }
 
     private fun alignToNearestBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
-        if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
+        if (analysis == null || analysis.beatIntervalMs <= 0L || analysis.bpmConfidence < 0.60f || analysis.downbeatConfidence < 0.60f) return targetMs
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
         val beatIndex = (offset.toDouble() / analysis.beatIntervalMs).toLong()
         return (analysis.firstBeatMs + beatIndex * analysis.beatIntervalMs).coerceAtLeast(0L)
@@ -585,15 +585,26 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     private fun alignToPhraseOrBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
         if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
-        val barMs = analysis.beatIntervalMs * 4L
+        val phraseMs = analysis.phraseLengthMs.takeIf { it > 0L }
+            ?: (analysis.beatIntervalMs * 16L)
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
-        val barIndex = (offset.toDouble() / barMs).toLong()
-        return (analysis.firstBeatMs + barIndex * barMs).coerceAtLeast(0L)
+        val phraseIndex = (offset.toDouble() / phraseMs).toLong()
+        return (analysis.firstBeatMs + phraseIndex * phraseMs).coerceAtLeast(0L)
     }
 
     private suspend fun preloadStandbyDeck(nextTrack: Track) {
-        preloadedTrack = nextTrack
         val inAnalysis = container.audioAnalysisEngine.getAnalysisForTrack(nextTrack)
+        val outBpm = activeTrackAnalysis?.takeIf { it.bpmConfidence >= 0.60f && it.bpm in 60f..200f }?.bpm
+        val inBpm = inAnalysis.takeIf { it.bpmConfidence >= 0.60f && it.bpm in 60f..200f }?.bpm
+        if (automixConfig.bpmMatchEnabled && (outBpm == null || inBpm == null)) {
+            preloadedTrack = null
+            incomingTrackAnalysis = null
+            return
+        }
+        val tempoRatio = if (automixConfig.bpmMatchEnabled) {
+            HarmonicCompatibility.computeBeatmatchRatio(outBpm!!, inBpm!!)
+        } else 1.0f
+        preloadedTrack = nextTrack
         incomingTrackAnalysis = inAnalysis
 
         val sb = standbyPlayer
@@ -608,10 +619,6 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val introSeek = inAnalysis.firstBeatMs.coerceIn(0L, (nextTrack.durationMs / 4).coerceAtLeast(0L))
         if (introSeek > 0L) sb.seekTo(introSeek)
 
-        val outBpm = activeTrackAnalysis?.bpm ?: 120f
-        val tempoRatio = if (automixConfig.bpmMatchEnabled) {
-            HarmonicCompatibility.computeBeatmatchRatio(outBpm, inAnalysis.bpm)
-        } else 1.0f
         val pitch = if (automixConfig.keyLockEnabled) 1.0f else tempoRatio
         sb.playbackParameters = PlaybackParameters(tempoRatio, pitch)
     }
@@ -758,10 +765,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                         toArtist = inTrack.artist,
                         mixMode = automixConfig.mode.name,
                         transitionStyle = automixConfig.transitionStyle.name,
-                        bpmFrom = prevAnalysis?.bpm ?: 120f,
-                        bpmTo = activeTrackAnalysis?.bpm ?: 120f,
-                        camelotFrom = prevAnalysis?.camelotCode ?: "8A",
-                        camelotTo = activeTrackAnalysis?.camelotCode ?: "8A",
+                        bpmFrom = prevAnalysis?.takeIf { it.bpmConfidence >= 0.60f }?.bpm ?: 0f,
+                        bpmTo = activeTrackAnalysis?.takeIf { it.bpmConfidence >= 0.60f }?.bpm ?: 0f,
+                        camelotFrom = prevAnalysis?.takeIf { it.keyConfidence >= 0.60f }?.camelotCode ?: "--",
+                        camelotTo = activeTrackAnalysis?.takeIf { it.keyConfidence >= 0.60f }?.camelotCode ?: "--",
                         compatibilityScore = inEntry?.compatibilityScore ?: 80,
                     )
                 )
