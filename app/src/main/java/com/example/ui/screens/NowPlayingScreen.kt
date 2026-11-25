@@ -449,13 +449,15 @@ private fun NowPlayingBackdrop(track: Track) {
     val bg = MaterialTheme.colorScheme.background
     val supportsBlur = android.os.Build.VERSION.SDK_INT >= 31
     Box(modifier = Modifier.fillMaxSize()) {
+        // Keep the current track's artwork clearly visible behind the player controls.
+        // A very strong blur and near-opaque gradient made the image look completely black.
         ArtworkImage(
             artworkUri = track.customArtworkUri ?: track.artworkUri,
             fallbackUri = track.contentUri,
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (supportsBlur) Modifier.blur(70.dp) else Modifier)
-                .alpha(if (supportsBlur) 0.58f else 0.24f),
+                .then(if (supportsBlur) Modifier.blur(18.dp) else Modifier)
+                .alpha(0.88f),
             cornerRadius = 0.dp,
         )
         Box(
@@ -464,10 +466,10 @@ private fun NowPlayingBackdrop(track: Track) {
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            bg.copy(alpha = 0.22f),
-                            bg.copy(alpha = 0.72f),
-                            bg.copy(alpha = 0.96f),
-                            bg,
+                            bg.copy(alpha = 0.08f),
+                            bg.copy(alpha = 0.24f),
+                            bg.copy(alpha = 0.52f),
+                            bg.copy(alpha = 0.78f),
                         ),
                     ),
                 ),
