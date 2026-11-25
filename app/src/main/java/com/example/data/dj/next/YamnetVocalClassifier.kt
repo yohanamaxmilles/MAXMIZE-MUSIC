@@ -30,6 +30,7 @@ class YamnetVocalClassifier(context: Context) : AutoCloseable {
         return synchronized(lock) {
             val activeClassifier = classifier ?: createClassifier().also { classifier = it }
             val format = AudioDataFormat.builder()
+                .setNumOfChannels(1)
                 .setSampleRate(TARGET_SAMPLE_RATE.toFloat())
                 .build()
             val audioData = AudioData.create(format, mono16k.size)
