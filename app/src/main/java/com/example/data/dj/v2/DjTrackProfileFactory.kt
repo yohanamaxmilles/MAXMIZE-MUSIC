@@ -6,8 +6,8 @@ import com.example.data.model.TrackAnalysis
 
 /**
  * Adapts the current library records into the v2 decision model without fabricating
- * musical structure. Existing intro/outro estimates are deliberately not promoted
- * to verified cue points.
+ * musical structure. Intro/outro sections are low-confidence RMS energy estimates.
+ * Phrase boundaries are projected from a stable beat grid, not waveform-verified sections.
  */
 object DjTrackProfileFactory {
 
@@ -52,10 +52,10 @@ object DjTrackProfileFactory {
         }.orEmpty()
         val sections = buildList {
             analysis?.takeIf { it.introEndMs > 0L && it.introEndMs < track.durationMs }?.let {
-                add(MusicalSection(MusicalSectionType.INTRO, 0L, it.introEndMs, 0.65f))
+                add(MusicalSection(MusicalSectionType.INTRO, 0L, it.introEndMs, 0.55f))
             }
             analysis?.takeIf { it.outroStartMs > 0L && it.outroStartMs < track.durationMs }?.let {
-                add(MusicalSection(MusicalSectionType.OUTRO, it.outroStartMs, track.durationMs, 0.65f))
+                add(MusicalSection(MusicalSectionType.OUTRO, it.outroStartMs, track.durationMs, 0.55f))
             }
         }
 
