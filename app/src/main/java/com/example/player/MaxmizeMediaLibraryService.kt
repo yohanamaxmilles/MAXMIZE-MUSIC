@@ -569,10 +569,15 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     private fun alignToPhraseOrBeat(targetMs: Long, analysis: TrackAnalysis?): Long {
         if (analysis == null || analysis.beatIntervalMs <= 0L) return targetMs
-        val barMs = analysis.beatIntervalMs * 4L
+        val phraseMs = analysis.phraseLengthMs.takeIf { it > 0L }
+            ?: (analysis.beatIntervalMs * 32L)
         val offset = (targetMs - analysis.firstBeatMs).coerceAtLeast(0L)
-        val barIndex = (offset.toDouble() / barMs).toLong()
-        return (analysis.firstBeatMs + barIndex * barMs).coerceAtLeast(0L)
+        val nearestPhraseIndex = kotlin.math.round(offset.toDouble() / phraseMs).toLong()
+        val nearest = analysis.firstBeatMs + nearestPhraseIndex * phraseMs
+        val latestSafeCue = (analysis.durationMs - 1500L).coerceAtLeast(0L)
+        if (nearest <= latestSafeCue) return nearest.coerceAtLeast(0L)
+        val previousIndex = ((latestSafeCue - analysis.firstBeatMs).coerceAtLeast(0L) / phraseMs)
+        return (analysis.firstBeatMs + previousIndex * phraseMs).coerceIn(0L, latestSafeCue)
     }
 
     private suspend fun createNextTransitionPlan(
