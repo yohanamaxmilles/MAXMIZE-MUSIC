@@ -64,7 +64,7 @@ object DjVocalEvidenceAnalyzer {
             val scores = frame.classScores
             val singing = scores.entries
                 .filter { normalize(it.key) in singingLabels }
-                .maxOfOrNull { it.value.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f } ?: 0f
+                .maxOfOrNull { it.value.takeIf { score -> score.isFinite() }?.coerceIn(0f, 1f) ?: 0f } ?: 0f
             val speech = scores.entries
                 .filter { normalize(it.key) in speechLabels }
                 .maxOfOrNull { it.value.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f } ?: 0f
