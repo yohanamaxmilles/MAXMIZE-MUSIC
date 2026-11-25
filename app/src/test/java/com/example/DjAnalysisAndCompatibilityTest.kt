@@ -126,6 +126,33 @@ class DjAnalysisAndCompatibilityTest {
     }
 
     @Test
+    fun `intro and outro boundaries follow measured RMS windows`() {
+        val sampleRate = 22_050
+        val seconds = 12
+        val samples = FloatArray(sampleRate * seconds)
+        val beatSamples = sampleRate / 2
+        for (i in samples.indices) {
+            val phase = i % beatSamples
+            val envelope = if (phase < sampleRate / 10) 0.8f else 0.2f
+            samples[i] = (envelope * sin(2.0 * PI * 110.0 * i / sampleRate)).toFloat()
+        }
+        val introEnvelope = FloatArray(24) { index -> if (index < 4) 0.01f else 0.8f }
+        val outroEnvelope = FloatArray(24) { index -> if (index >= 19) 0.01f else 0.8f }
+
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "intro-outro-boundaries",
+            samples = samples,
+            sampleRate = sampleRate,
+            durationMs = seconds * 1000L,
+            introRms = introEnvelope,
+            outroRms = outroEnvelope,
+        )
+
+        assertTrue("Intro boundary should follow measured quiet opening: ${result.introEndMs}", result.introEndMs in 1_500L..2_500L)
+        assertTrue("Outro boundary should follow measured fade region: ${result.outroStartMs}", result.outroStartMs in 9_500L..11_500L)
+    }
+
+    @Test
     fun `selectSmartQueue prioritizes harmonic and BPM match while avoiding recent repeats`() {
         val current = track("t0", "Starter")
         val harmonicBest = track("t1", "Harmonic Match")
