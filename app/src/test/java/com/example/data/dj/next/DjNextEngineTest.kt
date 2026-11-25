@@ -63,7 +63,7 @@ class DjNextEngineTest {
                 DjVocalModelFrame(0L, 1_000L, mapOf("Music" to 0.8f, "Singing" to 0.91f)),
                 DjVocalModelFrame(1_000L, 1_000L, mapOf("Singing" to 0.88f)),
                 DjVocalModelFrame(2_000L, 1_000L, mapOf("Instrumental music" to 0.9f)),
-                DjVocalModelFrame(3_000L, 1_000L, mapOf("Speech" to 0.82f)),
+                DjVocalModelFrame(3_000L, 1_000L, mapOf("Narration, monologue" to 0.82f)),
             ),
         )
         assertEquals(0.91f, result.peakVocalProbability!!, 0.001f)
