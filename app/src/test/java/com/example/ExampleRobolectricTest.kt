@@ -1,7 +1,9 @@
 package com.example
 
 import android.content.Context
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -70,9 +72,12 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("nav_dj").performClick()
         composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dj_open_intelligent").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_open_automix").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("automix_screen").performScrollToNode(hasTestTag("technique_human_style"))
+        composeTestRule.onNodeWithTag("technique_human_style").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_screen").performScrollToNode(hasTestTag("start_automix_btn"))
         composeTestRule.onNodeWithTag("start_automix_btn").assertIsDisplayed()
 
@@ -98,6 +103,18 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("dj_tab_history").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("dj_tab_queue").assertIsDisplayed()
+    }
+
+    @Test
+    fun intelligentDjOpensItsOwnOperatingMode() {
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("nav_dj").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dj_open_intelligent").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Intelligent DJ").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("technique_human_style").assertDoesNotExist()
     }
 
     @Test
