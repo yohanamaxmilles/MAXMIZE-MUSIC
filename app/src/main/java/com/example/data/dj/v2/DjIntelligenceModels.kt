@@ -77,6 +77,7 @@ data class DjDecisionConfig(
     val requireReliableTempo: Boolean = true,
     val requireReliableGenre: Boolean = true,
     val requireReliableKey: Boolean = false,
+    val requirePhraseStructure: Boolean = false,
     val maxTempoAdjustment: Float = 0.08f,
     val minTrackDurationMs: Long = 45_000L,
     val maxUnknownContentDurationMs: Long = 12L * 60L * 1000L,
