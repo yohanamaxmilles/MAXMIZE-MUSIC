@@ -206,8 +206,8 @@ class AudioAnalysisEngine(
             DecodedAudioWindow(
                 samples = analysisSegment.first,
                 sampleRate = sampleRate,
-                introRms = calculateRmsFrames(introSamples.orEmpty(), sampleRate),
-                outroRms = calculateRmsFrames(outroSamples.orEmpty(), sampleRate),
+                introRms = calculateRmsFrames(introSamples ?: FloatArray(0), sampleRate),
+                outroRms = calculateRmsFrames(outroSamples ?: FloatArray(0), sampleRate),
                 analysisStartMs = analysisSegment.second,
             )
         } catch (_: Throwable) {
