@@ -171,3 +171,45 @@ object DjMixAutomation {
     private fun sinEqualPower(progress: Float): Float =
         sin(progress * (Math.PI.toFloat() / 2f)).coerceIn(0f, 1f)
 }
+
+/** Per-deck three-band EQ values for the live PCM processors. */
+data class DjEqFrame(
+    val outgoingLow: Float,
+    val outgoingMid: Float,
+    val outgoingHigh: Float,
+    val incomingLow: Float,
+    val incomingMid: Float,
+    val incomingHigh: Float,
+)
+
+/** Pure EQ automation shared by live Automix and JVM tests. */
+object DjEqAutomation {
+    fun bassSwap(progress: Float): DjEqFrame {
+        val smooth = smoothStep(progress)
+        return DjEqFrame(
+            outgoingLow = 1f - 0.90f * smooth,
+            outgoingMid = 1f,
+            outgoingHigh = 1f,
+            incomingLow = 0.10f + 0.90f * smooth,
+            incomingMid = 1f,
+            incomingHigh = 1f,
+        )
+    }
+
+    fun eqFilter(progress: Float): DjEqFrame {
+        val smooth = smoothStep(progress)
+        return DjEqFrame(
+            outgoingLow = 1f - 0.72f * smooth,
+            outgoingMid = 1f - 0.30f * smooth,
+            outgoingHigh = 1f - 0.08f * smooth,
+            incomingLow = 0.22f + 0.78f * smooth,
+            incomingMid = 0.48f + 0.52f * smooth,
+            incomingHigh = 1f,
+        )
+    }
+
+    private fun smoothStep(progress: Float): Float {
+        val p = progress.coerceIn(0f, 1f)
+        return p * p * (3f - 2f * p)
+    }
+}
