@@ -463,11 +463,11 @@ private fun NowPlayingBackdrop(track: Track) {
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to bg.copy(alpha = 0.18f),
-                            0.38f to bg.copy(alpha = 0.38f),
-                            0.70f to bg.copy(alpha = 0.82f),
-                            1.0f to bg,
+                        colors = listOf(
+                            bg.copy(alpha = 0.18f),
+                            bg.copy(alpha = 0.38f),
+                            bg.copy(alpha = 0.82f),
+                            bg,
                         ),
                     ),
                 ),
