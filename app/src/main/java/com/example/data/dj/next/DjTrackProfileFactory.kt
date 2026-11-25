@@ -37,6 +37,7 @@ object DjTrackProfileFactory {
             genreFamily = genre,
             energy = analysis?.energy?.coerceIn(0f, 1f) ?: 0.5f,
             introEndMs = analysis?.introEndMs?.takeIf { it > 0L && it < duration },
+            firstBeatMs = analysis?.firstBeatMs?.takeIf { it >= 0L && it < duration },
             outroStartMs = analysis?.outroStartMs?.takeIf { it > 0L && it < duration },
         )
     }
