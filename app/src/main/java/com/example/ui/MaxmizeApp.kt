@@ -523,17 +523,21 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                         DjModeScreen(
                                             isAutomixActive = automixState.isActive,
                                             onOpenAutomix = {
-                                                viewModel.updateAutomixConfig { it.copy(operatingMode = com.example.data.model.DjOperatingMode.AUTOMIX) }
-                                                navController.navigate(MaxmizeRoute.Automix)
+                                                viewModel.updateAutomixConfig(
+                                                    transform = { it.copy(operatingMode = com.example.data.model.DjOperatingMode.AUTOMIX) },
+                                                    onUpdated = { navController.navigate(MaxmizeRoute.Automix) },
+                                                )
                                             },
                                             onOpenIntelligentDj = {
-                                                viewModel.updateAutomixConfig {
-                                                    it.copy(
-                                                        operatingMode = com.example.data.model.DjOperatingMode.INTELLIGENT_DJ,
-                                                        technique = com.example.data.model.AutomixTechnique.HUMAN_STYLE,
-                                                    )
-                                                }
-                                                navController.navigate(MaxmizeRoute.Automix)
+                                                viewModel.updateAutomixConfig(
+                                                    transform = {
+                                                        it.copy(
+                                                            operatingMode = com.example.data.model.DjOperatingMode.INTELLIGENT_DJ,
+                                                            technique = com.example.data.model.AutomixTechnique.HUMAN_STYLE,
+                                                        )
+                                                    },
+                                                    onUpdated = { navController.navigate(MaxmizeRoute.Automix) },
+                                                )
                                             },
                                             onOpenQueue = { navController.navigate(MaxmizeRoute.DjQueue) },
                                             onOpenProfiles = { navController.navigate(MaxmizeRoute.AutomixSettings) },
