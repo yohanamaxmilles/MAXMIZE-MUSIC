@@ -171,6 +171,7 @@ data class TrackAnalysisEntity(
     val phraseLengthMs: Long = 0L,
     val downbeatConfidence: Float = 0.5f,
     val spectralCentroidHz: Float = 1500f,
+    val analysisVersion: Int = 0,
 )
 
 @Entity(tableName = "custom_dj_profiles")
