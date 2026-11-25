@@ -60,4 +60,27 @@ class DjNextEngineTest {
         assertEquals(1f, end.incomingLowGain, 0.001f)
         assertTrue(middle.incomingGain > 0f)
     }
+
+    @Test
+    fun sessionPlannerBuildsEnergyArcWithoutRepeatingTracks() {
+        val start = DjTrackProfile("start", "Start", "Artist", 240_000, 124f, 0.9f, "8A", "House", 0.35f)
+        val tracks = (1..10).map { index ->
+            DjTrackProfile(
+                trackId = "track-$index",
+                title = "Track $index",
+                artist = "Artist",
+                durationMs = 240_000,
+                bpm = 124f + (index % 3),
+                bpmConfidence = 0.9f,
+                camelotKey = if (index % 2 == 0) "8A" else "9A",
+                genreFamily = "House",
+                energy = index / 10f,
+            )
+        }
+        val planned = DjSessionPlanner().plan(start, tracks, 7)
+        assertEquals(7, planned.size)
+        assertEquals(DjSessionPhase.OPENING, planned.first().phase)
+        assertEquals(DjSessionPhase.CLOSING, planned.last().phase)
+        assertEquals(planned.size, planned.map { it.profile.trackId }.distinct().size)
+    }
 }
