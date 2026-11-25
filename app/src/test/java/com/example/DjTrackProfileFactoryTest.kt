@@ -44,6 +44,15 @@ class DjTrackProfileFactoryTest {
     }
 
     @Test
+    fun speechlessInATrackTitleDoesNotTriggerSpokenWordFiltering() {
+        val result = DjTrackProfileFactory.from(
+            track("Speechless Remix", "Progressive House"),
+            null,
+        )
+        assertEquals(AudioContentKind.MUSIC, result.contentKind)
+    }
+
+    @Test
     fun `genre metadata identifies music but does not invent BPM or key`() {
         val result = DjTrackProfileFactory.from(track("Progressive Track", "Progressive House"), null)
         assertEquals(AudioContentKind.MUSIC, result.contentKind)
