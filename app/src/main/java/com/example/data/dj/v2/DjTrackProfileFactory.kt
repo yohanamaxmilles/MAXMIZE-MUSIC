@@ -53,6 +53,7 @@ object DjTrackProfileFactory {
 
         return DjTrackProfile(
             trackId = track.id,
+            artistName = track.artist,
             durationMs = track.durationMs,
             contentKind = content.first,
             contentConfidence = content.second,
