@@ -68,7 +68,7 @@ object GenreEngine {
         GenreSpec("House", GenreFamily.HOUSE, listOf("house", "tropical house", "future house", "club house")),
 
         GenreSpec("Hard Techno", GenreFamily.TECHNO, listOf("hard techno", "hardtechno", "industrial techno", "schranz")),
-        GenreSpec("Melodic Techno", GenreFamily.TECHNO, listOf("melodic techno", "afterlife")),
+        GenreSpec("Melodic Techno", GenreFamily.TECHNO, listOf("melodic techno")),
         GenreSpec("Minimal Techno", GenreFamily.TECHNO, listOf("minimal techno", "minimal")),
         GenreSpec("Techno", GenreFamily.TECHNO, listOf("techno", "acid techno")),
 
@@ -80,7 +80,7 @@ object GenreEngine {
         GenreSpec("Future Bass", GenreFamily.BASS, listOf("future bass")),
 
         GenreSpec("Electro", GenreFamily.ELECTRONIC, listOf("electro", "electro house", "synthwave")),
-        GenreSpec("EDM", GenreFamily.ELECTRONIC, listOf("edm", "big room", "festival", "dance", "electronica", "electronic", "club")),
+        GenreSpec("EDM", GenreFamily.ELECTRONIC, listOf("edm", "big room", "electronica", "electronic")),
 
         GenreSpec("Trap", GenreFamily.HIP_HOP, listOf("trap")),
         GenreSpec("Drill", GenreFamily.HIP_HOP, listOf("drill", "uk drill", "ny drill")),
@@ -94,11 +94,11 @@ object GenreEngine {
         GenreSpec("Dance Pop", GenreFamily.POP, listOf("dance pop", "dance-pop", "synth pop", "synthpop", "electropop", "electro pop")),
         GenreSpec("Pop", GenreFamily.POP, listOf("pop", "k-pop", "kpop", "indie pop", "mainstream pop")),
 
-        GenreSpec("Bongo Flava", GenreFamily.AFRO, listOf("bongo flava", "bongoflava", "bongo", "tanzania")),
-        GenreSpec("Amapiano", GenreFamily.AFRO, listOf("amapiano", "piano")),
+        GenreSpec("Bongo Flava", GenreFamily.AFRO, listOf("bongo flava", "bongoflava", "bongo")),
+        GenreSpec("Amapiano", GenreFamily.AFRO, listOf("amapiano")),
         GenreSpec("Afrobeats", GenreFamily.AFRO, listOf("afrobeats", "afrobeat", "afro beat", "afropop", "afro pop", "afro fusion", "gengetone")),
 
-        GenreSpec("Reggae", GenreFamily.CARIBBEAN_LATIN, listOf("reggae", "roots reggae", "dub", "lovers rock")),
+        GenreSpec("Reggae", GenreFamily.CARIBBEAN_LATIN, listOf("reggae", "roots reggae", "lovers rock")),
         GenreSpec("Dancehall", GenreFamily.CARIBBEAN_LATIN, listOf("dancehall", "ragga")),
         GenreSpec("Reggaeton", GenreFamily.CARIBBEAN_LATIN, listOf("reggaeton", "dembow", "urbano")),
         GenreSpec("Latin", GenreFamily.CARIBBEAN_LATIN, listOf("latin", "salsa", "bachata", "latin pop", "merengue")),
@@ -169,7 +169,10 @@ object GenreEngine {
         val longestAlias = TAXONOMY
             .flatMap { spec -> spec.aliases.map { alias -> spec to alias } }
             .sortedByDescending { it.second.length }
-        longestAlias.firstOrNull { (_, alias) -> norm == alias || norm.contains(alias) }?.let { return it.first }
+        longestAlias.firstOrNull { (_, alias) ->
+            Regex("(^|[^a-z0-9])\${Regex.escape(alias)}([^a-z0-9]|$)")
+                .containsMatchIn(norm)
+        }?.let { return it.first }
         return null
     }
 
@@ -231,8 +234,10 @@ object GenreEngine {
         val lower = title.lowercase()
         val markers = listOf("amapiano", "deep house", "afro house", "tech house", "hard techno",
             "psytrance", "bongo flava", "dancehall", "reggaeton", "dubstep", "dnb", "acoustic", "lo-fi")
-        for (m in markers) {
-            if (lower.contains(m)) return canonicalize(m)
+        for (marker in markers) {
+            val boundaryMatch = Regex("(^|[^a-z0-9])\${Regex.escape(marker)}([^a-z0-9]|$)")
+                .containsMatchIn(lower)
+            if (boundaryMatch) return canonicalize(marker)
         }
         return null
     }
