@@ -78,6 +78,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.dj.HarmonicCompatibility
 import com.example.data.model.AutomixConfig
+import com.example.data.model.AutomixTechnique
+import com.example.data.model.DjOperatingMode
 import com.example.data.model.AutomixUiState
 import com.example.data.model.DeckState
 import com.example.data.model.MixMode
@@ -108,6 +110,7 @@ fun AutomixScreen(
     onToggleBpmMatch: () -> Unit,
     onToggleKeyLock: () -> Unit,
     onCycleMixMode: () -> Unit,
+    onSelectTechnique: (AutomixTechnique) -> Unit,
     onAnalyzeLibrary: () -> Unit,
     onCorrectAnalysis: (Track, Float, String) -> Unit,
     modifier: Modifier = Modifier,
@@ -145,7 +148,7 @@ fun AutomixScreen(
                     )
                 }
                 Text(
-                    text = if (automixState.isActive) "Automix in Progress" else "Automix",
+                    text = if (automixState.isActive) "DJ session in progress" else if (automixConfig.operatingMode == DjOperatingMode.INTELLIGENT_DJ) "Intelligent DJ" else "Automix",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                 )
@@ -222,7 +225,7 @@ fun AutomixScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = if (automixState.isActive) "Mixing your tracks..." else "Smart Automix",
+                    text = if (automixState.isActive) "Mixing your tracks..." else if (automixConfig.operatingMode == DjOperatingMode.INTELLIGENT_DJ) "Intelligent DJ" else "Automix",
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
@@ -232,13 +235,44 @@ fun AutomixScreen(
                     text = if (automixState.isActive) {
                         automixState.statusText
                     } else {
-                        "Let the music flow automatically with offline BPM, harmonic & genre intelligence."
+                        if (automixConfig.operatingMode == DjOperatingMode.INTELLIGENT_DJ) "Your DJ reads the musical flow, manages energy, chooses compatible tracks and performs live transitions." else "Choose a mixing technique. MAXMIZE matches tracks using local BPM, key, genre and energy evidence."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
+
+                if (automixConfig.operatingMode == DjOperatingMode.AUTOMIX) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "MIXING TECHNIQUE",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AutomixTechnique.entries.take(3).forEach { technique ->
+                            TechniqueChoice(
+                                technique = technique,
+                                selected = automixConfig.technique == technique,
+                                onClick = { onSelectTechnique(technique) },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AutomixTechnique.entries.drop(3).forEach { technique ->
+                            TechniqueChoice(
+                                technique = technique,
+                                selected = automixConfig.technique == technique,
+                                onClick = { onSelectTechnique(technique) },
+                            )
+                        }
+                    }
+                }
 
                 if (automixState.isMixingTransition) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -909,4 +943,34 @@ fun ManualBpmKeyDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+
+@Composable
+private fun TechniqueChoice(
+    technique: AutomixTechnique,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val label = when (technique) {
+        AutomixTechnique.BEAT_SYNC -> "Beat Sync"
+        AutomixTechnique.HARMONIC -> "Harmonic"
+        AutomixTechnique.PHRASE_MATCH -> "Phrase"
+        AutomixTechnique.ENERGY_FLOW -> "Energy"
+        AutomixTechnique.GENRE_MATCH -> "Genre"
+        AutomixTechnique.HUMAN_STYLE -> "Human Style"
+    }
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.testTag("technique_${technique.name.lowercase()}"),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                else MaterialTheme.colorScheme.surface,
+            contentColor = if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+        ),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+    }
 }
