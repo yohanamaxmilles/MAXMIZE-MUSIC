@@ -679,14 +679,16 @@ class AudioAnalysisEngine(
                 return Triple(120f, 0f, 0f)
             }
 
-            val average = (scoreSum / validCount).toFloat().coerceAtLeast(1e-6f)
-            val prominence = bestScore / average
-            val separation = ((prominence - 1f) / 2.5f).coerceIn(0f, 1f)
-            val confidence = (bestScore * separation).coerceIn(0f, 0.98f)
+            // The normalized peak itself is a bounded periodicity measure.
+            // Mean score across the BPM sweep penalized broad but valid tempo
+            // peaks, especially at 120-130 BPM, and made clean dance signals
+            // look unconfident. Weak signals are still rejected by the 0.06
+            // floor above.
+            val confidence = bestScore.coerceIn(0f, 0.98f)
 
-            // Stability is measured from neighbouring tempo candidates, not
-            // copied from confidence. A broad plateau is less reliable than
-            // a distinct periodic peak.
+            // Stability measures how clearly the selected tempo stands above
+            // candidates two BPM away. Half/double-time ambiguity is handled
+            // explicitly by the octave selection above and by beat-sync logic.
             val bestIndex = bestBpm.toInt() - minBpm
             val neighbour = max(
                 scores.getOrElse(bestIndex - 2) { 0f },
