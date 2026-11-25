@@ -57,8 +57,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.LavenderCard
-import com.example.ui.theme.LavenderCardDeep
 
 data class NavDestinationItem(
     val id: String,
@@ -175,7 +173,7 @@ fun MaxmizeBottomBar(
                 val circleBg by animateColorAsState(
                     targetValue = when {
                         selected -> MaterialTheme.colorScheme.primary
-                        item.accentHighlighted -> LavenderCardDeep.copy(alpha = 0.45f)
+                        item.accentHighlighted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                         else -> Color.Transparent
                     },
                     label = "navCircleBg",
@@ -183,7 +181,7 @@ fun MaxmizeBottomBar(
                 val iconTint by animateColorAsState(
                     targetValue = when {
                         selected -> MaterialTheme.colorScheme.onPrimary
-                        item.accentHighlighted -> LavenderCard
+                        item.accentHighlighted -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     label = "navIconTint",
