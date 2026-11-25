@@ -267,6 +267,12 @@ data class TrackAnalysis(
     val phraseLengthMs: Long = 0L,
     val downbeatConfidence: Float = 0.5f,
     val spectralCentroidHz: Float = 1500f,
+    val vocalAverageProbability: Float? = null,
+    val vocalPeakProbability: Float? = null,
+    val vocalActiveRatio: Float? = null,
+    val vocalAverageSpeechProbability: Float? = null,
+    val vocalConfidence: String = "UNKNOWN",
+    val vocalSegmentsJson: String = "[]",
 )
 
 @Immutable
