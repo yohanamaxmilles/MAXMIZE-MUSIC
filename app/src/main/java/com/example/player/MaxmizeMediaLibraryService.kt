@@ -670,8 +670,17 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         sb.pause()
         sb.volume = 0f
 
-        val introSeek = (activeTransitionPlan?.incomingStartMs ?: inAnalysis.firstBeatMs)
-            .coerceIn(0L, (nextTrack.durationMs / 4).coerceAtLeast(0L))
+        val plannedIntroSeek = activeTransitionPlan?.let { plan ->
+            plan.incomingStartMs.coerceIn(
+                0L,
+                (nextTrack.durationMs - plan.durationMs).coerceAtLeast(0L),
+            )
+        }
+        val fallbackIntroSeek = inAnalysis.firstBeatMs.coerceIn(
+            0L,
+            (nextTrack.durationMs - 1L).coerceAtLeast(0L),
+        )
+        val introSeek = plannedIntroSeek ?: fallbackIntroSeek
         if (introSeek > 0L) sb.seekTo(introSeek)
 
         val pitch = if (automixConfig.keyLockEnabled) 1.0f else tempoRatio
