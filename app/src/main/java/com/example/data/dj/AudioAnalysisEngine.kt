@@ -136,7 +136,7 @@ class AudioAnalysisEngine(
                     vocalAverageSpeechProbability = vocal.averageSpeechProbability,
                     vocalConfidence = if (vocalFrames.isEmpty()) "UNKNOWN" else vocal.confidence.name,
                     vocalSegmentsJson = segmentsJson,
-                    vocalAnalysisVersion = 1,
+                    vocalAnalysisVersion = if (vocalFrames.isEmpty()) 0 else 1,
                 )
             }
         }
@@ -169,7 +169,7 @@ class AudioAnalysisEngine(
             downbeatConfidence = 0.3f,
             spectralCentroidHz = 1500f,
             vocalConfidence = "UNKNOWN",
-            vocalAnalysisVersion = 1,
+            vocalAnalysisVersion = 0,
         )
         val genre = GenreEngine.classifyTrack(track, partial)
         return partial.copy(
