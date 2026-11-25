@@ -1015,7 +1015,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             }
         }
         val recentEnergyValues = recentDjHistoryIds.mapNotNull { id ->
-            analysesCache[id]?.takeIf { it.analysisVersion >= 2 && it.energy in 0f..1f }?.energy
+            analysesCache[id]?.takeIf { it.analysisVersion >= 3 && it.energy in 0f..1f }?.energy
         }.takeLast(5)
         val recentAverageEnergy = recentEnergyValues.takeIf { it.isNotEmpty() }?.average()?.toFloat()
         val sessionPhase = if (automixConfig.operatingMode == DjOperatingMode.AUTOMIX) {
