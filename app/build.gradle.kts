@@ -1,4 +1,5 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.io.File
 import java.net.URL
 import java.security.MessageDigest
 
@@ -178,7 +179,7 @@ val downloadYamnetModel by tasks.registering {
         .joinToString("") { "%02x".format(it) }
 
     if (!output.exists() || sha256(output) != yamnetModelSha256) {
-      val temporary = java.io.File(output.parentFile, "yamnet.tflite.download")
+      val temporary = File(output.parentFile, "yamnet.tflite.download")
       URL(yamnetModelUrl).openStream().use { input ->
         temporary.outputStream().use { target -> input.copyTo(target) }
       }
