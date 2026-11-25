@@ -231,8 +231,8 @@ fun LibraryScreen(
 
         // Direct top-level segment tabs: Songs | Albums | Artists | Genres | Folders
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(PRIMARY_LIBRARY_TABS, key = { it.name }) { category ->
                 EditorialChip(
@@ -282,15 +282,15 @@ fun LibraryScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Box {
-                val chipShape = RoundedCornerShape(9.dp)
+                val chipShape = RoundedCornerShape(12.dp)
                 Row(
                     modifier = Modifier
-                        .height(34.dp)
+                        .height(38.dp)
                         .clip(chipShape)
                         .background(MaterialTheme.colorScheme.surface)
                         .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, chipShape)
