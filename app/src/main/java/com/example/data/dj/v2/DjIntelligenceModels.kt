@@ -22,6 +22,7 @@ data class MusicalSection(
 
 data class DjTrackProfile(
     val trackId: String,
+    val artistName: String? = null,
     val durationMs: Long,
     val contentKind: AudioContentKind,
     val contentConfidence: Float,
