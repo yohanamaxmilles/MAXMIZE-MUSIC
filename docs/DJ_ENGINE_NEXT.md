@@ -4,6 +4,7 @@ This is a clean, isolated DJ intelligence core under `com.example.data.dj.next`.
 It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 
 ## Current implementation
+- Kotlin smart-cast issue found by the first CI compilation pass was corrected in the PCM tempo detector.
 - Offline mono PCM tempo estimation with autocorrelation.
 - Beat timestamps and 16-beat phrase markers.
 - RMS-based energy and coarse energy-section estimates.
