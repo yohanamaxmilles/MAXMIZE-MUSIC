@@ -9,6 +9,7 @@ on:
       - "app/build.gradle.kts"
       - "gradle/**"
       - "settings.gradle.kts"
+      - ".github/workflows/dj-engine-next.yml"
       - "build.gradle.kts"
 
 permissions:
