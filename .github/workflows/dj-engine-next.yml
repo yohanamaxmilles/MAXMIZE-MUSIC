@@ -1,6 +1,20 @@
 name: DJ Engine Next Validation
 
 on:
+  push:
+    branches: [feature/maxmize-dj-engine-next]
+    paths:
+      - "app/src/main/java/com/example/data/dj/next/**"
+      - "app/src/main/java/com/example/data/dj/AudioAnalysisEngine.kt"
+      - "app/src/main/java/com/example/player/**"
+      - "app/src/test/java/com/example/data/dj/next/**"
+      - "app/src/test/java/com/example/DjAnalysisAndCompatibilityTest.kt"
+      - "docs/DJ_ENGINE_NEXT.md"
+      - "app/build.gradle.kts"
+      - "gradle/**"
+      - "settings.gradle.kts"
+      - ".github/workflows/dj-engine-next.yml"
+      - "build.gradle.kts"
   pull_request:
     branches: [main]
     paths:
@@ -20,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: dj-engine-next-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: dj-engine-next-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -41,3 +55,11 @@ jobs:
           gradle-version: "9.3.1"
       - name: Run app unit tests
         run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maxmize-music-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
