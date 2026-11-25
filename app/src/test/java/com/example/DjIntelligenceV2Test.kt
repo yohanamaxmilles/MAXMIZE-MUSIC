@@ -90,6 +90,23 @@ class DjIntelligenceV2Test {
     }
 
     @Test
+    fun harmonicTechniqueRejectsDistantCamelotKeys() {
+        val current = profile("current", key = "8A")
+        val distant = profile("distant", key = "2A")
+        val result = DjDecisionEngine().rankNextTracks(
+            current = current,
+            candidates = listOf(distant),
+            recentTrackIds = emptySet(),
+            config = DjDecisionConfig(
+                requireReliableKey = true,
+                strictHarmonicMatching = true,
+            ),
+        )
+        assertTrue(result.rankedCandidates.isEmpty())
+        assertTrue(result.rejectedCandidates.single().reason.contains("Harmonic key"))
+    }
+
+    @Test
     fun `missing BPM is rejected instead of receiving a fabricated default`() {
         val current = profile("current", bpm = null)
         val candidate = profile("candidate")
