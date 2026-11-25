@@ -967,6 +967,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 requirePhraseStructure = false,
                 strictHarmonicMatching = automixConfig.keyMatchingEnabled &&
                     automixConfig.harmonicMixLevel == com.example.data.model.HarmonicMixLevel.STRICT,
+                customGenreRules = customRulesCache.associate { rule ->
+                    listOf(rule.genreA.trim().lowercase(), rule.genreB.trim().lowercase())
+                        .sorted().joinToString("|") to rule.allowed
+                },
                 maxTempoAdjustment = if (automixConfig.bpmMatchEnabled) 0.08f else 0.20f,
                 sessionPhase = phase,
                 targetEnergyDelta = phase.targetEnergyDelta,
