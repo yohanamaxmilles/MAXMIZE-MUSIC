@@ -53,26 +53,37 @@ class DjIntelligenceEngine {
         val duration = if (bpm != null) {
             (safeBars * 4 * 60_000f / bpm).toLong().coerceIn(4_000L, 64_000L)
         } else 16_000L
-        val outgoingStart = (outgoing.outroStartMs ?: (outgoing.durationMs - duration))
-            .coerceIn(0L, outgoing.durationMs)
-        val incomingStart = (incoming.firstBeatMs ?: 0L).coerceIn(0L, incoming.durationMs)
+        // Keep the complete overlap inside both source tracks. Acoustic outro
+        // estimates and first-beat cues can sit too close to a file boundary.
+        val transitionDuration = min(duration, min(outgoing.durationMs, incoming.durationMs))
+            .coerceAtLeast(1L)
+        val maxOutgoingStart = (outgoing.durationMs - transitionDuration).coerceAtLeast(0L)
+        val maxIncomingStart = (incoming.durationMs - transitionDuration).coerceAtLeast(0L)
+        val requestedOutgoingStart = outgoing.outroStartMs ?: maxOutgoingStart
+        val requestedIncomingStart = incoming.firstBeatMs ?: 0L
+        val outgoingStart = requestedOutgoingStart.coerceIn(0L, maxOutgoingStart)
+        val incomingStart = requestedIncomingStart.coerceIn(0L, maxIncomingStart)
+        val cueAdjusted = outgoingStart != requestedOutgoingStart || incomingStart != requestedIncomingStart
         val compatible = if (outgoing.camelotKey != null && incoming.camelotKey != null) {
             camelotDistance(outgoing.camelotKey, incoming.camelotKey) <= 1
         } else null
+        val baseExplanation = when {
+            bpm == null -> "Tempo confidence is low. Use a manual or gradual fade, not automatic beat sync."
+            compatible == false -> "Keys are not adjacent on the Camelot wheel. Prefer a low-overlap transition."
+            else -> "Phrase-length transition planned. Confirm beatgrid alignment before full automation."
+        }
         return DjTransitionPlan(
             outgoingTrackId = outgoing.trackId,
             incomingTrackId = incoming.trackId,
             startOutgoingAtMs = outgoingStart,
             startIncomingAtMs = incomingStart,
-            durationMs = min(duration, outgoing.durationMs - outgoingStart).coerceAtLeast(1_000L),
+            durationMs = transitionDuration,
             bars = safeBars,
             bpm = bpm,
             harmonicCompatible = compatible,
-            explanation = when {
-                bpm == null -> "Tempo confidence is low. Use a manual or gradual fade, not automatic beat sync."
-                compatible == false -> "Keys are not adjacent on the Camelot wheel. Prefer a low-overlap transition."
-                else -> "Phrase-length transition planned. Confirm beatgrid alignment before full automation."
-            },
+            explanation = if (cueAdjusted) {
+                "$baseExplanation Cue positions were moved earlier to keep the overlap inside both tracks."
+            } else baseExplanation,
         )
     }
 
