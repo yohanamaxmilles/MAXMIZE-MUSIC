@@ -75,6 +75,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.roundToInt
 import java.util.Locale
 
 @OptIn(UnstableApi::class)
@@ -677,7 +678,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             preloadStandbyDeck(nextEntry.track)
         }
         if (!isMixingTransition) {
-            beginDualDeckTransition(durationMs.coerceIn(800L, 12_000L))
+            beginDualDeckTransition((activeTransitionPlan?.durationMs ?: durationMs).coerceIn(800L, 32_000L))
         }
     }
 
