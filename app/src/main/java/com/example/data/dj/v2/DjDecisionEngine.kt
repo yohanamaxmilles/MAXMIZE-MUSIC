@@ -17,6 +17,15 @@ class DjDecisionEngine {
         val ranked = mutableListOf<DjCandidateScore>()
         val rejected = mutableListOf<DjRejection>()
 
+        if (current.contentKind != AudioContentKind.MUSIC || current.contentConfidence < 0.50f) {
+            return DjRankingResult(
+                rankedCandidates = emptyList(),
+                rejectedCandidates = candidates.map {
+                    DjRejection(it.trackId, "Current deck is not verified music")
+                },
+            )
+        }
+
         candidates.forEach { candidate ->
             val reason = rejectionReason(current, candidate, recentTrackIds, config)
             if (reason != null) rejected += DjRejection(candidate.trackId, reason)
@@ -66,8 +75,8 @@ class DjDecisionEngine {
         }
 
         val ratio = tempoRatio(current.bpm, candidate.bpm)
-            ?: return "BPM data is unavailable"
-        if (abs(ratio - 1f) > config.maxTempoAdjustment) {
+        if (config.requireReliableTempo && ratio == null) return "BPM data is unavailable"
+        if (ratio != null && abs(ratio - 1f) > config.maxTempoAdjustment) {
             return "Tempo adjustment exceeds the configured limit"
         }
 
