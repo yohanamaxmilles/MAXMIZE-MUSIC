@@ -53,8 +53,6 @@ import com.example.data.model.PlaybackUiState
 import com.example.data.model.TrackAnalysis
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
-import com.example.ui.theme.LavenderCard
-import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoStatStyle
 import com.example.ui.theme.MonoTimecodeStyle
@@ -129,14 +127,14 @@ fun DjHomeSection(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(LavenderCardDeep)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                                 .clickable { onNavigateTab(DjSectionTab.PROFILES) }
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = automixState.activeProfileName,
                                 style = MonoBadgeStyle,
-                                color = LavenderCard,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
@@ -511,13 +509,13 @@ private fun DjQuickLaunchCard(
             modifier = Modifier
                 .size(34.dp)
                 .clip(RoundedCornerShape(9.dp))
-                .background(LavenderCardDeep),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = LavenderCard,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
         }

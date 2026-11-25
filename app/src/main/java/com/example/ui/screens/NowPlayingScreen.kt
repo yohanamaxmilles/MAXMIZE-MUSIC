@@ -329,22 +329,14 @@ fun NowPlayingScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.Bottom,
                     ) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        ArtworkPager(
-                            queue = playbackState.queue,
-                            currentIndex = playbackState.currentIndex,
-                            onPageSelected = onSelectQueueIndex,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .widthIn(max = 360.dp)
-                                .aspectRatio(1f),
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        // Portrait player artwork is now the full-screen blurred backdrop.
+                        // Keep the transport surface unobstructed; the queue remains accessible
+                        // through the Queue action and all existing callbacks are preserved.
+                        Spacer(modifier = Modifier.weight(1f, fill = true))
                         PlayerControlsBlock(
                             track = track,
                             upNextTrack = upNextTrack,
@@ -360,7 +352,7 @@ fun NowPlayingScreen(
                             onOpenLyrics = { onOpenLyrics(track) },
                             onOpenQueue = { showQueueScreen = true },
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
@@ -453,25 +445,30 @@ fun NowPlayingScreen(
 
 @Composable
 private fun NowPlayingBackdrop(track: Track) {
-    // Blur is only available on Android 12+ (API 31); older devices keep the clean solid background.
-    if (android.os.Build.VERSION.SDK_INT < 31) return
     val bg = MaterialTheme.colorScheme.background
+    val supportsPlatformBlur = android.os.Build.VERSION.SDK_INT >= 31
     Box(modifier = Modifier.fillMaxSize()) {
         ArtworkImage(
             artworkUri = track.customArtworkUri ?: track.artworkUri,
             fallbackUri = track.contentUri,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(70.dp)
-                .alpha(0.5f),
+                .then(if (supportsPlatformBlur) Modifier.blur(72.dp) else Modifier)
+                .alpha(if (supportsPlatformBlur) 0.58f else 0.30f),
             cornerRadius = 0.dp,
         )
+        // Layered scrims preserve readable controls while allowing artwork colors to tint the screen.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, bg.copy(alpha = 0.85f), bg),
+                        colors = listOf(
+                            bg.copy(alpha = 0.18f),
+                            bg.copy(alpha = 0.38f),
+                            bg.copy(alpha = 0.82f),
+                            bg,
+                        ),
                     ),
                 ),
         )
