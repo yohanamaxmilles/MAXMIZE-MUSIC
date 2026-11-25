@@ -40,4 +40,4 @@ jobs:
         with:
           gradle-version: "9.3.1"
       - name: Run app unit tests
-        run: gradle --no-daemon :app:testDebugUnitTest
+        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest
