@@ -203,6 +203,9 @@ data class LyricsSearchCandidate(
 
 // --- Offline Audio Analysis, Hierarchical Genre & Intelligent DJ / Automix Models ---
 
+enum class DjOperatingMode { AUTOMIX, INTELLIGENT_DJ }
+enum class AutomixTechnique { BEAT_SYNC, HARMONIC, PHRASE_MATCH, ENERGY_FLOW, GENRE_MATCH, HUMAN_STYLE }
+
 enum class MixMode(val label: String, val description: String) {
     SMART("Smart", "Genre-safe harmonic & tempo mixing"),
     DJ_MODE("DJ Mode", "Pro beatmatched dual-deck phrase mixing"),
@@ -315,6 +318,8 @@ data class MixHistoryEntry(
 @Immutable
 data class AutomixConfig(
     val enabled: Boolean = false,
+    val operatingMode: DjOperatingMode = DjOperatingMode.AUTOMIX,
+    val technique: AutomixTechnique = AutomixTechnique.HUMAN_STYLE,
     val activeProfileId: String = "club_house",
     val mode: MixMode = MixMode.SMART,
     val bpmMin: Int = 60,
