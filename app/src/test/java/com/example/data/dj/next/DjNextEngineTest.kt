@@ -112,6 +112,13 @@ class DjNextEngineTest {
         assertEquals(1f, plan.speedRatio, 0.001f)
         assertEquals(128f, plan.normalizedIncomingBpm!!, 0.001f)
 
+        val closeTempo = DjBeatSyncPlanner.plan(
+            outgoing,
+            incoming.copy(bpm = 125f, firstBeatMs = 850L),
+        )
+        assertTrue(closeTempo.enabled)
+        assertEquals(128f / 125f, closeTempo.speedRatio, 0.001f)
+
         val uncertain = DjBeatSyncPlanner.plan(
             outgoing,
             incoming.copy(bpmConfidence = 0.2f),
