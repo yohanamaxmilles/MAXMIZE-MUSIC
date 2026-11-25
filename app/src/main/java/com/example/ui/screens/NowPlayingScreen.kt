@@ -334,16 +334,9 @@ fun NowPlayingScreen(
                         verticalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        ArtworkPager(
-                            queue = playbackState.queue,
-                            currentIndex = playbackState.currentIndex,
-                            onPageSelected = onSelectQueueIndex,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .widthIn(max = 360.dp)
-                                .aspectRatio(1f),
-                        )
+                        // Artwork is used as the full-screen backdrop on portrait layouts.
+                        // Keep the pager only on wide/landscape layouts to avoid the circular cover.
+                        Spacer(modifier = Modifier.weight(1f))
                         Spacer(modifier = Modifier.height(16.dp))
                         PlayerControlsBlock(
                             track = track,
@@ -453,17 +446,16 @@ fun NowPlayingScreen(
 
 @Composable
 private fun NowPlayingBackdrop(track: Track) {
-    // Blur is only available on Android 12+ (API 31); older devices keep the clean solid background.
-    if (android.os.Build.VERSION.SDK_INT < 31) return
     val bg = MaterialTheme.colorScheme.background
+    val supportsBlur = android.os.Build.VERSION.SDK_INT >= 31
     Box(modifier = Modifier.fillMaxSize()) {
         ArtworkImage(
             artworkUri = track.customArtworkUri ?: track.artworkUri,
             fallbackUri = track.contentUri,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(70.dp)
-                .alpha(0.5f),
+                .then(if (supportsBlur) Modifier.blur(70.dp) else Modifier)
+                .alpha(if (supportsBlur) 0.58f else 0.24f),
             cornerRadius = 0.dp,
         )
         Box(
@@ -471,7 +463,12 @@ private fun NowPlayingBackdrop(track: Track) {
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, bg.copy(alpha = 0.85f), bg),
+                        colors = listOf(
+                            bg.copy(alpha = 0.22f),
+                            bg.copy(alpha = 0.72f),
+                            bg.copy(alpha = 0.96f),
+                            bg,
+                        ),
                     ),
                 ),
         )
