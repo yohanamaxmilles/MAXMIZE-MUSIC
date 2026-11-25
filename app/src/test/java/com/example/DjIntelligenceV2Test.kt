@@ -27,6 +27,7 @@ class DjIntelligenceV2Test {
         kind: AudioContentKind = AudioContentKind.MUSIC,
         confidence: Float = 0.95f,
         duration: Long = 240_000L,
+        artist: String? = null,
         boundaries: List<Long> = listOf(120_000L, 136_000L, 152_000L),
         sections: List<MusicalSection> = listOf(
             MusicalSection(MusicalSectionType.INTRO, 0L, 32_000L, 0.95f),
@@ -34,6 +35,7 @@ class DjIntelligenceV2Test {
         ),
     ) = DjTrackProfile(
         trackId = id,
+        artistName = artist,
         durationMs = duration,
         contentKind = kind,
         contentConfidence = confidence,
@@ -142,6 +144,37 @@ class DjIntelligenceV2Test {
             DjTransitionCurve.VOCAL_AWARE_EQ,
             (result as DjTransitionPlanningResult.Ready).plan.curve,
         )
+    }
+
+    @Test
+    fun sequentialQueueScoresEachTrackAgainstThePreviousSelection() {
+        val current = profile("current", bpm = 120f)
+        val first = profile("first", bpm = 118f)
+        val second = profile("second", bpm = 116f)
+        val result = DjDecisionEngine().rankNextTracks(
+            current = current,
+            candidates = listOf(first, second),
+            recentTrackIds = emptySet(),
+            count = 2,
+        )
+        assertEquals(listOf("first", "second"), result.rankedCandidates.map { it.trackId })
+        assertEquals(118f / 116f, result.rankedCandidates[1].tempoRatio!!, 0.001f)
+    }
+
+    @Test
+    fun recentArtistGetsARepetitionPenalty() {
+        val current = profile("current")
+        val sameArtist = profile("same", artist = "Artist A")
+        val newArtist = profile("new", artist = "Artist B")
+        val result = DjDecisionEngine().rankNextTracks(
+            current = current,
+            candidates = listOf(sameArtist, newArtist),
+            recentTrackIds = emptySet(),
+            recentArtistNames = setOf("artist a"),
+            count = 2,
+        )
+        assertEquals("new", result.rankedCandidates.first().trackId)
+        assertEquals(12, result.rankedCandidates.last().artistPenalty)
     }
 
     @Test
