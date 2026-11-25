@@ -698,35 +698,28 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     }
 
     private fun applyDeckEqForTransition(progress: Float) {
-        val p = progress.coerceIn(0f, 1f)
-        val smooth = p * p * (3f - 2f * p)
-        val outgoing = activePlayer
-        val incoming = standbyPlayer
-
-        when (automixConfig.transitionStyle) {
-            TransitionStyle.BASS_SWAP -> {
-                setDjEqForPlayer(outgoing, 1f - 0.90f * smooth, 1f, 1f)
-                setDjEqForPlayer(incoming, 0.10f + 0.90f * smooth, 1f, 1f)
-            }
-            TransitionStyle.EQ_FILTER -> {
-                setDjEqForPlayer(
-                    outgoing,
-                    1f - 0.72f * smooth,
-                    1f - 0.30f * smooth,
-                    1f - 0.08f * smooth,
-                )
-                setDjEqForPlayer(
-                    incoming,
-                    0.22f + 0.78f * smooth,
-                    0.48f + 0.52f * smooth,
-                    1f,
-                )
-            }
-            else -> {
-                setDjEqForPlayer(outgoing, 1f, 1f, 1f)
-                setDjEqForPlayer(incoming, 1f, 1f, 1f)
-            }
+        val frame = when (automixConfig.transitionStyle) {
+            TransitionStyle.BASS_SWAP -> DjEqAutomation.bassSwap(progress)
+            TransitionStyle.EQ_FILTER -> DjEqAutomation.eqFilter(progress)
+            else -> null
         }
+        if (frame == null) {
+            setDjEqForPlayer(activePlayer, 1f, 1f, 1f)
+            setDjEqForPlayer(standbyPlayer, 1f, 1f, 1f)
+            return
+        }
+        setDjEqForPlayer(
+            activePlayer,
+            frame.outgoingLow,
+            frame.outgoingMid,
+            frame.outgoingHigh,
+        )
+        setDjEqForPlayer(
+            standbyPlayer,
+            frame.incomingLow,
+            frame.incomingMid,
+            frame.incomingHigh,
+        )
     }
 
     private fun setDjEqForPlayer(
