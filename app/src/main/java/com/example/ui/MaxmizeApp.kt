@@ -630,6 +630,9 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                                 val next = entries[(prefs.automixConfig.mode.ordinal + 1) % entries.size]
                                                 viewModel.updateAutomixConfig { it.copy(mode = next) }
                                             },
+                                            onSelectTechnique = { technique ->
+                                                viewModel.updateAutomixConfig { it.copy(technique = technique) }
+                                            },
                                             onAnalyzeLibrary = viewModel::analyzeLibraryBatch,
                                             onCorrectAnalysis = viewModel::correctTrackAnalysis,
                                         )
