@@ -26,6 +26,7 @@ import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
+import kotlin.math.sin
 
 class AudioAnalysisEngine(
     private val context: Context,
