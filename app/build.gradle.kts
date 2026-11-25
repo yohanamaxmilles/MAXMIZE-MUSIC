@@ -112,6 +112,7 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.session)
   implementation(libs.androidx.media3.common)
+  implementation("com.google.mediapipe:tasks-audio:1.2.3")
   // implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
@@ -150,3 +151,50 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   // "ksp"(libs.moshi.kotlin.codegen)
 }
+
+
+// Download the pinned, Apache-2.0 YAMNet model and verify its digest before packaging.
+// The model is bundled in the APK, so classification runs offline on the device.
+import java.net.URL
+import java.security.MessageDigest
+
+val yamnetModelUrl =
+  "https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite"
+val yamnetModelSha256 =
+  "4d8b4a53282dc83ef04e3e7dbc4fbc98082e34e44ed798e16c3a0cdd4c584faf"
+val yamnetAssetsDir = layout.buildDirectory.dir("generated/yamnetAssets")
+
+val downloadYamnetModel by tasks.registering {
+  val modelFile = yamnetAssetsDir.map { it.file("yamnet.tflite") }
+  outputs.file(modelFile)
+  outputs.upToDateWhen { false }
+  doLast {
+    val output = modelFile.get().asFile
+    output.parentFile.mkdirs()
+    fun sha256(file: java.io.File): String =
+      MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+        .joinToString("") { "%02x".format(it) }
+
+    if (!output.exists() || sha256(output) != yamnetModelSha256) {
+      val temporary = java.io.File(output.parentFile, "yamnet.tflite.download")
+      URL(yamnetModelUrl).openStream().use { input ->
+        temporary.outputStream().use { target -> input.copyTo(target) }
+      }
+      val actualHash = sha256(temporary)
+      if (actualHash != yamnetModelSha256) {
+        temporary.delete()
+        throw GradleException(
+          "YAMNet model SHA-256 mismatch. Expected $yamnetModelSha256, got $actualHash"
+        )
+      }
+      if (output.exists()) output.delete()
+      if (!temporary.renameTo(output)) {
+        temporary.copyTo(output, overwrite = true)
+        temporary.delete()
+      }
+    }
+  }
+}
+
+android.sourceSets.getByName("main").assets.srcDir(yamnetAssetsDir)
+tasks.named("preBuild").configure { dependsOn(downloadYamnetModel) }
