@@ -624,7 +624,6 @@ class AudioAnalysisEngine(
             val scores = FloatArray(maxBpm - minBpm + 1)
             var bestBpm = 120f
             var bestScore = 0f
-            var scoreSum = 0.0
             var validCount = 0
 
             // Normalized, mean-centred autocorrelation. The previous raw
@@ -661,7 +660,6 @@ class AudioAnalysisEngine(
                 val octavePrior = exp(-0.5 * ((bpm - 118.0) / 42.0).pow(2)).toFloat()
                 val weighted = normalized * (0.90f + 0.10f * octavePrior)
                 scores[bpm - minBpm] = weighted
-                scoreSum += weighted
                 validCount++
                 val octaveDoubleTime = bpm.toFloat() / bestBpm
                 val isCredibleDoubleTime = octaveDoubleTime in 1.95f..2.05f &&
