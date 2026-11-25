@@ -67,7 +67,7 @@ object DjVocalEvidenceAnalyzer {
                 .maxOfOrNull { it.value.takeIf { score -> score.isFinite() }?.coerceIn(0f, 1f) ?: 0f } ?: 0f
             val speech = scores.entries
                 .filter { normalize(it.key) in speechLabels }
-                .maxOfOrNull { it.value.takeIf(Float::isFinite)?.coerceIn(0f, 1f) ?: 0f } ?: 0f
+                .maxOfOrNull { it.value.takeIf { score -> score.isFinite() }?.coerceIn(0f, 1f) ?: 0f } ?: 0f
             val kind = when {
                 singing >= safeThreshold -> DjVocalKind.SINGING_CANDIDATE
                 speech >= safeThreshold -> DjVocalKind.SPEECH_CANDIDATE
