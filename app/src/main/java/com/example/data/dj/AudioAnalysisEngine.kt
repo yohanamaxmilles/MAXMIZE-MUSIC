@@ -10,6 +10,8 @@ import com.example.data.local.db.AnalysisDao
 import com.example.data.local.db.TrackAnalysisEntity
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
+import com.example.data.dj.next.DjVocalEvidenceAnalyzer
+import com.example.data.dj.next.YamnetVocalClassifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -31,12 +33,15 @@ class AudioAnalysisEngine(
     private val context: Context,
     private val analysisDao: AnalysisDao,
 ) {
+    private val yamnetVocalClassifier by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        YamnetVocalClassifier(context.applicationContext)
+    }
     val analysesFlow: Flow<Map<String, TrackAnalysis>> = analysisDao.observeAllAnalyses()
         .map { list -> list.associate { it.trackId to it.toDomain() } }
 
     suspend fun getAnalysisForTrack(track: Track): TrackAnalysis = withContext(Dispatchers.IO) {
         val existing = analysisDao.getAnalysisOnce(track.id)
-        if (existing != null && existing.phraseLengthMs > 0L) {
+        if (existing != null && existing.phraseLengthMs > 0L && existing.vocalAnalysisVersion >= 1) {
             return@withContext existing.toDomain()
         }
 
@@ -52,7 +57,7 @@ class AudioAnalysisEngine(
         val existingById = analysisDao.getAllAnalysesOnce().associateBy { it.trackId }
         val missing = tracks.filter {
             val existing = existingById[it.id]
-            existing == null || existing.phraseLengthMs <= 0L
+            existing == null || existing.phraseLengthMs <= 0L || existing.vocalAnalysisVersion < 1
         }
         if (missing.isEmpty()) {
             onProgress(tracks.size, tracks.size)
@@ -98,7 +103,7 @@ class AudioAnalysisEngine(
         if (!Build.FINGERPRINT.equals("robolectric", ignoreCase = true)) {
             val decoded = decodePcmWindows(Uri.parse(track.contentUri), track.durationMs)
             if (decoded != null && decoded.samples.size >= decoded.sampleRate * 2) {
-                return analyzePcmSamples(
+                val audioProfile = analyzePcmSamples(
                     trackId = track.id,
                     samples = decoded.samples,
                     sampleRate = decoded.sampleRate,
@@ -107,6 +112,31 @@ class AudioAnalysisEngine(
                     introRms = decoded.introRms,
                     outroRms = decoded.outroRms,
                     trackHint = track,
+                )
+                val vocalFrames = runCatching {
+                    decoded.vocalSegments.flatMap { (segmentSamples, segmentOffsetMs) ->
+                        yamnetVocalClassifier.analyze(
+                            samples = segmentSamples,
+                            sampleRate = decoded.sampleRate,
+                            absoluteOffsetMs = segmentOffsetMs,
+                        )
+                    }
+                }.getOrDefault(emptyList())
+                val vocal = DjVocalEvidenceAnalyzer.analyze(vocalFrames)
+                val segmentsJson = vocal.segments.joinToString(
+                    prefix = "[",
+                    postfix = "]",
+                ) { segment ->
+                    """{"startMs":${segment.startMs},"endMs":${segment.endMs},"kind":"${segment.kind.name}","peakProbability":${segment.peakProbability}}"""
+                }
+                return audioProfile.copy(
+                    vocalAverageProbability = vocal.averageVocalProbability,
+                    vocalPeakProbability = vocal.peakVocalProbability,
+                    vocalActiveRatio = vocal.vocalActiveRatio,
+                    vocalAverageSpeechProbability = vocal.averageSpeechProbability,
+                    vocalConfidence = if (vocalFrames.isEmpty()) "UNKNOWN" else vocal.confidence.name,
+                    vocalSegmentsJson = segmentsJson,
+                    vocalAnalysisVersion = 1,
                 )
             }
         }
@@ -154,6 +184,7 @@ class AudioAnalysisEngine(
         val introRms: FloatArray,
         val outroRms: FloatArray,
         val analysisStartMs: Long,
+        val vocalSegments: List<Pair<FloatArray, Long>>,
     )
 
     private fun decodePcmWindows(uri: Uri, durationMs: Long): DecodedAudioWindow? {
@@ -209,6 +240,11 @@ class AudioAnalysisEngine(
                 introRms = calculateRmsFrames(introSamples ?: FloatArray(0), sampleRate),
                 outroRms = calculateRmsFrames(outroSamples ?: FloatArray(0), sampleRate),
                 analysisStartMs = analysisSegment.second,
+                vocalSegments = listOfNotNull(
+                    introSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to 0L },
+                    centerSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to centerStartMs },
+                    outroSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to outroStartMs },
+                ).distinctBy { it.second },
             )
         } catch (_: Throwable) {
             null
@@ -748,6 +784,13 @@ private fun TrackAnalysisEntity.toDomain(): TrackAnalysis = TrackAnalysis(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    vocalAverageProbability = vocalAverageProbability,
+    vocalPeakProbability = vocalPeakProbability,
+    vocalActiveRatio = vocalActiveRatio,
+    vocalAverageSpeechProbability = vocalAverageSpeechProbability,
+    vocalConfidence = vocalConfidence,
+    vocalSegmentsJson = vocalSegmentsJson,
+    vocalAnalysisVersion = vocalAnalysisVersion,
 )
 
 private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
@@ -778,4 +821,11 @@ private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    vocalAverageProbability = vocalAverageProbability,
+    vocalPeakProbability = vocalPeakProbability,
+    vocalActiveRatio = vocalActiveRatio,
+    vocalAverageSpeechProbability = vocalAverageSpeechProbability,
+    vocalConfidence = vocalConfidence,
+    vocalSegmentsJson = vocalSegmentsJson,
+    vocalAnalysisVersion = vocalAnalysisVersion,
 )
