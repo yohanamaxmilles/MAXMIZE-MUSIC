@@ -138,6 +138,7 @@ class AudioAnalysisEngine(
             rhythmSignature = "Unknown",
             downbeatConfidence = 0.0f,
             spectralCentroidHz = 0f,
+            analysisVersion = 2,
         )
         val genre = GenreEngine.classifyTrack(track, partial)
         return partial.copy(
@@ -671,4 +672,5 @@ private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    analysisVersion = analysisVersion,
 )
