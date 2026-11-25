@@ -110,7 +110,7 @@ fun DjModeScreen(
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(DjSectionTab.entries, key = { it.name }) { tab ->
+            items(DjSectionTab.entries.filter { it != DjSectionTab.SETTINGS }, key = { it.name }) { tab ->
                 val selected = selectedTab == tab
                 val shape = RoundedCornerShape(14.dp)
                 Box(
