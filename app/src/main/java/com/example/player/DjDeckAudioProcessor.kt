@@ -5,6 +5,7 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
@@ -88,7 +89,8 @@ class DjDeckAudioProcessor : BaseAudioProcessor() {
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining()) return
-        val output = replaceOutputBuffer(inputBuffer.remaining())
+        inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        val output = replaceOutputBuffer(inputBuffer.remaining()).order(ByteOrder.LITTLE_ENDIAN)
         val low = lowShelf
         val mid = midPeak
         val high = highShelf
