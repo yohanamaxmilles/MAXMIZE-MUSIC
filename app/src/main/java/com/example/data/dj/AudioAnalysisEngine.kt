@@ -168,6 +168,8 @@ class AudioAnalysisEngine(
             rhythmSignature = "4/4",
             downbeatConfidence = 0.3f,
             spectralCentroidHz = 1500f,
+            vocalConfidence = "UNKNOWN",
+            vocalAnalysisVersion = 1,
         )
         val genre = GenreEngine.classifyTrack(track, partial)
         return partial.copy(
