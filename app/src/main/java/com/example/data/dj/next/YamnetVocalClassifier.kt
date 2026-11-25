@@ -43,7 +43,7 @@ class YamnetVocalClassifier(context: Context) : AutoCloseable {
                     category.categoryName() to category.score()
                 }
                 DjVocalModelFrame(
-                    startMs = absoluteOffsetMs + window.timestampMs().toLong(),
+                    startMs = absoluteOffsetMs + window.timestampMs(),
                     durationMs = WINDOW_DURATION_MS,
                     classScores = scores,
                 )
