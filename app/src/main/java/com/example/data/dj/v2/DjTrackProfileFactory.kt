@@ -82,7 +82,6 @@ object DjTrackProfileFactory {
             firstBeatMs = analysis?.takeIf { it.downbeatConfidence >= 0.60f }?.firstBeatMs,
             beatIntervalMs = bpmReliable?.beatIntervalMs,
             beatsPerBar = 4,
-            analysisVersion = analysis?.analysisVersion ?: 0,
         )
     }
 
@@ -114,7 +113,7 @@ object DjTrackProfileFactory {
         val metadataComplete = track.title.isNotBlank() && track.artist.isNotBlank()
         val analysisSupportsMusic = analysis != null &&
             analysis.bpmConfidence >= 0.60f && analysis.bpm in 60f..200f &&
-            analysis.onsetDensity >= 0.8f
+            analysis.onsetDensity >= 1.2f && analysis.danceability >= 0.60f && analysis.tempoStability >= 0.60f
 
         if (knownGenre && metadataComplete && track.durationMs in 45_000L..900_000L) {
             return AudioContentKind.MUSIC to 0.90f
