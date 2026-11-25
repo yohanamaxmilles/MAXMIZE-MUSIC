@@ -18,7 +18,7 @@ class DjVoiceDirector(
     private val ready = AtomicBoolean(false)
     private val enabled = AtomicBoolean(true)
     private val appContext = context.applicationContext
-    private var pendingAnnouncement: String? = null
+    private val pendingAnnouncements = ArrayDeque<String>()
     private var textToSpeech: TextToSpeech? = null
     private var sequence = 0L
 
@@ -44,9 +44,9 @@ class DjVoiceDirector(
                 })
                 ready.set(languageResult != TextToSpeech.LANG_MISSING_DATA &&
                     languageResult != TextToSpeech.LANG_NOT_SUPPORTED)
-                pendingAnnouncement?.let { pending ->
-                    pendingAnnouncement = null
-                    speak(pending)
+                while (pendingAnnouncements.isNotEmpty() && enabled.get()) {
+                    val pending = pendingAnnouncements.removeFirst()
+                    engine.speak(pending, TextToSpeech.QUEUE_ADD, null, "maxmize-dj-voice-" + (++sequence))
                 }
             }
         }
@@ -54,7 +54,10 @@ class DjVoiceDirector(
 
     fun setEnabled(value: Boolean) {
         enabled.set(value)
-        if (!value) textToSpeech?.stop()
+        if (!value) {
+            pendingAnnouncements.clear()
+            textToSpeech?.stop()
+        }
     }
 
     fun welcome(listenerName: String? = null) {
@@ -82,7 +85,8 @@ class DjVoiceDirector(
         val clean = message.trim().take(240)
         if (clean.isBlank()) return
         if (!ready.get()) {
-            pendingAnnouncement = clean
+            if (pendingAnnouncements.size >= 4) pendingAnnouncements.removeFirst()
+            pendingAnnouncements.addLast(clean)
             return
         }
         val utteranceId = "maxmize-dj-voice-" + (++sequence)
@@ -91,7 +95,7 @@ class DjVoiceDirector(
 
     override fun close() {
         enabled.set(false)
-        pendingAnnouncement = null
+        pendingAnnouncements.clear()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
         textToSpeech = null
