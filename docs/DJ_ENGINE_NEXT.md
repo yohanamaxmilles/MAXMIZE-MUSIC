@@ -16,16 +16,15 @@ It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 - Session arc planner that selects tracks phase-by-phase across opening, warm-up, build, peak, breather and closing.
 - Live Automix queue ranking now uses the independent engine and iteratively selects a compatible session sequence.
 - Dual-deck cue planning now uses measured outgoing outro and incoming first-beat offsets, with a phrase-length transition duration.
-- Unit tests for silence, synthetic 120 BPM pulses, ranking and mix curves.
+- Existing `AudioAnalysisEngine` already decodes local media through `MediaExtractor`/`MediaCodec` into bounded mono PCM windows and derives BPM, key/chroma, energy and genre estimates. The new queue consumes those persisted measurements through the adapter. The separate `DjPcmAnalyzer` remains a focused PCM detector, not the app's production decoder.
+- Offline Android TextToSpeech announces the incoming title and artist whenever an Automix transition starts. No network voice service is used.
+- Both ExoPlayer decks now have independent three-band PCM EQ controls. BASS_SWAP and EQ_FILTER transitions automate low, mid and high bands; the processor resets both decks after a completed transition or when Automix stops.
+- CI unit tests cover silence, synthetic 120 BPM pulses, ranking and mix curves.
 
 ## Deliberate limitations
-The current PCM pass does not decode files itself. A decoder must supply mono Float PCM.
-It does not claim to detect musical key, vocals, genre, drops or breakdowns. Those fields
-remain null until dedicated chroma, vocal-separation/classification and structure models
-are integrated. The section labels are energy heuristics, not semantic event recognition.
-The transition plan is a plan, not a live dual-player mixer. Live two-deck playback must be
-integrated with a verified two-source PCM mixer and device latency tests before advertising
-fully automatic DJ performance.
+The new standalone `DjPcmAnalyzer` accepts decoded mono Float PCM. Production library analysis currently uses the existing Android media decoder and its separate DSP implementation. BPM/key confidence still needs validation against a labelled reference set. Vocal presence, vocal phrases, semantic drops, breakdowns and build-ups are not yet detected reliably. Intro/outro markers remain heuristic estimates.
+
+Live Automix uses two ExoPlayer instances with volume curves and per-deck three-band EQ processing. This is not yet a sample-accurate shared-clock mixer. Device testing is still required for cue accuracy, playback-rate matching, EQ artifacts, audio-focus handover, TTS audibility and gap-free deck swaps.
 
 ## Safety rule
 Automatic beat sync must require a reliable beatgrid. When confidence is low, the engine
