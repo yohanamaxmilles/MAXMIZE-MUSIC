@@ -86,7 +86,11 @@ class DjDecisionEngine {
         val bpmScore = ratio?.let { (100f - abs(it - 1f) * 1000f).toInt().coerceIn(0, 100) }
         val keyScore = camelotScore(current.camelotCode, candidate.camelotCode)
         val genreScore = genreCompatibility(current, candidate, config)
-        val energyScore = energyCompatibility(current.energy, candidate.energy, config.targetEnergyDelta)
+        val energyScore = energyCompatibility(
+            current.energy,
+            candidate.energy,
+            config.targetEnergyDelta ?: config.sessionPhase.targetEnergyDelta,
+        )
 
         val dimensions = listOf(
             bpmScore to config.bpmWeight,
