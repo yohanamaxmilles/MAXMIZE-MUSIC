@@ -1014,9 +1014,40 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             genreWeight = automixConfig.genreWeight,
             energyWeight = automixConfig.energyWeight,
         )
+        val eligibleTrackIds = pool.filter { candidate ->
+            if (candidate.id == pivotTrack.id) return@filter false
+            if (automixConfig.genrePreference != "All Genres") {
+                val candidateGenre = GenreEngine.classifyTrack(candidate, analysesCache[candidate.id])
+                if (!candidateGenre.subgenre.equals(automixConfig.genrePreference, ignoreCase = true) &&
+                    !candidateGenre.primaryGenre.equals(automixConfig.genrePreference, ignoreCase = true) &&
+                    !candidate.genre.equals(automixConfig.genrePreference, ignoreCase = true)
+                ) return@filter false
+            }
+            val candidateAnalysis = analysesCache[candidate.id]
+            if (automixConfig.autoSelectMood && candidateAnalysis != null) {
+                when (automixConfig.mood) {
+                    com.example.data.model.MoodFilter.CHILL -> if (candidateAnalysis.energy > 0.68f) return@filter false
+                    com.example.data.model.MoodFilter.ENERGETIC -> if (candidateAnalysis.energy < 0.35f) return@filter false
+                    com.example.data.model.MoodFilter.PARTY -> if (candidateAnalysis.energy < 0.48f) return@filter false
+                }
+            }
+            if (customRulesCache.isNotEmpty()) {
+                val legacyGate = HarmonicCompatibility.evaluateTransition(
+                    current = pivotTrack,
+                    currentAnalysis = currentAnalysis,
+                    candidate = candidate,
+                    candidateAnalysis = candidateAnalysis,
+                    config = automixConfig,
+                    customRules = customRulesCache,
+                )
+                if (!legacyGate.allowed) return@filter false
+            }
+            true
+        }.map { it.id }.toSet()
         val eligibleProfiles = profilesById.values.filter { profile ->
-            val bpm = profile.bpm
-            bpm == null || bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat()
+            profile.trackId in eligibleTrackIds &&
+                (profile.bpm == null ||
+                    profile.bpm in automixConfig.bpmMin.toFloat()..automixConfig.bpmMax.toFloat())
         }
         val ranking = djDecisionEngine.rankNextTracks(
             current = currentProfile,
@@ -1056,6 +1087,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             noSuitableTrackReason = noTrackReason
             if (!isMixingTransition && previousFirstId != rankedQueue.firstOrNull()?.track?.id) {
                 preloadedTrack = null
+                activeTransitionPlan = null
             }
         }
         publishAutomixRuntime()
