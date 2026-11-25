@@ -106,20 +106,20 @@ fun DjModeScreen(
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 10.dp),
+                .padding(top = 4.dp, bottom = 12.dp),
             contentPadding = PaddingValues(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(DjSectionTab.entries, key = { it.name }) { tab ->
                 val selected = selectedTab == tab
-                val shape = RoundedCornerShape(50)
+                val shape = RoundedCornerShape(14.dp)
                 Box(
                     modifier = Modifier
-                        .height(36.dp)
+                        .height(40.dp)
                         .clip(shape)
                         .background(
                             if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceContainerHigh
+                            else MaterialTheme.colorScheme.surfaceContainer
                         )
                         .border(
                             width = 0.75.dp,
@@ -143,7 +143,7 @@ fun DjModeScreen(
             }
         }
 
-        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        HorizontalDivider(thickness = 0.75.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
 
         Box(modifier = Modifier.weight(1f)) {
             when (selectedTab) {
