@@ -47,8 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.AutomixConfig
 import com.example.data.model.DjProfile
-import com.example.ui.theme.LavenderCard
-import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -155,13 +153,13 @@ fun DjProfilesSection(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(LavenderCardDeep)
+                                .background(MaterialTheme.colorScheme.primaryContainer)
                                 .padding(horizontal = 7.dp, vertical = 3.dp),
                         ) {
                             Text(
                                 text = "${profile.bpmMin}-${profile.bpmMax} BPM",
                                 style = MonoBadgeStyle,
-                                color = LavenderCard,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         }
                         if (!profile.isBuiltIn) {
