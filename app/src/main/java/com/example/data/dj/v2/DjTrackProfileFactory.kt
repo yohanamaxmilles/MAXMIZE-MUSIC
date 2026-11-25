@@ -84,16 +84,19 @@ object DjTrackProfileFactory {
         val mime = track.mimeType.lowercase()
         if (!mime.startsWith("audio/")) return AudioContentKind.UNKNOWN to 0.1f
 
-        val descriptors = listOf(track.title, track.album, track.genre)
+        val descriptors = listOf(track.title, track.album, track.genre, track.folderPath)
             .joinToString(" ").lowercase()
+        if (descriptors.contains("sound effect") || descriptors.contains("sound effects") ||
+            descriptors.contains("sfx") || descriptors.contains("notification tone") ||
+            descriptors.contains("ringtone") || descriptors.contains("alarm tone")
+        ) return AudioContentKind.SOUND_EFFECT to 0.96f
         if (descriptors.contains("audiobook") || descriptors.contains("audio book")) {
             return AudioContentKind.AUDIOBOOK to 0.98f
         }
         if (descriptors.contains("podcast")) return AudioContentKind.PODCAST to 0.98f
-        if (descriptors.contains("spoken word") || descriptors.contains("speech") ||
-            descriptors.contains("interview") || descriptors.contains("talk show") ||
-            descriptors.contains("lecture") || descriptors.contains("radio show")
-        ) return AudioContentKind.SPOKEN_WORD to 0.90f
+        if (spokenMarkers.any { marker -> descriptors.contains(marker) }) {
+            return AudioContentKind.SPOKEN_WORD to 0.90f
+        }
 
         val knownGenre = GenreEngine.canonicalize(track.genre) != null
         val metadataComplete = track.title.isNotBlank() && track.artist.isNotBlank()
