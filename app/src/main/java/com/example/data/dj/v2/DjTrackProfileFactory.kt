@@ -29,7 +29,15 @@ object DjTrackProfileFactory {
             it.confidence >= 0.60f && it.subgenre.isNotBlank() && it.subgenre != "Unknown"
         }
         val energyReliable = analysis?.takeIf {
-            it.energy in 0f..1f && it.bpmConfidence >= 0.40f
+            it.energy in 0f..1f && it.analysisVersion >= 2
+        }
+        val moodTags = buildSet {
+            if (energyReliable != null) {
+                if (energyReliable.energy >= 0.72f) add("high-energy")
+                if (energyReliable.energy <= 0.32f) add("low-energy")
+                if (energyReliable.danceability >= 0.70f) add("dance-driven")
+                if (energyReliable.dynamicRangeDb >= 14f) add("dynamic")
+            }
         }
 
         val phraseBoundaries = analysis?.takeIf {
@@ -67,7 +75,8 @@ object DjTrackProfileFactory {
             camelotCode = keyReliable?.camelotCode,
             keyConfidence = analysis?.keyConfidence ?: 0f,
             energy = energyReliable?.energy,
-            energyConfidence = if (energyReliable != null) 0.65f else 0f,
+            energyConfidence = if (energyReliable != null) 0.82f else 0f,
+            moodTags = moodTags,
             phraseBoundariesMs = phraseBoundaries,
             sections = sections,
             firstBeatMs = analysis?.takeIf { it.downbeatConfidence >= 0.60f }?.firstBeatMs,
