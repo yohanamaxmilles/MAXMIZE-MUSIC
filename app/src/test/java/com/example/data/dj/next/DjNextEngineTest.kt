@@ -168,4 +168,35 @@ class DjNextEngineTest {
         assertEquals(DjSessionPhase.CLOSING, planned.last().phase)
         assertEquals(planned.size, planned.map { it.profile.trackId }.distinct().size)
     }
+    @Test
+    fun transitionCuesAndCrossfadeStayInsideBothTrackBoundaries() {
+        val outgoing = DjTrackProfile(
+            trackId = "out-boundary",
+            title = "Outgoing",
+            artist = "Artist",
+            durationMs = 180_000L,
+            bpm = 124f,
+            bpmConfidence = 0.9f,
+            outroStartMs = 179_500L,
+        )
+        val incoming = DjTrackProfile(
+            trackId = "in-boundary",
+            title = "Incoming",
+            artist = "Artist",
+            durationMs = 150_000L,
+            bpm = 124f,
+            bpmConfidence = 0.9f,
+            firstBeatMs = 149_800L,
+        )
+
+        val plan = DjIntelligenceEngine().planTransition(outgoing, incoming, bars = 8)
+
+        assertTrue(plan.durationMs > 0L)
+        assertTrue(plan.startOutgoingAtMs >= 0L)
+        assertTrue(plan.startIncomingAtMs >= 0L)
+        assertTrue(plan.startOutgoingAtMs + plan.durationMs <= outgoing.durationMs)
+        assertTrue(plan.startIncomingAtMs + plan.durationMs <= incoming.durationMs)
+        assertTrue(plan.explanation.contains("moved earlier"))
+    }
+
 }
