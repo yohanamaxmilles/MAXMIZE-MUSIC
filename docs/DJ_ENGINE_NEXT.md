@@ -11,6 +11,8 @@ It does not call or reuse the legacy DJ queue, scoring, or analysis classes.
 - Independent candidate ranking using tempo, Camelot key, genre family and energy.
 - Phrase-length transition plan generation.
 - Equal-power crossfade envelope and low-frequency handover curve.
+- Library metadata adapter that rejects low-confidence BPM/key values before they enter DJ decisions.
+- Session arc planner that selects tracks phase-by-phase across opening, warm-up, build, peak, breather and closing.
 - Unit tests for silence, synthetic 120 BPM pulses, ranking and mix curves.
 
 ## Deliberate limitations
