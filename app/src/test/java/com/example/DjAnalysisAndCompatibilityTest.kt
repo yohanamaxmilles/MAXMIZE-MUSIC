@@ -271,4 +271,43 @@ class DjAnalysisAndCompatibilityTest {
         assertEquals(1, flexibleRes.queue.size)
         assertEquals(clashKeyPop.id, flexibleRes.queue.first().track.id)
     }
+    @Test
+    fun `production BPM detector tracks several dance tempos`() {
+        val sampleRate = 22_050
+        for (expectedBpm in listOf(90, 128, 174)) {
+            val seconds = 24
+            val samples = FloatArray(sampleRate * seconds)
+            val beatLength = (sampleRate * 60.0 / expectedBpm).roundToInt()
+            for (i in samples.indices) {
+                val phase = i % beatLength
+                val envelope = if (phase < sampleRate / 12) 0.9f else 0.12f
+                samples[i] = envelope * sin(2.0 * PI * 110.0 * i / sampleRate).toFloat()
+            }
+            val result = AudioAnalysisEngine.analyzePcmSamples(
+                trackId = "tempo-$expectedBpm",
+                samples = samples,
+                sampleRate = sampleRate,
+                durationMs = seconds * 1000L,
+            )
+            assertTrue(
+                "Expected $expectedBpm BPM, got ${result.bpm} with confidence ${result.bpmConfidence}",
+                abs(result.bpm - expectedBpm) <= 3f,
+            )
+            assertTrue("Expected confident detection at $expectedBpm BPM", result.bpmConfidence >= 0.45f)
+        }
+    }
+
+    @Test
+    fun `flat PCM does not receive fabricated confident tempo`() {
+        val sampleRate = 22_050
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "flat-signal",
+            samples = FloatArray(sampleRate * 8) { 0.00001f },
+            sampleRate = sampleRate,
+            durationMs = 8_000L,
+        )
+        assertTrue("Confidence must stay low for a flat signal", result.bpmConfidence < 0.1f)
+        assertTrue("Tempo stability must stay low for a flat signal", result.tempoStability < 0.1f)
+    }
+
 }
