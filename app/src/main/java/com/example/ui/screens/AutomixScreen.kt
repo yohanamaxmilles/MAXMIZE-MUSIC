@@ -229,6 +229,7 @@ fun AutomixScreen(
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center,
+                    modifier = Modifier.testTag("dj_console_mode_title"),
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
