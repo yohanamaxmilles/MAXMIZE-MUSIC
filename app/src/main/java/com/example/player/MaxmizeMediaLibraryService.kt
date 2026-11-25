@@ -31,6 +31,7 @@ import com.example.R
 import com.example.data.dj.DjProfiles
 import com.example.data.dj.GenreEngine
 import com.example.data.dj.next.DjIntelligenceEngine
+import com.example.data.dj.next.DjEqAutomation
 import com.example.data.dj.next.DjBeatSyncPlanner
 import com.example.data.dj.next.DjTrackProfileFactory
 import com.example.data.dj.next.DjTransitionPlan
