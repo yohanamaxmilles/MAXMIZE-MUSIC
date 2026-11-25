@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExcludedFolderEntity::class,
         SafSourceEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class MaxmizeDatabase : RoomDatabase() {
@@ -186,13 +186,24 @@ abstract class MaxmizeDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalAverageProbability REAL")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalPeakProbability REAL")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalActiveRatio REAL")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalAverageSpeechProbability REAL")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalConfidence TEXT NOT NULL DEFAULT 'UNKNOWN'")
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN vocalSegmentsJson TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
         fun getInstance(context: Context): MaxmizeDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     MaxmizeDatabase::class.java,
                     "maxmize.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                     .also { INSTANCE = it }
