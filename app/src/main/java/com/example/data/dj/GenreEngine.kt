@@ -170,7 +170,7 @@ object GenreEngine {
             .flatMap { spec -> spec.aliases.map { alias -> spec to alias } }
             .sortedByDescending { it.second.length }
         longestAlias.firstOrNull { (_, alias) ->
-            Regex("(^|[^a-z0-9])\${Regex.escape(alias)}([^a-z0-9]|$)")
+            Regex("(^|[^a-z0-9])" + Regex.escape(alias) + "([^a-z0-9]|$)")
                 .containsMatchIn(norm)
         }?.let { return it.first }
         return null
@@ -235,7 +235,7 @@ object GenreEngine {
         val markers = listOf("amapiano", "deep house", "afro house", "tech house", "hard techno",
             "psytrance", "bongo flava", "dancehall", "reggaeton", "dubstep", "dnb", "acoustic", "lo-fi")
         for (marker in markers) {
-            val boundaryMatch = Regex("(^|[^a-z0-9])\${Regex.escape(marker)}([^a-z0-9]|$)")
+            val boundaryMatch = Regex("(^|[^a-z0-9])" + Regex.escape(marker) + "([^a-z0-9]|$)")
                 .containsMatchIn(lower)
             if (boundaryMatch) return canonicalize(marker)
         }
