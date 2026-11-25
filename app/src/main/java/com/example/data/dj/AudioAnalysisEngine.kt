@@ -616,7 +616,7 @@ class AudioAnalysisEngine(
                     scores.getOrNull(index)
                 }
                 .maxOrNull() ?: -1f
-            val ambiguityPenalty = if (octaveAmbiguity > bestScore * 0.94f) 0.35f else 0f
+            val ambiguityPenalty = if (octaveAmbiguity > bestScore * 0.90f) 0.35f else 0f
             val confidence = (
                 prominence * 0.28f + separation * 0.72f - ambiguityPenalty
             ).coerceIn(0f, 0.98f)
