@@ -10,8 +10,6 @@ on:
       - "gradle/**"
       - "settings.gradle.kts"
       - "build.gradle.kts"
-  push:
-    branches: [feature/maxmize-dj-engine-next]
 
 permissions:
   contents: read
