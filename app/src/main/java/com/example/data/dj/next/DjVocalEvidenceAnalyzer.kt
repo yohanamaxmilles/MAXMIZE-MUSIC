@@ -132,7 +132,7 @@ object DjVocalEvidenceAnalyzer {
     }
 
     private fun normalize(label: String): String =
-        label.trim().lowercase().replace('_', ' ').replace('-', ' ')
+        label.trim().lowercase().substringBefore(',').replace('_', ' ').replace('-', ' ')
             .replace(Regex("\\s+"), " ")
 
     private data class ScoredFrame(
