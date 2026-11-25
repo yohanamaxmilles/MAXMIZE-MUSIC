@@ -507,65 +507,119 @@ class AudioAnalysisEngine(
             samples: FloatArray,
             sampleRate: Int,
         ): Pair<String, Float> {
-            val windowSize = minOf(samples.size, sampleRate * 8)
-            val step = (windowSize / 24_000).coerceAtLeast(1)
-            val subCount = windowSize / step
-            if (subCount < 256) return "A min" to 0.2f
+            val fftSize = 4096
+            val hopSize = 2048
+            if (sampleRate < 8_000 || samples.size < sampleRate * 2) return "Unknown" to 0f
 
-            val subRate = sampleRate.toFloat() / step
-            val chroma = FloatArray(12)
+            val real = DoubleArray(fftSize)
+            val imag = DoubleArray(fftSize)
+            val chroma = DoubleArray(12)
+            var frameCount = 0
+            var offset = 0
 
-            for (octave in 3..5) {
-                for (pc in 0 until 12) {
-                    val midi = (octave + 1) * 12 + pc
-                    val freq = 440.0 * 2.0.pow((midi - 69) / 12.0)
-                    if (freq >= subRate * 0.45) continue
-                    val omega = (2.0 * PI * freq) / subRate
-                    val coeff = 2.0 * cos(omega)
-                    var q1 = 0.0
-                    var q2 = 0.0
-                    for (i in 0 until subCount) {
-                        val s = samples[i * step].toDouble()
-                        val q0 = coeff * q1 - q2 + s
-                        q2 = q1
-                        q1 = q0
-                    }
-                    val magSq = (q1 * q1 + q2 * q2 - q1 * q2 * coeff).coerceAtLeast(0.0)
-                    chroma[pc] += sqrt(magSq).toFloat()
+            while (offset + fftSize <= samples.size && frameCount < 48) {
+                for (i in 0 until fftSize) {
+                    val hann = 0.5 - 0.5 * cos(2.0 * PI * i / (fftSize - 1))
+                    real[i] = samples[offset + i].toDouble() * hann
+                    imag[i] = 0.0
                 }
+                fftInPlace(real, imag)
+
+                for (bin in 2 until fftSize / 2) {
+                    val frequency = bin.toDouble() * sampleRate / fftSize
+                    if (frequency !in 55.0..5_000.0) continue
+                    val midiFloat = 69.0 + 12.0 * (kotlin.math.ln(frequency / 440.0) / kotlin.math.ln(2.0))
+                    val nearestMidi = midiFloat.roundToInt()
+                    if (nearestMidi !in 36..96) continue
+                    val cents = (midiFloat - nearestMidi) * 100.0
+                    val tuningWeight = exp(-0.5 * (cents / 35.0).pow(2))
+                    val magnitude = sqrt(real[bin] * real[bin] + imag[bin] * imag[bin])
+                    chroma[Math.floorMod(nearestMidi, 12)] += magnitude * tuningWeight
+                }
+                frameCount++
+                offset += hopSize
             }
 
-            val maxChroma = chroma.maxOrNull()?.coerceAtLeast(1e-6f) ?: 1f
-            for (i in 0 until 12) chroma[i] /= maxChroma
+            if (frameCount < 4 || chroma.sum() < 1e-8) return "Unknown" to 0f
 
-            if (chroma.sum() < 1e-4f) return "Unknown" to 0f
-
+            val total = chroma.sum()
+            val normalized = FloatArray(12) { (chroma[it] / total).toFloat() }
             var bestKey = "Unknown"
             var bestCorr = -1f
             var secondCorr = -1f
 
             for (root in 0 until 12) {
-                val majCorr = correlateCircular(chroma, MAJOR_PROFILE, root)
-                if (majCorr > bestCorr) {
+                val major = correlateCircular(normalized, MAJOR_PROFILE, root)
+                if (major > bestCorr) {
                     secondCorr = bestCorr
-                    bestCorr = majCorr
+                    bestCorr = major
                     bestKey = "${PITCH_NAMES[root]} maj"
-                } else if (majCorr > secondCorr) {
-                    secondCorr = majCorr
+                } else if (major > secondCorr) {
+                    secondCorr = major
                 }
 
-                val minCorr = correlateCircular(chroma, MINOR_PROFILE, root)
-                if (minCorr > bestCorr) {
+                val minor = correlateCircular(normalized, MINOR_PROFILE, root)
+                if (minor > bestCorr) {
                     secondCorr = bestCorr
-                    bestCorr = minCorr
+                    bestCorr = minor
                     bestKey = "${PITCH_NAMES[root]} min"
-                } else if (minCorr > secondCorr) {
-                    secondCorr = minCorr
+                } else if (minor > secondCorr) {
+                    secondCorr = minor
                 }
             }
 
-            val confidence = ((bestCorr - secondCorr) * 4f + 0.4f).coerceIn(0f, 0.98f)
+            val margin = (bestCorr - secondCorr).coerceAtLeast(0f)
+            val confidence = (margin * 5.0f).coerceIn(0f, 0.98f)
             return if (confidence >= 0.45f) bestKey to confidence else "Unknown" to confidence
+        }
+
+        /** In-place radix-2 Cooley-Tukey FFT. */
+        private fun fftInPlace(real: DoubleArray, imag: DoubleArray) {
+            val n = real.size
+            var j = 0
+            for (i in 1 until n) {
+                var bit = n shr 1
+                while ((j and bit) != 0) {
+                    j = j xor bit
+                    bit = bit shr 1
+                }
+                j = j xor bit
+                if (i < j) {
+                    val realTemp = real[i]
+                    real[i] = real[j]
+                    real[j] = realTemp
+                    val imagTemp = imag[i]
+                    imag[i] = imag[j]
+                    imag[j] = imagTemp
+                }
+            }
+
+            var length = 2
+            while (length <= n) {
+                val angle = -2.0 * PI / length
+                val wLengthReal = cos(angle)
+                val wLengthImag = sin(angle)
+                var start = 0
+                while (start < n) {
+                    var wReal = 1.0
+                    var wImag = 0.0
+                    for (k in 0 until length / 2) {
+                        val even = start + k
+                        val odd = even + length / 2
+                        val oddReal = real[odd] * wReal - imag[odd] * wImag
+                        val oddImag = real[odd] * wImag + imag[odd] * wReal
+                        real[odd] = real[even] - oddReal
+                        imag[odd] = imag[even] - oddImag
+                        real[even] += oddReal
+                        imag[even] += oddImag
+                        val nextWReal = wReal * wLengthReal - wImag * wLengthImag
+                        wImag = wReal * wLengthImag + wImag * wLengthReal
+                        wReal = nextWReal
+                    }
+                    start += length
+                }
+                length = length shl 1
+            }
         }
 
         private fun correlateCircular(
