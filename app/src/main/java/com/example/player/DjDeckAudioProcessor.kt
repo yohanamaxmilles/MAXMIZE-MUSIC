@@ -52,6 +52,7 @@ class DjDeckAudioProcessor : BaseAudioProcessor() {
     }
 
     @Volatile private var sampleRate = 44_100
+    @Volatile private var pcmEncoding = C.ENCODING_PCM_16BIT
     @Volatile private var lowGainDb = 0f
     @Volatile private var midGainDb = 0f
     @Volatile private var highGainDb = 0f
@@ -63,10 +64,11 @@ class DjDeckAudioProcessor : BaseAudioProcessor() {
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.channelCount != 2 ||
-            inputAudioFormat.encoding != C.ENCODING_PCM_16BIT
+            inputAudioFormat.encoding !in setOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)
         ) return AudioProcessor.AudioFormat.NOT_SET
 
         sampleRate = inputAudioFormat.sampleRate.coerceAtLeast(8_000)
+        pcmEncoding = inputAudioFormat.encoding
         rebuildCoefficients()
         return inputAudioFormat
     }
@@ -95,16 +97,32 @@ class DjDeckAudioProcessor : BaseAudioProcessor() {
         val mid = midPeak
         val high = highShelf
 
-        while (inputBuffer.remaining() >= 4) {
-            for (channel in 0..1) {
-                val input = inputBuffer.short / 32768f
-                val state = states[channel]
-                var value = state[0].process(input, low)
-                value = state[1].process(value, mid)
-                value = state[2].process(value, high)
-                val sample = (value.coerceIn(-1f, 1f) * 32767f).toInt()
-                    .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-                output.putShort(sample.toShort())
+        when (pcmEncoding) {
+            C.ENCODING_PCM_16BIT -> {
+                while (inputBuffer.remaining() >= 4) {
+                    for (channel in 0..1) {
+                        val input = inputBuffer.short / 32768f
+                        val state = states[channel]
+                        var value = state[0].process(input, low)
+                        value = state[1].process(value, mid)
+                        value = state[2].process(value, high)
+                        val sample = (value.coerceIn(-1f, 1f) * 32767f).toInt()
+                            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                        output.putShort(sample.toShort())
+                    }
+                }
+            }
+            C.ENCODING_PCM_FLOAT -> {
+                while (inputBuffer.remaining() >= 8) {
+                    for (channel in 0..1) {
+                        val input = inputBuffer.float
+                        val state = states[channel]
+                        var value = state[0].process(input, low)
+                        value = state[1].process(value, mid)
+                        value = state[2].process(value, high)
+                        output.putFloat(value.coerceIn(-1f, 1f))
+                    }
+                }
             }
         }
         while (inputBuffer.hasRemaining()) output.put(inputBuffer.get())
