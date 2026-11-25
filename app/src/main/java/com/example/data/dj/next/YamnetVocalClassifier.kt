@@ -37,13 +37,15 @@ class YamnetVocalClassifier(context: Context) : AutoCloseable {
             audioData.load(mono16k)
             val result = activeClassifier.classify(audioData)
             result.classificationResults().mapNotNull { window ->
+                val windowTimestampMs = window.timestampMs().orElse(null)
+                    ?: return@mapNotNull null
                 val categories = window.classifications().firstOrNull()?.categories().orEmpty()
                 if (categories.isEmpty()) return@mapNotNull null
                 val scores = categories.associate { category ->
                     category.categoryName() to category.score()
                 }
                 DjVocalModelFrame(
-                    startMs = absoluteOffsetMs + window.timestampMs(),
+                    startMs = absoluteOffsetMs + windowTimestampMs,
                     durationMs = WINDOW_DURATION_MS,
                     classScores = scores,
                 )
