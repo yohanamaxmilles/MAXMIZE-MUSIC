@@ -199,5 +199,5 @@ val downloadYamnetModel by tasks.registering {
   }
 }
 
-android.sourceSets.getByName("main").assets.srcDir(yamnetAssetsDir)
+android.sourceSets.getByName("main").assets.srcDir(yamnetAssetsDir.get().asFile)
 tasks.named("preBuild").configure { dependsOn(downloadYamnetModel) }
