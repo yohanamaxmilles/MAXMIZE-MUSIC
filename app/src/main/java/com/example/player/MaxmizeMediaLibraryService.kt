@@ -123,6 +123,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     private var mediaLibrarySession: MediaLibrarySession? = null
     private val balanceProcessorA = BalanceAudioProcessor()
     private val balanceProcessorB = BalanceAudioProcessor()
+    private val djProcessorA = DjDeckAudioProcessor()
+    private val djProcessorB = DjDeckAudioProcessor()
+    private val activeDjProcessor: DjDeckAudioProcessor get() = if (activeDeckIndex == 0) djProcessorA else djProcessorB
+    private val standbyDjProcessor: DjDeckAudioProcessor get() = if (activeDeckIndex == 0) djProcessorB else djProcessorA
 
     private var crossfadeSeconds: Int = 0
     private var currentPlaybackSpeed: Float = 1.0f
@@ -173,8 +177,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         balanceProcessorA.emitSpectrum = true
         balanceProcessorB.emitSpectrum = false
 
-        deckA = buildDeckPlayer(balanceProcessorA, handleFocus = true)
-        deckB = buildDeckPlayer(balanceProcessorB, handleFocus = false)
+        deckA = buildDeckPlayer(balanceProcessorA, djProcessorA, handleFocus = true)
+        deckB = buildDeckPlayer(balanceProcessorB, djProcessorB, handleFocus = false)
 
         attachDeckListeners(deckIndex = 0, player = deckA)
         attachDeckListeners(deckIndex = 1, player = deckB)
@@ -262,6 +266,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     private fun buildDeckPlayer(
         balanceProcessor: BalanceAudioProcessor,
+        djProcessor: DjDeckAudioProcessor,
         handleFocus: Boolean,
     ): ExoPlayer {
         val renderersFactory = object : DefaultRenderersFactory(this) {
@@ -271,7 +276,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 enableAudioTrackPlaybackParams: Boolean,
             ): AudioSink {
                 return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf(balanceProcessor))
+                    .setAudioProcessors(arrayOf(balanceProcessor, djProcessor))
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .build()
@@ -563,6 +568,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         incomingTrackAnalysis = inAnalysis
 
         val sb = standbyPlayer
+        standbyDjProcessor.resetEq()
         sb.stop()
         sb.setAudioAttributes(audioAttributes, false) // never steal focus from outgoing active deck
         sb.setMediaItem(nextTrack.toMediaItem())
@@ -630,6 +636,29 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         activePlayer.volume = (rawOut * outGain).coerceIn(0f, 1f)
         standbyPlayer.volume = (rawIn * inGain).coerceIn(0f, 1f)
+        applyTransitionEq(p)
+    }
+
+    private fun applyTransitionEq(progress: Float) {
+        val p = progress.coerceIn(0f, 1f)
+        when (automixConfig.transitionStyle) {
+            TransitionStyle.BASS_SWAP -> {
+                activeDjProcessor.setEq(lowDb = -12f * p, midDb = 0f, highDb = 0f)
+                standbyDjProcessor.setEq(lowDb = -12f * (1f - p), midDb = 0f, highDb = 0f)
+            }
+            TransitionStyle.EQ_FILTER -> {
+                activeDjProcessor.setEq(lowDb = -3f * p, midDb = -6f * p, highDb = -2f * p)
+                standbyDjProcessor.setEq(lowDb = -3f * (1f - p), midDb = -6f * (1f - p), highDb = -2f * (1f - p))
+            }
+            TransitionStyle.INTRO_OUTRO -> {
+                activeDjProcessor.setEq(lowDb = -7f * p, midDb = -1.5f * p, highDb = 0f)
+                standbyDjProcessor.setEq(lowDb = -7f * (1f - p), midDb = -1.5f * (1f - p), highDb = 0f)
+            }
+            TransitionStyle.SMOOTH_FADE, TransitionStyle.BEAT_CUT -> {
+                activeDjProcessor.resetEq()
+                standbyDjProcessor.resetEq()
+            }
+        }
     }
 
     private fun completeDualDeckSwap() {
@@ -648,6 +677,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         // Flip active deck & attach session + audio focus + PCM spectrum tap
         activeDeckIndex = 1 - activeDeckIndex
+        djProcessorA.resetEq()
+        djProcessorB.resetEq()
         balanceProcessorA.emitSpectrum = (activeDeckIndex == 0)
         balanceProcessorB.emitSpectrum = (activeDeckIndex == 1)
         incoming.setAudioAttributes(audioAttributes, true)
@@ -799,6 +830,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         standbyPlayer.stop()
         standbyPlayer.clearMediaItems()
         activePlayer.volume = 1.0f
+        djProcessorA.resetEq()
+        djProcessorB.resetEq()
         activePlayer.playbackParameters = PlaybackParameters(currentPlaybackSpeed)
         serviceScope.launch {
             container.prefsRepo.updateAutomixConfig { it.copy(enabled = false) }
