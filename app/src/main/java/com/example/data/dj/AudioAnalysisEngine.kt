@@ -155,104 +155,174 @@ class AudioAnalysisEngine(
     )
 
     private fun decodePcmWindows(uri: Uri, durationMs: Long): DecodedAudioWindow? {
-        val extractor = MediaExtractor()
-        var codec: MediaCodec? = null
+        val metadataExtractor = MediaExtractor()
         return try {
-            extractor.setDataSource(context, uri, null)
+            metadataExtractor.setDataSource(context, uri, null)
             var audioTrackIdx = -1
-            var format: MediaFormat? = null
-            for (i in 0 until extractor.trackCount) {
-                val f = extractor.getTrackFormat(i)
-                val mime = f.getString(MediaFormat.KEY_MIME).orEmpty()
-                if (mime.startsWith("audio/")) {
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until metadataExtractor.trackCount) {
+                val candidate = metadataExtractor.getTrackFormat(i)
+                if (candidate.getString(MediaFormat.KEY_MIME).orEmpty().startsWith("audio/")) {
                     audioTrackIdx = i
-                    format = f
+                    audioFormat = candidate
                     break
                 }
             }
-            if (audioTrackIdx < 0 || format == null) return null
-            extractor.selectTrack(audioTrackIdx)
-
+            val format = audioFormat ?: return null
+            if (audioTrackIdx < 0) return null
             val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE).coerceAtLeast(8000)
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE).coerceAtLeast(8_000)
             val channelCount = if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
                 format.getInteger(MediaFormat.KEY_CHANNEL_COUNT).coerceAtLeast(1)
             } else 1
 
+            val segmentMs = 20_000L
+            val centerStartMs = if (durationMs > segmentMs + 8_000L) {
+                ((durationMs / 2L) - segmentMs / 2L).coerceAtLeast(0L)
+            } else 0L
+            val introSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = 0L, lengthMs = minOf(segmentMs, durationMs.coerceAtLeast(segmentMs)),
+            )
+            val centerSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = centerStartMs, lengthMs = segmentMs,
+            )
+            val outroStartMs = (durationMs - segmentMs).coerceAtLeast(0L)
+            val outroSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = outroStartMs, lengthMs = segmentMs,
+            )
+            val mainSamples = centerSamples?.takeIf { it.size >= sampleRate * 2 }
+                ?: introSamples?.takeIf { it.size >= sampleRate * 2 }
+                ?: outroSamples?.takeIf { it.size >= sampleRate * 2 }
+                ?: return null
+
+            DecodedAudioWindow(
+                samples = mainSamples,
+                sampleRate = sampleRate,
+                introRms = calculateRmsFrames(introSamples.orEmpty(), sampleRate),
+                outroRms = calculateRmsFrames(outroSamples.orEmpty(), sampleRate),
+            )
+        } catch (_: Throwable) {
+            null
+        } finally {
+            runCatching { metadataExtractor.release() }
+        }
+    }
+
+    /**
+     * Decodes one bounded time range. Each range gets its own extractor/codec so
+     * non-contiguous samples are never concatenated into the tempo analysis signal.
+     */
+    private fun decodeAudioSegment(
+        uri: Uri,
+        audioTrackIndex: Int,
+        sourceFormat: MediaFormat,
+        mime: String,
+        sampleRate: Int,
+        channelCount: Int,
+        startMs: Long,
+        lengthMs: Long,
+    ): FloatArray? {
+        val extractor = MediaExtractor()
+        var codec: MediaCodec? = null
+        return try {
+            extractor.setDataSource(context, uri, null)
+            if (audioTrackIndex !in 0 until extractor.trackCount) return null
+            extractor.selectTrack(audioTrackIndex)
+            val startUs = startMs.coerceAtLeast(0L) * 1_000L
+            val endUs = startUs + lengthMs.coerceAtLeast(1L) * 1_000L
+            if (startUs > 0L) extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+
             codec = MediaCodec.createDecoderByType(mime)
-            codec.configure(format, null, null, 0)
+            codec.configure(sourceFormat, null, null, 0)
             codec.start()
 
-            val seekUs = if (durationMs > 45_000L) 20_000_000L else 0L
-            if (seekUs > 0L) extractor.seekTo(seekUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-
-            val targetSamples = minOf(sampleRate * 24, 1_100_000)
+            val targetSamples = minOf(
+                ((lengthMs.coerceAtLeast(1L) * sampleRate) / 1_000L).toInt(),
+                sampleRate * 22,
+            ).coerceAtLeast(sampleRate)
             val collected = FloatArray(targetSamples)
             var collectedCount = 0
-
-            val bufferInfo = MediaCodec.BufferInfo()
             var sawInputEos = false
             var sawOutputEos = false
             var loopSafety = 0
+            val info = MediaCodec.BufferInfo()
 
-            while (!sawOutputEos && collectedCount < targetSamples && loopSafety < 2500) {
+            while (!sawOutputEos && collectedCount < targetSamples && loopSafety < 3000) {
                 loopSafety++
                 if (!sawInputEos) {
-                    val inIdx = codec.dequeueInputBuffer(5_000L)
-                    if (inIdx >= 0) {
-                        val inBuf = codec.getInputBuffer(inIdx)
-                        if (inBuf != null) {
-                            val size = extractor.readSampleData(inBuf, 0)
-                            if (size < 0) {
-                                codec.queueInputBuffer(inIdx, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                    val inputIndex = codec.dequeueInputBuffer(2_000L)
+                    if (inputIndex >= 0) {
+                        val input = codec.getInputBuffer(inputIndex)
+                        if (input != null) {
+                            val size = extractor.readSampleData(input, 0)
+                            val sampleTime = extractor.sampleTime
+                            if (size < 0 || sampleTime >= endUs) {
+                                codec.queueInputBuffer(
+                                    inputIndex, 0, 0, endUs,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM,
+                                )
                                 sawInputEos = true
                             } else {
-                                codec.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
+                                codec.queueInputBuffer(inputIndex, 0, size, sampleTime, 0)
                                 extractor.advance()
                             }
                         }
                     }
                 }
 
-                val outIdx = codec.dequeueOutputBuffer(bufferInfo, 5_000L)
-                if (outIdx >= 0) {
-                    val outBuf = codec.getOutputBuffer(outIdx)
-                    if (outBuf != null && bufferInfo.size > 0) {
-                        outBuf.position(bufferInfo.offset)
-                        outBuf.limit(bufferInfo.offset + bufferInfo.size)
-                        val shortBuf = outBuf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                        val totalShorts = shortBuf.remaining()
-                        var i = 0
-                        while (i + channelCount <= totalShorts && collectedCount < targetSamples) {
-                            var monoSum = 0f
-                            for (c in 0 until channelCount) {
-                                monoSum += shortBuf.get(i + c) / 32768f
+                val outputIndex = codec.dequeueOutputBuffer(info, 2_000L)
+                if (outputIndex >= 0) {
+                    val output = codec.getOutputBuffer(outputIndex)
+                    if (output != null && info.size > 0) {
+                        output.position(info.offset)
+                        output.limit(info.offset + info.size)
+                        val pcm = output.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                        val totalShorts = pcm.remaining()
+                        val frames = totalShorts / channelCount
+                        for (frame in 0 until frames) {
+                            if (collectedCount >= targetSamples) break
+                            val frameTimeUs = info.presentationTimeUs +
+                                (frame * 1_000_000L / sampleRate)
+                            if (frameTimeUs < startUs || frameTimeUs >= endUs) continue
+                            var mono = 0f
+                            for (channel in 0 until channelCount) {
+                                mono += pcm.get(frame * channelCount + channel) / 32768f
                             }
-                            collected[collectedCount++] = monoSum / channelCount
-                            i += channelCount
+                            collected[collectedCount++] = mono / channelCount
                         }
                     }
-                    codec.releaseOutputBuffer(outIdx, false)
-                    if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    codec.releaseOutputBuffer(outputIndex, false)
+                    if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                         sawOutputEos = true
                     }
                 }
             }
-
-            if (collectedCount < sampleRate) return null
-            val trimmed = collected.copyOf(collectedCount)
-            DecodedAudioWindow(
-                samples = trimmed,
-                sampleRate = sampleRate,
-                introRms = FloatArray(0),
-                outroRms = FloatArray(0),
-            )
+            if (collectedCount == 0) null else collected.copyOf(collectedCount)
         } catch (_: Throwable) {
             null
         } finally {
             runCatching { codec?.stop() }
             runCatching { codec?.release() }
             runCatching { extractor.release() }
+        }
+    }
+
+    private fun calculateRmsFrames(samples: FloatArray, sampleRate: Int): FloatArray {
+        if (samples.isEmpty()) return FloatArray(0)
+        val frameSize = (sampleRate / 2).coerceAtLeast(1) // 500 ms envelope frames
+        val count = (samples.size + frameSize - 1) / frameSize
+        return FloatArray(count) { frame ->
+            val start = frame * frameSize
+            val end = minOf(samples.size, start + frameSize)
+            var squareSum = 0.0
+            for (i in start until end) {
+                val value = samples[i].toDouble()
+                squareSum += value * value
+            }
+            sqrt(squareSum / (end - start).coerceAtLeast(1)).toFloat()
         }
     }
 
@@ -377,8 +447,19 @@ class AudioAnalysisEngine(
             val (musicalKey, keyConfidence) = estimateMusicalKey(samples, sampleRate)
             val camelotCode = HarmonicCompatibility.camelotForKey(musicalKey)
 
-            val introEndMs = minOf(16_000L, (safeDur * 0.14f).toLong())
-            val outroStartMs = max(safeDur - 18_000L, (safeDur * 0.84f).toLong())
+            val introEndMs = estimateBoundaryFromRms(
+                introRms,
+                sampleRate,
+                fallbackMs = minOf(16_000L, (safeDur * 0.14f).toLong()),
+                fromEnd = false,
+            ).coerceIn(0L, safeDur)
+            val outroStartMs = estimateBoundaryFromRms(
+                outroRms,
+                sampleRate,
+                fallbackMs = max(safeDur - 18_000L, (safeDur * 0.84f).toLong()),
+                fromEnd = true,
+                totalDurationMs = safeDur,
+            ).coerceIn(0L, safeDur)
 
             val base = TrackAnalysis(
                 trackId = trackId,
@@ -418,6 +499,40 @@ class AudioAnalysisEngine(
                 subgenre = genreClass.subgenre,
                 genreConfidence = genreClass.confidence,
             )
+        }
+
+        /**
+         * Finds a sustained change in the half-second RMS envelope. This is an
+         * acoustic boundary estimate, not a semantic musical intro/outro label.
+         */
+        private fun estimateBoundaryFromRms(
+            rmsFrames: FloatArray,
+            sampleRate: Int,
+            fallbackMs: Long,
+            fromEnd: Boolean,
+            totalDurationMs: Long = 0L,
+        ): Long {
+            if (rmsFrames.size < 4 || sampleRate <= 0) return fallbackMs
+            val peak = rmsFrames.maxOrNull()?.coerceAtLeast(1e-5f) ?: return fallbackMs
+            val threshold = max(peak * 0.28f, 0.003f)
+            val runLength = 3
+            val frameMs = 500L
+            if (!fromEnd) {
+                for (index in 0..(rmsFrames.size - runLength)) {
+                    if ((index until index + runLength).all { rmsFrames[it] >= threshold }) {
+                        return index * frameMs
+                    }
+                }
+            } else {
+                for (index in rmsFrames.size - runLength downTo 0) {
+                    if ((index until index + runLength).all { rmsFrames[it] < threshold }) {
+                        val elapsedFromOutroStart = index * frameMs
+                        return (totalDurationMs - (rmsFrames.size * frameMs - elapsedFromOutroStart))
+                            .coerceAtLeast(0L)
+                    }
+                }
+            }
+            return fallbackMs
         }
 
         private fun estimateSpectralCentroid(
