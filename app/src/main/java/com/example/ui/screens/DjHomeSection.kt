@@ -461,6 +461,19 @@ fun DjHomeSection(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    DjQuickLaunchCard(
+                        icon = Icons.Rounded.Tune,
+                        title = "DJ Settings",
+                        subtitle = "Voice, transitions and matching",
+                        onClick = { onNavigateTab(DjSectionTab.SETTINGS) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
