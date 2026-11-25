@@ -67,6 +67,37 @@ class DjNextEngineTest {
         assertTrue(ranked.none { it.track.trackId == "d" })
     }
 
+
+    @Test
+    fun beatSyncRequiresReliableTempoAndBeatCues() {
+        val outgoing = DjTrackProfile(
+            "out", "Out", "Artist", 240_000,
+            bpm = 128f, bpmConfidence = 0.9f, firstBeatMs = 420L,
+        )
+        val incoming = DjTrackProfile(
+            "in", "In", "Artist", 240_000,
+            bpm = 64f, bpmConfidence = 0.9f, firstBeatMs = 850L,
+        )
+        val plan = DjBeatSyncPlanner.plan(outgoing, incoming)
+        assertTrue(plan.enabled)
+        assertEquals(1f, plan.speedRatio, 0.001f)
+        assertEquals(128f, plan.normalizedIncomingBpm!!, 0.001f)
+
+        val uncertain = DjBeatSyncPlanner.plan(
+            outgoing,
+            incoming.copy(bpmConfidence = 0.2f),
+        )
+        assertTrue(!uncertain.enabled)
+        assertEquals(1f, uncertain.speedRatio, 0.001f)
+
+        val largeAdjustment = DjBeatSyncPlanner.plan(
+            outgoing,
+            incoming.copy(bpm = 100f, firstBeatMs = 850L),
+        )
+        assertTrue(!largeAdjustment.enabled)
+        assertEquals(1f, largeAdjustment.speedRatio, 0.001f)
+    }
+
     @Test
     fun mixFrameHandsBassFromOutgoingToIncoming() {
         val start = DjMixAutomation.frame(0f)
