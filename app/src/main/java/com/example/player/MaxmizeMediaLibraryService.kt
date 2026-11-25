@@ -126,6 +126,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     private var mediaLibrarySession: MediaLibrarySession? = null
     private val balanceProcessorA = BalanceAudioProcessor()
     private val balanceProcessorB = BalanceAudioProcessor()
+    private var djVoiceAnnouncer: DjVoiceAnnouncer? = null
 
     private var crossfadeSeconds: Int = 0
     private var currentPlaybackSpeed: Float = 1.0f
@@ -169,6 +170,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     override fun onCreate() {
         super.onCreate()
+        djVoiceAnnouncer = DjVoiceAnnouncer(this)
 
         audioAttributes = AudioAttributes.Builder()
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -416,6 +418,8 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         recomputeDebounceJob?.cancel()
         tempoEaseJob?.cancel()
         RealtimeSpectrumBus.reset()
+        djVoiceAnnouncer?.shutdown()
+        djVoiceAnnouncer = null
         container.audioEffectsManager.releaseEffects()
         mediaLibrarySession?.release()
         mediaLibrarySession = null
@@ -638,6 +642,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
     private fun beginDualDeckTransition(durationMs: Long) {
         val incoming = preloadedTrack ?: return
+        djVoiceAnnouncer?.announceTransition(incoming.title, incoming.artist)
         isMixingTransition = true
         transitionDurationActiveMs = durationMs
         transitionStartElapsedMs = System.currentTimeMillis()
