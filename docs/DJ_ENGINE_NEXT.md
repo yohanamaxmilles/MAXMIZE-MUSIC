@@ -38,3 +38,17 @@ returns a conservative plan and leaves the transition under manual control.
 - Phrase markers are still grid-based candidates, not a semantic musical-phrase model. A labelled reference set and real-device listening tests are still required.
 - Vocal detection is not implemented. The current repository has no validated vocal classifier or vocal/instrumental separation model. Frequency-band or energy heuristics are not accepted as proof of vocals.
 - Intro/outro detection is still heuristic. The current decoder samples a middle window for longer tracks and does not yet decode dedicated intro and outro windows. Do not treat those cue points as verified.
+
+
+## Dedicated intro/outro decoding
+- The production analysis decoder now decodes three independent bounded windows: the opening 20 seconds, a central 20-second analysis window, and the final 20 seconds.
+- The non-contiguous windows are decoded separately. They are never concatenated for BPM or key analysis.
+- Intro and outro envelopes use 500 ms RMS frames. A boundary estimate requires three consecutive frames across a relative level threshold. If the envelope is too short or ambiguous, the existing conservative duration-based fallback remains.
+- The central analysis window now carries its absolute track offset into beat-grid generation. Beat positions and first-beat cues therefore stay on the full-track timeline instead of incorrectly starting at zero after a middle-window decode.
+- These are acoustic activity boundaries. They do not identify musical arrangement sections with semantic certainty. Real-device validation against labelled tracks is still required.
+
+## Vocal model selection notes
+- A small open model named SMAD reports 87.95% accuracy on its own 4,000-clip synthetic test set, but its model card discloses MUSDB18-HQ (CC BY-NC-SA) and a real-world training subset without a license grant. Do not ship those weights in this commercial app without resolving the training-data rights.
+- Essentia offers voice/instrumental classifiers, but its core library is AGPL-3.0 or separately licensed. A commercial Android integration needs a deliberate licensing decision.
+- YAMNet is a 4.1 MB Apache-2.0 LiteRT/TFLite audio event model and is a lower-risk on-device baseline. Its AudioSet labels are broad sound-event classes, so a singing label must be treated as a candidate signal, not a verified lyric/vocal detector. It needs a labelled music validation set and threshold calibration before Automix uses it.
+- No vocal labels are currently emitted by MAXMIZE DJ Engine. Unknown remains the correct result until an approved model is integrated and validated.
