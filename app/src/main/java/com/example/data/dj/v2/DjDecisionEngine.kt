@@ -117,7 +117,7 @@ class DjDecisionEngine {
 
         val ratio = tempoRatio(current.bpm, candidate.bpm)
         if (config.requireReliableTempo && ratio == null) return "BPM data is unavailable"
-        if (ratio != null && abs(ratio - 1f) > config.maxTempoAdjustment) {
+        if (config.requireReliableTempo && ratio != null && abs(ratio - 1f) > config.maxTempoAdjustment) {
             return "Tempo adjustment exceeds the configured limit"
         }
 
