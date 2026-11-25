@@ -149,7 +149,28 @@ class DjPcmAnalyzer(
             }
         }
         if (bestLag < 0 || best <= 0.08) return null to 0f
-        val bpm = 60f * frameRate / bestLag
+
+        // Onset autocorrelation often has equally strong peaks at whole-bar
+        // multiples. Prefer the shorter beat lag when its correlation remains
+        // close, avoiding a common half-tempo error on regular four-on-the-floor.
+        val halfLag = bestLag / 2
+        val selectedLag = if (halfLag >= minLag && centered.indices.drop(halfLag).isNotEmpty()) {
+            var halfCorrelation = 0.0
+            var halfNormA = 0.0
+            var halfNormB = 0.0
+            for (i in halfLag until centered.size) {
+                val a = centered[i].toDouble()
+                val b = centered[i - halfLag].toDouble()
+                halfCorrelation += a * b
+                halfNormA += a * a
+                halfNormB += b * b
+            }
+            val normalizedHalf = if (halfNormA > 0.0 && halfNormB > 0.0) {
+                halfCorrelation / sqrt(halfNormA * halfNormB)
+            } else 0.0
+            if (normalizedHalf >= best * 0.72) halfLag else bestLag
+        } else bestLag
+        val bpm = 60f * frameRate / selectedLag
         val separation = if (best <= 1e-6) 0f else ((best - second) / best).toFloat()
         val confidence = (best.toFloat() * 0.72f + separation * 0.28f).coerceIn(0f, 1f)
         return bpm.takeIf { it in 60f..200f } to confidence
