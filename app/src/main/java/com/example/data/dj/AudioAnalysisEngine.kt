@@ -481,6 +481,38 @@ class AudioAnalysisEngine(
             )
         }
 
+        private fun estimateIntroEnd(windowRms: FloatArray): Long {
+            if (windowRms.size < 8) return 0L
+            val early = windowRms.take(4).average().toFloat()
+            if (early < 0.002f) return 0L
+            val threshold = max(early * 1.8f, early + 0.012f)
+            for (index in 4 until windowRms.size - 2) {
+                val sustained = (windowRms[index] + windowRms[index + 1] + windowRms[index + 2]) / 3f
+                if (sustained >= threshold) return index * 1_000L
+            }
+            return 0L
+        }
+
+        private fun estimateOutroStart(
+            windowRms: FloatArray,
+            windowOffsetMs: Long,
+            durationMs: Long,
+        ): Long {
+            if (windowRms.size < 8 || windowOffsetMs < 0L) return 0L
+            val body = windowRms.take(windowRms.size / 2).sorted()
+            if (body.isEmpty()) return 0L
+            val baseline = body[body.size / 2]
+            if (baseline < 0.005f) return 0L
+            val threshold = baseline * 0.48f
+            val startIndex = (windowRms.size - 14).coerceAtLeast(3)
+            for (index in startIndex until windowRms.size - 2) {
+                val sustained = (windowRms[index] + windowRms[index + 1] + windowRms[index + 2]) / 3f
+                val cue = windowOffsetMs + index * 1_000L
+                if (sustained <= threshold && cue < durationMs - 3_000L) return cue
+            }
+            return 0L
+        }
+
         private fun estimateSpectralCentroid(
             samples: FloatArray,
             sampleRate: Int,
