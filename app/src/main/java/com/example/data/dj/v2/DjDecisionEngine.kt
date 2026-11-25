@@ -119,6 +119,11 @@ class DjDecisionEngine {
         if (config.strictGenreMatching && genreCompatibility(current, candidate, config) < 80) {
             return "Genre family is incompatible in Strict mode"
         }
+        if (config.strictHarmonicMatching) {
+            val harmonic = camelotScore(current.camelotCode, candidate.camelotCode)
+                ?: return "Reliable Camelot compatibility is required"
+            if (harmonic < 70) return "Harmonic key relationship is too distant"
+        }
         return null
     }
 
