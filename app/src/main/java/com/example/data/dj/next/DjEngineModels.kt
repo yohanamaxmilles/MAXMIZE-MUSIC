@@ -49,6 +49,7 @@ data class DjTrackProfile(
     val genreFamily: String? = null,
     val energy: Float = 0.5f,
     val introEndMs: Long? = null,
+    val firstBeatMs: Long? = null,
     val outroStartMs: Long? = null,
     val isExplicit: Boolean = false,
 )
