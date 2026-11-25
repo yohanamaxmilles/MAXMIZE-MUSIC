@@ -619,34 +619,78 @@ class AudioAnalysisEngine(
         ): Triple<Float, Float, Float> {
             val minBpm = 65
             val maxBpm = 185
-            var bestBpm = 120f
-            var bestWeightedScore = -1f
-            var totalScore = 0f
-            val scores = FloatArray(maxBpm - minBpm + 1)
+            if (onsetEnv.size < 24 || envRateHz <= 0f) return Triple(120f, 0f, 0f)
 
+            val scores = FloatArray(maxBpm - minBpm + 1)
+            var bestBpm = 120f
+            var bestScore = 0f
+            var scoreSum = 0.0
+            var validCount = 0
+
+            // Normalized, mean-centred autocorrelation. The previous raw
+            // correlation depended on signal level and could assign high
+            // confidence to weak/noisy material or a broad energy envelope.
             for (bpm in minBpm..maxBpm) {
-                val lag = ((60f / bpm) * envRateHz).roundToInt().coerceAtLeast(1)
-                if (lag >= onsetEnv.size / 2) continue
-                var corr = 0f
-                val limit = onsetEnv.size - lag
-                for (i in 0 until limit) {
-                    corr += onsetEnv[i] * onsetEnv[i + lag]
+                val lag = ((60f / bpm) * envRateHz).roundToInt()
+                if (lag < 2 || lag >= onsetEnv.size / 2) continue
+                val count = onsetEnv.size - lag
+                var sumA = 0.0
+                var sumB = 0.0
+                var sumAA = 0.0
+                var sumBB = 0.0
+                var sumAB = 0.0
+                for (i in 0 until count) {
+                    val a = onsetEnv[i].toDouble()
+                    val b = onsetEnv[i + lag].toDouble()
+                    sumA += a
+                    sumB += b
+                    sumAA += a * a
+                    sumBB += b * b
+                    sumAB += a * b
                 }
-                val normCorr = corr / limit.coerceAtLeast(1)
-                val octavePrior = exp(-0.5 * ((bpm - 118.0) / 38.0).pow(2)).toFloat()
-                val weighted = normCorr * (0.75f + 0.25f * octavePrior)
+                val covariance = sumAB - (sumA * sumB / count)
+                val varianceA = (sumAA - sumA * sumA / count).coerceAtLeast(0.0)
+                val varianceB = (sumBB - sumB * sumB / count).coerceAtLeast(0.0)
+                val denominator = sqrt(varianceA * varianceB)
+                val normalized = if (denominator > 1e-12) {
+                    (covariance / denominator).coerceIn(0.0, 1.0).toFloat()
+                } else 0f
+
+                // A restrained dance-tempo prior breaks near-equal octave
+                // ties without overpowering measured onset periodicity.
+                val octavePrior = exp(-0.5 * ((bpm - 118.0) / 42.0).pow(2)).toFloat()
+                val weighted = normalized * (0.90f + 0.10f * octavePrior)
                 scores[bpm - minBpm] = weighted
-                totalScore += weighted
-                if (weighted > bestWeightedScore) {
-                    bestWeightedScore = weighted
+                scoreSum += weighted
+                validCount++
+                if (weighted > bestScore) {
+                    bestScore = weighted
                     bestBpm = bpm.toFloat()
                 }
             }
 
-            val avgScore = (totalScore / scores.size).coerceAtLeast(1e-7f)
-            val prominence = (bestWeightedScore / avgScore).coerceIn(1f, 6f)
-            val confidence = ((prominence - 1f) / 3.5f).coerceIn(0.15f, 0.98f)
-            val stability = confidence.coerceIn(0.2f, 0.98f)
+            if (validCount == 0 || bestScore < 0.06f) {
+                // TrackAnalysis currently stores BPM as a non-null Float.
+                // Keep a neutral display value but confidence zero, so the DJ
+                // adapter and beat-sync gate never treat this as a measurement.
+                return Triple(120f, 0f, 0f)
+            }
+
+            val average = (scoreSum / validCount).toFloat().coerceAtLeast(1e-6f)
+            val prominence = bestScore / average
+            val separation = ((prominence - 1f) / 2.5f).coerceIn(0f, 1f)
+            val confidence = (bestScore * separation).coerceIn(0f, 0.98f)
+
+            // Stability is measured from neighbouring tempo candidates, not
+            // copied from confidence. A broad plateau is less reliable than
+            // a distinct periodic peak.
+            val bestIndex = bestBpm.toInt() - minBpm
+            val neighbour = max(
+                scores.getOrElse(bestIndex - 2) { 0f },
+                scores.getOrElse(bestIndex + 2) { 0f },
+            )
+            val stability = ((bestScore - neighbour) / bestScore.coerceAtLeast(1e-6f))
+                .coerceIn(0f, 1f) * confidence
             return Triple(bestBpm, confidence, stability)
         }
 
