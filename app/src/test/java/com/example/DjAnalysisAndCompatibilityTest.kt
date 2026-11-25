@@ -126,6 +126,25 @@ class DjAnalysisAndCompatibilityTest {
     }
 
     @Test
+    fun detectsConservativeIntroAndOutroEnergyBoundaries() {
+        val samples = FloatArray(22_050 * 8)
+        for (i in samples.indices) {
+            samples[i] = (0.2 * sin(2.0 * PI * 440.0 * i / 22_050.0)).toFloat()
+        }
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "structure-test",
+            samples = samples,
+            sampleRate = 22_050,
+            durationMs = 240_000L,
+            introRms = floatArrayOf(0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.05f, 0.05f, 0.05f),
+            outroRms = floatArrayOf(0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.01f, 0.01f, 0.01f),
+            outroOffsetMs = 200_000L,
+        )
+        assertEquals(4_000L, result.introEndMs)
+        assertEquals(205_000L, result.outroStartMs)
+    }
+
+    @Test
     fun `selectSmartQueue prioritizes harmonic and BPM match while avoiding recent repeats`() {
         val current = track("t0", "Starter")
         val harmonicBest = track("t1", "Harmonic Match")
