@@ -169,6 +169,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     private var activeTransitionPlan: DjTransitionPlan? = null
     private var djVoiceDirector: DjVoiceDirector? = null
     private var speechDuckActive: Boolean = false
+    private var djAnnouncementCounter: Int = 0
     private var automixActive: Boolean = false
     private var automixStartTimeMs: Long = 0L
     private var activeSessionPhase: DjSessionPhase = DjSessionPhase.OPENING
@@ -692,7 +693,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         transitionStartElapsedMs = System.currentTimeMillis()
         standbyPlayer.volume = 0f
         standbyPlayer.play()
-        djVoiceDirector?.announceTrack(incoming.title, incoming.artist)
+        djAnnouncementCounter++
+        if (djAnnouncementCounter % 3 == 0) {
+            djVoiceDirector?.announceTrack(incoming.title, incoming.artist)
+        }
         publishAutomixRuntime(statusOverride = "Mixing into ${incoming.title}...")
     }
 
@@ -913,6 +917,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             automixActive = true
             automixStartTimeMs = System.currentTimeMillis()
             activeSessionPhase = DjSessionPhase.OPENING
+            djAnnouncementCounter = 0
             isMixingTransition = false
             preloadedTrack = null
             recentDjHistoryIds.clear()
