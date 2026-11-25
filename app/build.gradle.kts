@@ -1,4 +1,6 @@
 import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
+import java.net.URL
+import java.security.MessageDigest
 
 plugins {
   alias(libs.plugins.android.application)
@@ -155,9 +157,6 @@ dependencies {
 
 // Download the pinned, Apache-2.0 YAMNet model and verify its digest before packaging.
 // The model is bundled in the APK, so classification runs offline on the device.
-import java.net.URL
-import java.security.MessageDigest
-
 val yamnetModelUrl =
   "https://storage.googleapis.com/mediapipe-models/audio_classifier/yamnet/float32/1/yamnet.tflite"
 val yamnetModelSha256 =
