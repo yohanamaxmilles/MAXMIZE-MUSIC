@@ -26,7 +26,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExcludedFolderEntity::class,
         SafSourceEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class MaxmizeDatabase : RoomDatabase() {
@@ -42,6 +42,12 @@ abstract class MaxmizeDatabase : RoomDatabase() {
     abstract fun exclusionDao(): ExclusionDao
 
     companion object {
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE track_analysis ADD COLUMN analysisVersion INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile
         private var INSTANCE: MaxmizeDatabase? = null
 
@@ -192,7 +198,7 @@ abstract class MaxmizeDatabase : RoomDatabase() {
                     context.applicationContext,
                     MaxmizeDatabase::class.java,
                     "maxmize.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                     .also { INSTANCE = it }
