@@ -36,7 +36,7 @@ returns a conservative plan and leaves the transition under manual control.
 - During an announcement, both decks are gently reduced to 72% of their current transition level. The original transition curve remains in control, and the deck levels return automatically when speech ends.
 - Phrase candidate markers in the PCM analyser mark every 32 beats (eight 4/4 bars). Automix phrase alignment uses the stored phrase length only when BPM confidence is at least 0.62 and the BPM is within the supported range.
 - Phrase markers are still grid-based candidates, not a semantic musical-phrase model. A labelled reference set and real-device listening tests are still required.
-- Vocal detection is not implemented. The current repository has no validated vocal classifier or vocal/instrumental separation model. Frequency-band or energy heuristics are not accepted as proof of vocals.
+- Vocal analysis now runs locally through MediaPipe Tasks Audio with the YAMNet model on the decoded opening, middle and ending sample windows. Its singing and speech labels remain acoustic candidates, not verified lyrics or source separation. Frequency-band or energy heuristics are not accepted as proof of vocals.
 - Intro/outro detection is still heuristic. The decoder samples separate opening, middle and ending windows. Do not treat those acoustic activity cue points as verified musical arrangement boundaries.
 
 
@@ -51,7 +51,7 @@ returns a conservative plan and leaves the transition under manual control.
 - A small open model named SMAD reports 87.95% accuracy on its own 4,000-clip synthetic test set, but its model card discloses MUSDB18-HQ (CC BY-NC-SA) and a real-world training subset without a license grant. Do not ship those weights in this commercial app without resolving the training-data rights.
 - Essentia offers voice/instrumental classifiers, but its core library is AGPL-3.0 or separately licensed. A commercial Android integration needs a deliberate licensing decision.
 - YAMNet is a 4.1 MB Apache-2.0 LiteRT/TFLite audio event model and is a lower-risk on-device baseline. Its AudioSet labels are broad sound-event classes, so a singing label must be treated as a candidate signal, not a verified lyric/vocal detector. It needs a labelled music validation set and threshold calibration before Automix uses it.
-- No vocal labels are currently emitted by MAXMIZE DJ Engine. Unknown remains the correct result until an approved model is integrated and validated.
+- YAMNet is now wired into production library analysis and its candidate metrics/segments are persisted with each track analysis. Tracks that cannot be decoded retain UNKNOWN vocal status. The model is not yet used to make Automix selection decisions.
 
 
 ## Beat synchronization refinement
@@ -65,4 +65,16 @@ returns a conservative plan and leaves the transition under manual control.
 - A model-output interpreter now accepts frame scores from an approved audio classifier and groups singing/speech candidate segments.
 - It tracks average and peak singing probability, active-frame ratio, speech probability and a conservative confidence band.
 - YAMNet-style broad labels are treated as candidate evidence only. Low singing scores do not prove a track is instrumental.
-- The repository still does not bundle or execute a vocal model. Model runtime, model asset delivery, device performance and validation against a labelled EDM set remain required before vocal analysis is available to users or used by Automix.
+- `YamnetVocalClassifier` uses MediaPipe Tasks Audio 1.2.3 and the pinned YAMNet model. Gradle downloads the 4.1 MB model into generated assets, verifies SHA-256 `4d8b4a53282dc83ef04e3e7dbc4fbc98082e34e44ed798e16c3a0cdd4c584faf`, and packages it in the APK for offline inference. The model file is not committed as a binary to the repository.
+- The production decoder supplies separate opening, central and ending PCM windows to the classifier. Each is resampled to 16 kHz mono. Vocal probabilities, activity ratio, speech probability, confidence and candidate segment timestamps are stored in Room. A database migration upgrades version 3 to version 4.
+- YAMNet is a broad AudioSet sound-event classifier. It is not a vocal separator, lyric recognizer or guaranteed detector of quiet/background vocals. It remains advisory and is not yet used to make Automix decisions.
+- Real-device latency, memory use, classification accuracy on EDM tracks and false-positive/false-negative rates still need testing with a labelled music set.
+
+
+## YAMNet runtime integration
+- Added MediaPipe Tasks Audio 1.2.3 with `AUDIO_CLIPS` mode and all model categories enabled so singing/speech evidence is not lost by a top-five-only result.
+- Added a pinned Google-hosted YAMNet model download at build time. The Gradle task checks the expected SHA-256 before packaging the model asset. Runtime inference uses the packaged asset and requires no network access.
+- The classifier linearly resamples the decoder's mono PCM to 16 kHz and sends independent opening, middle and ending windows through YAMNet. Original track offsets are added to each classifier timestamp.
+- `TrackAnalysis` and its Room entity now retain average/peak singing probability, vocal active ratio, average speech probability, confidence, candidate segment JSON and an analysis version. Room migration 3 to 4 adds these fields without dropping existing analysis data.
+- If decoding or inference is unavailable, vocal status remains UNKNOWN. It is never converted into an instrumental classification.
+- This is an initial production integration. Device testing and labelled EDM validation are required before vocal-aware transition rules are enabled.
