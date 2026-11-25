@@ -38,6 +38,23 @@ class DjNextEngineTest {
     }
 
     @Test
+    fun lowToHighEnergyJumpIsMarkedAsDropCandidate() {
+        val rate = 22_050
+        val seconds = 32
+        val pcm = FloatArray(rate * seconds)
+        val segmentAmplitude = floatArrayOf(0.42f, 0.035f, 0.78f, 0.40f)
+        for (i in pcm.indices) {
+            val segment = (i / (rate * 8)).coerceIn(0, 3)
+            pcm[i] = segmentAmplitude[segment] *
+                sin(2.0 * PI * 110.0 * i / rate).toFloat()
+        }
+
+        val result = DjPcmAnalyzer().analyze("energy-jump", pcm, rate)
+        assertTrue(result.sections.any { it.type == DjSectionType.DROP_CANDIDATE })
+        assertTrue(result.notes.any { it.contains("energy jumps only") })
+    }
+
+    @Test
     fun candidateRankingAvoidsRecentTracksAndPrefersGoodTempo() {
         val engine = DjIntelligenceEngine()
         val current = DjTrackProfile("a", "A", "Artist", 240_000, 124f, 0.9f, "8A", "House", 0.65f)
