@@ -663,7 +663,10 @@ class AudioAnalysisEngine(
                 scores[bpm - minBpm] = weighted
                 scoreSum += weighted
                 validCount++
-                if (weighted > bestScore) {
+                val octaveDoubleTime = bpm.toFloat() / bestBpm
+                val isCredibleDoubleTime = octaveDoubleTime in 1.95f..2.05f &&
+                    weighted >= bestScore * 0.94f
+                if (weighted > bestScore || isCredibleDoubleTime) {
                     bestScore = weighted
                     bestBpm = bpm.toFloat()
                 }
