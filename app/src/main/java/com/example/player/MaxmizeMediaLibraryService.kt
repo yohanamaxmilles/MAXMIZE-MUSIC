@@ -679,8 +679,11 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             }
         }
 
-        activePlayer.volume = (rawOut * outGain).coerceIn(0f, 1f)
-        standbyPlayer.volume = (rawIn * inGain).coerceIn(0f, 1f)
+        // Duck both decks gently while offline DJ Voice speaks. This leaves
+        // the music audible and restores full level automatically after speech.
+        val voiceDuck = if (djVoiceAnnouncer?.isSpeaking == true) 0.72f else 1f
+        activePlayer.volume = (rawOut * outGain * voiceDuck).coerceIn(0f, 1f)
+        standbyPlayer.volume = (rawIn * inGain * voiceDuck).coerceIn(0f, 1f)
     }
 
     private fun applyDeckEqForTransition(progress: Float) {
