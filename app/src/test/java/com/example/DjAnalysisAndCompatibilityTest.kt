@@ -137,7 +137,7 @@ class DjAnalysisAndCompatibilityTest {
             sampleRate = 22_050,
             durationMs = 240_000L,
             introRms = floatArrayOf(0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.05f, 0.05f, 0.05f),
-            outroRms = floatArrayOf(0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.01f, 0.01f, 0.01f),
+            outroRms = floatArrayOf(0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.01f, 0.01f, 0.01f, 0.01f),
             outroOffsetMs = 200_000L,
         )
         assertEquals(4_000L, result.introEndMs)
