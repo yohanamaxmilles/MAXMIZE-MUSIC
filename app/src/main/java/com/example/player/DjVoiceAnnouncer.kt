@@ -41,15 +41,18 @@ class DjVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
 
             override fun onDone(utteranceId: String?) {
                 speaking = false
+                speakPendingAnnouncement()
             }
 
             @Deprecated("Deprecated in Java")
             override fun onError(utteranceId: String?) {
                 speaking = false
+                speakPendingAnnouncement()
             }
 
             override fun onError(utteranceId: String?, errorCode: Int) {
                 speaking = false
+                speakPendingAnnouncement()
             }
         })
         val locale = Locale.getDefault()
@@ -77,11 +80,18 @@ class DjVoiceAnnouncer(context: Context) : TextToSpeech.OnInitListener {
         } else {
             "Next track. $safeTitle, by $safeArtist."
         }
-        if (!ready) {
+        if (!ready || speaking) {
             pendingAnnouncement = phrase
             return
         }
         speak(phrase)
+    }
+
+    private fun speakPendingAnnouncement() {
+        if (released || !ready || speaking) return
+        val next = pendingAnnouncement ?: return
+        pendingAnnouncement = null
+        speak(next)
     }
 
     private fun speak(phrase: String) {
