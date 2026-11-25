@@ -55,7 +55,7 @@ class DjIntelligenceEngine {
         } else 16_000L
         val outgoingStart = (outgoing.outroStartMs ?: (outgoing.durationMs - duration))
             .coerceIn(0L, outgoing.durationMs)
-        val incomingStart = (incoming.introEndMs ?: 0L).coerceIn(0L, incoming.durationMs)
+        val incomingStart = (incoming.firstBeatMs ?: 0L).coerceIn(0L, incoming.durationMs)
         val compatible = if (outgoing.camelotKey != null && incoming.camelotKey != null) {
             camelotDistance(outgoing.camelotKey, incoming.camelotKey) <= 1
         } else null
