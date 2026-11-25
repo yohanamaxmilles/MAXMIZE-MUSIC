@@ -856,7 +856,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             com.example.data.model.EnergyProgression.STEADY -> pivotProfile.energy
         }
 
-        repeat(15) {
+        for (slot in 0 until 15) {
             val candidates = pool.asSequence()
                 .filter { it.id !in usedIds }
                 .filter { track ->
@@ -872,9 +872,9 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 targetEnergy = targetEnergy,
                 allowGenreBridging = automixConfig.openFormatBridging,
             )
-            val best = ranked.firstOrNull() ?: return@repeat
+            val best = ranked.firstOrNull() ?: break
             val selectedTrack = candidates.firstOrNull { it.second.trackId == best.track.trackId }?.first
-                ?: return@repeat
+                ?: break
             plannedQueue += DjQueuedTrack(
                 track = selectedTrack,
                 analysis = analysesCache[selectedTrack.id],
