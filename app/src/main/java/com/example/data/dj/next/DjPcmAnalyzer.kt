@@ -67,9 +67,10 @@ class DjPcmAnalyzer(
 
         val frameRate = sampleRate.toFloat() / hopSize
         val tempo = estimateTempo(onset, frameRate)
-        val beatMs = tempo.first?.let { (60_000f / it).toLong() }
-        val firstBeatMs = if (tempo.first != null && beatMs != null) {
-            val searchFrames = min(onset.size, max(1, (frameRate * (60f / tempo.first)).toInt()))
+        val detectedBpm = tempo.first
+        val beatMs = detectedBpm?.let { (60_000f / it).toLong() }
+        val firstBeatMs = if (detectedBpm != null && beatMs != null) {
+            val searchFrames = min(onset.size, max(1, (frameRate * (60f / detectedBpm)).toInt()))
             val strongest = (0 until searchFrames).maxByOrNull { onset[it] } ?: 0
             ((strongest * hopSize * 1000L) / sampleRate).coerceAtMost(beatMs)
         } else null
