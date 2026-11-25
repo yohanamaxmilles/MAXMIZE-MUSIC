@@ -204,6 +204,12 @@ data class LyricsSearchCandidate(
 
 // --- Offline Audio Analysis, Hierarchical Genre & Intelligent DJ / Automix Models ---
 
+enum class DjVoiceGender(val label: String) {
+    FEMALE("Female"),
+    MALE("Male"),
+    DEFAULT("System default"),
+}
+
 enum class MixMode(val label: String, val description: String) {
     SMART("Smart", "Genre-safe harmonic & tempo mixing"),
     DJ_MODE("DJ Mode", "Pro beatmatched dual-deck phrase mixing"),
@@ -340,6 +346,9 @@ data class AutomixConfig(
     val mood: MoodFilter = MoodFilter.ENERGETIC,
     val autoGainEnabled: Boolean = true,
     val avoidRepeats: Boolean = true,
+    val djVoiceGender: DjVoiceGender = DjVoiceGender.DEFAULT,
+    val djVoiceRate: Float = 0.96f,
+    val djVoiceVolume: Float = 1.0f,
     val sourcePlaylistId: Long? = null,
     val sourceFolderPath: String? = null,
 )
