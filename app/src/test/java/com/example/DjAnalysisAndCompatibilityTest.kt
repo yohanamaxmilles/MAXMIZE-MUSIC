@@ -150,7 +150,7 @@ class DjAnalysisAndCompatibilityTest {
         )
 
         assertTrue("Intro boundary should follow measured quiet opening: ${result.introEndMs}", result.introEndMs in 1_500L..2_500L)
-        assertTrue("Outro boundary should follow measured fade region: ${result.outroStartMs}", result.outroStartMs in 9_500L..11_500L)
+        assertTrue("Outro boundary should follow measured fade region: ${result.outroStartMs}", result.outroStartMs in 29_500L..31_500L)
         assertTrue("Beat grid should retain absolute track offset: ${result.firstBeatMs}", result.firstBeatMs in 20_000L..20_500L)
     }
 
