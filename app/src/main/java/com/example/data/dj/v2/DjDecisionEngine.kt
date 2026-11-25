@@ -16,7 +16,7 @@ class DjDecisionEngine {
     ): DjRankingResult {
         require(count >= 0)
         val ranked = mutableListOf<DjCandidateScore>()
-        val rejected = mutableListOf<DjRejection>()
+        val rejectedById = linkedMapOf<String, DjRejection>()
 
         if (current.contentKind != AudioContentKind.MUSIC || current.contentConfidence < 0.50f) {
             return DjRankingResult(
@@ -27,17 +27,52 @@ class DjDecisionEngine {
             )
         }
 
-        candidates.forEach { candidate ->
-            val reason = rejectionReason(current, candidate, recentTrackIds, config)
-            if (reason != null) rejected += DjRejection(candidate.trackId, reason)
-            else ranked += scoreCandidate(current, candidate, config, recentArtistNames)
+        val remaining = candidates
+            .filter { it.trackId != current.trackId && it.trackId !in recentTrackIds }
+            .distinctBy { it.trackId }
+            .toMutableList()
+        val usedTrackIds = recentTrackIds.toMutableSet().apply { add(current.trackId) }
+        val artistRotation = recentArtistNames.map { it.trim().lowercase() }
+            .filter { it.isNotBlank() }.toMutableSet()
+        var pivot = current
+
+        repeat(count) {
+            if (remaining.isEmpty()) return@repeat
+            val validOptions = mutableListOf<DjCandidateScore>()
+            remaining.forEach { candidate ->
+                val reason = rejectionReason(pivot, candidate, usedTrackIds, config)
+                if (reason != null) {
+                    rejectedById.putIfAbsent(candidate.trackId, DjRejection(candidate.trackId, reason))
+                } else {
+                    rejectedById.remove(candidate.trackId)
+                    validOptions += scoreCandidate(pivot, candidate, config, artistRotation)
+                }
+            }
+            val selected = validOptions.maxWithOrNull(
+                compareBy<DjCandidateScore> { it.totalScore }.thenByDescending { it.trackId }
+            ) ?: return@repeat
+            ranked += selected
+            val chosenProfile = remaining.firstOrNull { it.trackId == selected.trackId } ?: return@repeat
+            remaining.removeAll { it.trackId == chosenProfile.trackId }
+            usedTrackIds += chosenProfile.trackId
+            chosenProfile.artistName?.trim()?.lowercase()
+                ?.takeIf { it.isNotBlank() && it != "unknown artist" }
+                ?.let { artistRotation += it }
+            pivot = chosenProfile
+        }
+
+        remaining.forEach { candidate ->
+            if (candidate.trackId !in rejectedById) {
+                rejectedById[candidate.trackId] = DjRejection(
+                    candidate.trackId,
+                    "Not selected in the current best-fit DJ sequence",
+                )
+            }
         }
 
         return DjRankingResult(
-            rankedCandidates = ranked.sortedWith(
-                compareByDescending<DjCandidateScore> { it.totalScore }.thenBy { it.trackId }
-            ).take(count),
-            rejectedCandidates = rejected,
+            rankedCandidates = ranked,
+            rejectedCandidates = rejectedById.values.toList(),
         )
     }
 
