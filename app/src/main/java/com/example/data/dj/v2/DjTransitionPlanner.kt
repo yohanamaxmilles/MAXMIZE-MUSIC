@@ -39,12 +39,13 @@ class DjTransitionPlanner {
             .minOrNull()
             ?: return DjTransitionPlanningResult.Unavailable("No future analyzed phrase boundary on outgoing track")
 
-        val incomingCue = incoming.sections
+        val analyzedIntroCue = incoming.sections
             .filter { it.type == MusicalSectionType.INTRO || it.type == MusicalSectionType.INSTRUMENTAL }
             .filter { it.confidence >= 0.60f }
             .minByOrNull { it.startMs }
             ?.startMs
-            ?: return DjTransitionPlanningResult.Unavailable("No reliable instrumental intro cue on incoming track")
+        val incomingCue = analyzedIntroCue ?: incoming.firstBeatMs
+            ?: return DjTransitionPlanningResult.Unavailable("No reliable incoming downbeat cue")
 
         val durationMs = (outgoing.beatIntervalMs * config.bars * config.beatsPerBar)
             .coerceAtLeast(2_000L)
@@ -72,7 +73,11 @@ class DjTransitionPlanner {
                 incomingPlaybackRate = rate,
                 preservePitch = config.keyLockEnabled,
                 curve = curve,
-                explanation = "Phrase-aligned transition using analyzed beat grids and an instrumental incoming cue",
+                explanation = if (analyzedIntroCue != null) {
+                    "Phrase-aligned transition using analyzed beat grids and a detected intro cue"
+                } else {
+                    "Phrase and downbeat aligned. Incoming vocal structure is unknown, so vocal overlap is not guaranteed to be avoided."
+                },
             )
         )
     }
