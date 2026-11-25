@@ -93,6 +93,7 @@ data class DjDecisionConfig(
 data class DjCandidateScore(
     val trackId: String,
     val totalScore: Int,
+    val artistPenalty: Int = 0,
     val bpmScore: Int?,
     val keyScore: Int?,
     val genreScore: Int?,
