@@ -55,6 +55,35 @@ class DjNextEngineTest {
         assertTrue(result.notes.any { it.contains("energy jumps only") })
     }
 
+
+    @Test
+    fun vocalEvidenceProducesCandidatesWithoutClaimingVerifiedLyrics() {
+        val result = DjVocalEvidenceAnalyzer.analyze(
+            listOf(
+                DjVocalModelFrame(0L, 1_000L, mapOf("Music" to 0.8f, "Singing" to 0.91f)),
+                DjVocalModelFrame(1_000L, 1_000L, mapOf("Singing" to 0.88f)),
+                DjVocalModelFrame(2_000L, 1_000L, mapOf("Instrumental music" to 0.9f)),
+                DjVocalModelFrame(3_000L, 1_000L, mapOf("Speech" to 0.82f)),
+            ),
+        )
+        assertEquals(0.91f, result.peakVocalProbability!!, 0.001f)
+        assertEquals(0.5f, result.vocalActiveRatio!!, 0.001f)
+        assertEquals(DjVocalConfidence.HIGH, result.confidence)
+        assertEquals(2, result.segments.size)
+        assertEquals(DjVocalKind.SINGING_CANDIDATE, result.segments.first().kind)
+        assertEquals(DjVocalKind.SPEECH_CANDIDATE, result.segments.last().kind)
+        assertTrue(result.notes.any { it.contains("not verified lyrics") })
+    }
+
+    @Test
+    fun missingVocalModelScoresRemainUnknown() {
+        val result = DjVocalEvidenceAnalyzer.analyze(emptyList())
+        assertNull(result.averageVocalProbability)
+        assertNull(result.peakVocalProbability)
+        assertTrue(result.segments.isEmpty())
+        assertEquals(DjVocalConfidence.LOW, result.confidence)
+    }
+
     @Test
     fun candidateRankingAvoidsRecentTracksAndPrefersGoodTempo() {
         val engine = DjIntelligenceEngine()
