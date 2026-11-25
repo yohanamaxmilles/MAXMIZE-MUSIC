@@ -35,6 +35,7 @@ class DjNextEngineTest {
         assertTrue("BPM was ${result.bpm}", kotlin.math.abs(result.bpm!! - 120f) < 5f)
         assertTrue(result.beatTimesMs.size > 30)
         assertTrue(result.phraseMarkersMs.isNotEmpty())
+        assertEquals(32, result.beatTimesMs.indexOf(result.phraseMarkersMs.first()))
     }
 
     @Test
