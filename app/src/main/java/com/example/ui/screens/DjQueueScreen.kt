@@ -308,12 +308,18 @@ fun DjQueueScreen(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).testTag("dj_history_list"),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .testTag("dj_history_list"),
             ) {
-                if (mixHistory.isEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (mixHistory.isEmpty()) {
                     item {
                         Column(
                             modifier = Modifier
@@ -379,6 +385,7 @@ fun DjQueueScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
                     }
                 }
             }
