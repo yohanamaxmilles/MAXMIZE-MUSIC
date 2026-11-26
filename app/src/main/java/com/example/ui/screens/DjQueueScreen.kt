@@ -91,6 +91,12 @@ fun DjQueueScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("dj_queue_screen"),
     ) {
+        DjStudioSectionHeader(
+            eyebrow = "PLAYBACK FLOW",
+            title = "Your queue",
+            description = "Arrange upcoming tracks and review recent mixes.",
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+        )
         if (!embeddedInHub) {
             Row(
                 modifier = Modifier
