@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CloudQueue
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.rounded.CloudQueue
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -80,6 +82,7 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.LyricsSheet
 import com.example.ui.screens.NowPlayingScreen
+import com.example.ui.screens.OnlineMusicScreen
 import com.example.ui.screens.PlaylistDetailScreen
 import com.example.ui.screens.PlaylistsScreen
 import com.example.ui.screens.SearchScreen
@@ -263,6 +266,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             TopRouteBinding(
                 NavDestinationItem("library", "Library", Icons.Rounded.LibraryMusic, Icons.Outlined.LibraryMusic, "nav_library"),
                 MaxmizeRoute.Library,
+            ),
+            TopRouteBinding(
+                NavDestinationItem("online", "Online", Icons.Rounded.CloudQueue, Icons.Outlined.CloudQueue, "nav_online"),
+                MaxmizeRoute.Online,
             ),
             TopRouteBinding(
                 NavDestinationItem(
@@ -453,6 +460,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                         )
                                     }
 
+                                    composable<MaxmizeRoute.Online> {
+                                        OnlineMusicScreen()
+                                    }
+
                                     composable<MaxmizeRoute.Library> {
                                         LibraryScreen(
                                             selectedCategory = selectedCategory,
@@ -527,6 +538,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onDeleteCustomProfile = viewModel::deleteCustomDjProfile,
                                             onUpsertGenreRule = viewModel::upsertGenreRule,
                                             onDeleteGenreRule = viewModel::deleteGenreRule,
+                                            onPreviewVoice = viewModel.playbackController::previewDjVoice,
                                         )
                                     }
 
@@ -680,6 +692,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onDeleteCustomProfile = viewModel::deleteCustomDjProfile,
                                             onUpsertGenreRule = viewModel::upsertGenreRule,
                                             onDeleteGenreRule = viewModel::deleteGenreRule,
+                                            onPreviewVoice = viewModel.playbackController::previewDjVoice,
                                         )
                                     }
 

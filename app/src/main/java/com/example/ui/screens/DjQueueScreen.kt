@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -58,8 +59,6 @@ import com.example.data.model.MixHistoryEntry
 import com.example.data.model.PlaybackUiState
 import com.example.data.model.TrackAnalysis
 import com.example.ui.components.ArtworkImage
-import com.example.ui.theme.LavenderCard
-import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -91,6 +90,12 @@ fun DjQueueScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("dj_queue_screen"),
     ) {
+        DjStudioSectionHeader(
+            eyebrow = "PLAYBACK FLOW",
+            title = "Your queue",
+            description = "Arrange upcoming tracks and review recent mixes.",
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+        )
         if (!embeddedInHub) {
             Row(
                 modifier = Modifier
@@ -456,13 +461,13 @@ private fun DjQueueTrackRow(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(LavenderCardDeep)
+                .background(Color(0xFF24311A))
                 .padding(horizontal = 7.dp, vertical = 3.dp),
         ) {
             Text(
                 text = "${item.compatibilityScore}%",
                 style = MonoBadgeStyle,
-                color = LavenderCard,
+                color = Color(0xFFE2F36B),
             )
         }
         Box {

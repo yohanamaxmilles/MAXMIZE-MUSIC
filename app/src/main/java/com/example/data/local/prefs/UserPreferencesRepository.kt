@@ -12,6 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.example.data.model.AccentPreset
 import com.example.data.model.AutomixConfig
 import com.example.data.model.EnergyProgression
+import com.example.data.model.DjVoiceGender
 import com.example.data.model.FontChoice
 import com.example.data.model.HarmonicMixLevel
 import com.example.data.model.MixMode
@@ -131,6 +132,9 @@ class UserPreferencesRepository(private val context: Context) {
         val DJ_MOOD = stringPreferencesKey("dj_mood")
         val DJ_AUTO_GAIN = booleanPreferencesKey("dj_auto_gain")
         val DJ_AVOID_REPEATS = booleanPreferencesKey("dj_avoid_repeats")
+        val DJ_VOICE_GENDER = stringPreferencesKey("dj_voice_gender")
+        val DJ_VOICE_RATE = floatPreferencesKey("dj_voice_rate")
+        val DJ_VOICE_VOLUME = floatPreferencesKey("dj_voice_volume")
         val DJ_SOURCE_PLAYLIST_ID = stringPreferencesKey("dj_source_playlist_id")
         val DJ_SOURCE_FOLDER = stringPreferencesKey("dj_source_folder")
     }
@@ -221,6 +225,9 @@ class UserPreferencesRepository(private val context: Context) {
             mood = mood,
             autoGainEnabled = prefs[Keys.DJ_AUTO_GAIN] ?: true,
             avoidRepeats = prefs[Keys.DJ_AVOID_REPEATS] ?: true,
+            djVoiceGender = prefs[Keys.DJ_VOICE_GENDER]?.let { runCatching { DjVoiceGender.valueOf(it) }.getOrNull() } ?: DjVoiceGender.DEFAULT,
+            djVoiceRate = (prefs[Keys.DJ_VOICE_RATE] ?: 0.96f).coerceIn(0.75f, 1.15f),
+            djVoiceVolume = (prefs[Keys.DJ_VOICE_VOLUME] ?: 1.0f).coerceIn(0.25f, 1.0f),
             sourcePlaylistId = prefs[Keys.DJ_SOURCE_PLAYLIST_ID]?.toLongOrNull(),
             sourceFolderPath = prefs[Keys.DJ_SOURCE_FOLDER]?.takeIf { it.isNotBlank() },
         )
@@ -377,6 +384,9 @@ class UserPreferencesRepository(private val context: Context) {
             prefs[Keys.DJ_MOOD] = next.mood.name
             prefs[Keys.DJ_AUTO_GAIN] = next.autoGainEnabled
             prefs[Keys.DJ_AVOID_REPEATS] = next.avoidRepeats
+            prefs[Keys.DJ_VOICE_GENDER] = next.djVoiceGender.name
+            prefs[Keys.DJ_VOICE_RATE] = next.djVoiceRate.coerceIn(0.75f, 1.15f)
+            prefs[Keys.DJ_VOICE_VOLUME] = next.djVoiceVolume.coerceIn(0.25f, 1.0f)
             if (next.sourcePlaylistId != null) {
                 prefs[Keys.DJ_SOURCE_PLAYLIST_ID] = next.sourcePlaylistId.toString()
             } else {

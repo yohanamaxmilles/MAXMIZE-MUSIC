@@ -55,6 +55,7 @@ import com.example.data.dj.GenreEngine
 import com.example.data.local.db.GenreRuleOverrideEntity
 import com.example.data.model.AutomixConfig
 import com.example.data.model.DjProfile
+import com.example.data.model.DjVoiceGender
 import com.example.data.model.EnergyProgression
 import com.example.data.model.GenreSummary
 import com.example.data.model.HarmonicMixLevel
@@ -84,6 +85,7 @@ fun AutomixSettingsScreen(
     onDeleteCustomProfile: (String) -> Unit,
     onUpsertGenreRule: (String, String, Boolean) -> Unit,
     onDeleteGenreRule: (String, String) -> Unit,
+    onPreviewVoice: () -> Unit,
     modifier: Modifier = Modifier,
     embeddedInHub: Boolean = false,
 ) {
@@ -104,6 +106,14 @@ fun AutomixSettingsScreen(
             .testTag("automix_settings_screen"),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
+        item {
+            DjStudioSectionHeader(
+                    eyebrow = "STUDIO CONFIGURATION",
+                    title = "Mix preferences",
+                    description = "Set transition behavior, track matching and DJ voice.",
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                )
+        }
         if (!embeddedInHub) {
             item {
                 Row(
@@ -143,7 +153,7 @@ fun AutomixSettingsScreen(
 
         // A. Mixing Intelligence
         item {
-            DjSettingsSectionTitle("A · MIXING INTELLIGENCE")
+            DjSettingsSectionTitle("Mixing intelligence")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Mix Mode", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
@@ -231,7 +241,7 @@ fun AutomixSettingsScreen(
 
         // B. Genre Compatibility
         item {
-            DjSettingsSectionTitle("B · GENRE COMPATIBILITY")
+            DjSettingsSectionTitle("Genre compatibility")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Strict Genre Matching",
@@ -266,7 +276,7 @@ fun AutomixSettingsScreen(
 
         // C. BPM and Beatmatching
         item {
-            DjSettingsSectionTitle("C · BPM & BEATMATCHING")
+            DjSettingsSectionTitle("Tempo and beatmatching")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -321,7 +331,7 @@ fun AutomixSettingsScreen(
 
         // D. Harmonic Mixing
         item {
-            DjSettingsSectionTitle("D · HARMONIC MIXING")
+            DjSettingsSectionTitle("Harmonic mixing")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Key Matching",
@@ -387,7 +397,7 @@ fun AutomixSettingsScreen(
 
         // E. Energy Progression
         item {
-            DjSettingsSectionTitle("E · ENERGY PROGRESSION")
+            DjSettingsSectionTitle("Energy progression")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Energy Curve", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
@@ -466,7 +476,7 @@ fun AutomixSettingsScreen(
 
         // F. Transition and Crossfade
         item {
-            DjSettingsSectionTitle("F · TRANSITION & CROSSFADE")
+            DjSettingsSectionTitle("Transitions and crossfade")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamNavRow(
                     title = "Transition Style",
@@ -508,7 +518,7 @@ fun AutomixSettingsScreen(
 
         // G. Dual Deck
         item {
-            DjSettingsSectionTitle("G · DUAL DECK")
+            DjSettingsSectionTitle("Dual deck")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Auto Gain (LUFS)",
@@ -531,7 +541,7 @@ fun AutomixSettingsScreen(
 
         // H. Automix Behavior
         item {
-            DjSettingsSectionTitle("H · AUTOMIX BEHAVIOR")
+            DjSettingsSectionTitle("Automix behavior")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Avoid Repeats",
@@ -545,6 +555,71 @@ fun AutomixSettingsScreen(
                     title = "Save Configuration as Profile",
                     value = activeProfile?.name ?: "Custom",
                     onClick = { showSaveProfileDialog = true },
+                )
+            }
+        }
+
+        // I. DJ Voice
+        item {
+            DjSettingsSectionTitle("DJ voice")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Text(
+                    "Choose the announcer voice used during DJ sessions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
+                DjVoiceGender.entries.forEach { option ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable { onUpdateConfig { it.copy(djVoiceGender = option) } }
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = config.djVoiceGender == option,
+                            onClick = { onUpdateConfig { it.copy(djVoiceGender = option) } },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(option.label, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                OutlinedButton(
+                    onClick = onPreviewVoice,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Text("Preview selected voice")
+                }
+                ParamDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Speaking speed", style = MaterialTheme.typography.bodyMedium)
+                        Text("${config.djVoiceRate}x", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.djVoiceRate,
+                        onValueChange = { value -> onUpdateConfig { it.copy(djVoiceRate = value) } },
+                        valueRange = 0.75f..1.15f,
+                    )
+                }
+                ParamDivider()
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Voice level", style = MaterialTheme.typography.bodyMedium)
+                        Text("${(config.djVoiceVolume * 100).roundToInt()}%", style = MonoTimecodeStyle, color = MaterialTheme.colorScheme.primary)
+                    }
+                    MaxmizeSlider(
+                        value = config.djVoiceVolume,
+                        onValueChange = { value -> onUpdateConfig { it.copy(djVoiceVolume = value) } },
+                        valueRange = 0.25f..1.0f,
+                    )
+                }
+                ParamDivider()
+                Text(
+                    "Music lowers while the DJ speaks.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 )
             }
         }

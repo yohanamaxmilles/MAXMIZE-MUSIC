@@ -421,6 +421,13 @@ class PlaybackController(
 
     // --- Automix / Dual-Deck DJ Commands ---
 
+    fun previewDjVoice() {
+        controller?.sendCustomCommand(
+            SessionCommand(MaxmizeMediaLibraryService.CMD_PREVIEW_DJ_VOICE, Bundle.EMPTY),
+            Bundle.EMPTY,
+        )
+    }
+
     fun startAutomix(seedTrackId: String? = null) {
         val args = Bundle().apply {
             if (seedTrackId != null) putString(MaxmizeMediaLibraryService.ARG_TRACK_ID, seedTrackId)
