@@ -2,10 +2,12 @@
 
 This package is isolated from the existing DJ audio analysis engine.
 
-## Current source files
+## Source files
 
 - `RhythmAudioConfig.kt`: fixed input and model configuration.
 - `RhythmFeatureExtractor.kt`: mono 22,050 Hz PCM to normalized [128, 345] log-Mel features.
+- `RhythmInferenceEngine.kt`: TensorFlow Lite inference for the 25-output model.
+- `RhythmAnalyzer.kt`: end-to-end analysis facade.
 
 ## Preprocessing contract
 
@@ -28,13 +30,14 @@ This package is isolated from the existing DJ audio analysis engine.
 | dB range | -80 to 0 |
 | Normalization | (dB + 80) / 80 |
 
-## Important integration limits
+## Integration status and limits
 
-1. The extractor expects audio already converted to mono 22,050 Hz PCM. Resampling has not been implemented here because it must be verified against the Colab reference. The training pipeline used librosa's high-quality SOXR resampler.
-2. The TensorFlow Lite runtime and model asset have not yet been added. The repository's Gradle files were intentionally left unchanged.
-3. The preliminary model predicts presence/absence for 25 drum and percussion classes over an eight-second segment. It does not return drum-hit timestamps.
-4. BPM estimation and genre classification are separate systems. This model does not replace the current DJ audio analysis engine.
-5. This source has not yet been built or validated on an Android device. Compare its output against the Android Test Reference package before enabling model inference.
+1. The extractor expects mono PCM already converted to 22,050 Hz. Audio decoding, channel mixing and high-quality resampling are not implemented in this package yet. The training pipeline used librosa with SOXR HQ resampling. Validate Android preprocessing against the supplied Android Test Reference before enabling inference.
+2. The TensorFlow Lite runtime dependency is declared in the app Gradle files. The model binary must be placed at `app/src/main/assets/models/rhythm_instrument_model_float32.tflite`.
+3. The inference engine requires the exact 25 class labels in the same order as the training output. Do not guess or reorder these labels.
+4. The model predicts instrument presence over an eight-second segment. It does not return individual drum-hit timestamps.
+5. BPM estimation and genre classification are separate systems. This model does not replace the current DJ audio analysis engine.
+6. Build and device validation are still required before production use. No claim of successful Android compilation or device inference should be made until those tests pass.
 
 ## Dataset attribution
 
@@ -42,4 +45,4 @@ Training dataset: WaivOps EDM-HSE
 DOI: https://doi.org/10.5281/zenodo.13769544  
 License: CC BY 4.0
 
-The model package and any redistributed dataset-derived material must retain the dataset attribution and license notice.
+Retain the dataset attribution and license notice when redistributing dataset-derived materials.
