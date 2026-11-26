@@ -122,6 +122,16 @@ fun AutomixScreen(
             .testTag("automix_screen"),
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
+        item {
+            item {
+                DjStudioSectionHeader(
+                    eyebrow = "PERFORMANCE",
+                    title = if (automixState.isActive) "Live mixing" else "Automix",
+                    description = "Two-deck control, smooth transitions and harmonic matching.",
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                )
+            }
+        }
         if (!embeddedInHub) {
             item {
                 Row(
