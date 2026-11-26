@@ -78,11 +78,17 @@ fun DjProfilesSection(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "DJ Mixing Profiles",
+                        text = "YOUR PRESETS",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "Mixing profiles",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     )
                     Text(
-                        text = "Select a curated DJ style or save your current settings as a preset.",
+                        text = "Choose a mixing style or save your own setup.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -103,7 +109,7 @@ fun DjProfilesSection(
 
         items(profiles, key = { it.id }) { profile ->
             val selected = profile.id == config.activeProfileId
-            val cardShape = RoundedCornerShape(14.dp)
+            val cardShape = RoundedCornerShape(20.dp)
 
             Column(
                 modifier = Modifier
