@@ -107,14 +107,12 @@ fun AutomixSettingsScreen(
         contentPadding = PaddingValues(bottom = 32.dp),
     ) {
         item {
-            item {
-                DjStudioSectionHeader(
+            DjStudioSectionHeader(
                     eyebrow = "STUDIO CONFIGURATION",
                     title = "Mix preferences",
                     description = "Set transition behavior, track matching and DJ voice.",
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                 )
-            }
         }
         if (!embeddedInHub) {
             item {
