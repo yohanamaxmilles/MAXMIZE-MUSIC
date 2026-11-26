@@ -90,18 +90,11 @@ fun RhythmIntelligenceSection(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "Rhythm Intelligence",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "AI drum-instrument recognition from the first 8 seconds of an audio file.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        DjStudioSectionHeader(
+            eyebrow = "AI ANALYSIS",
+            title = "Rhythm intelligence",
+            description = "Recognise drum and percussion presence in an 8-second audio segment.",
+        )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
