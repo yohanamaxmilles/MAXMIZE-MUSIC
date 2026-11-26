@@ -2,9 +2,9 @@ package com.example.data.rhythm
 
 import android.content.Context
 import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.support.common.FileUtil
 import java.io.Closeable
-import java.nio.MappedByteBuffer
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Runs the preliminary MAXMIZE MUSIC 25-output drum-presence model.
@@ -37,8 +37,13 @@ class RhythmInferenceEngine(
         require(threshold in 0f..1f) { "Threshold must be between 0 and 1." }
         require(numThreads >= 1) { "numThreads must be at least 1." }
 
-        val modelBuffer: MappedByteBuffer =
-            FileUtil.loadMappedFile(context.applicationContext, modelAssetPath)
+        val modelBytes = context.applicationContext.assets.open(modelAssetPath).use { it.readBytes() }
+        val modelBuffer = ByteBuffer.allocateDirect(modelBytes.size)
+            .order(ByteOrder.nativeOrder())
+            .apply {
+                put(modelBytes)
+                rewind()
+            }
 
         interpreter = Interpreter(
             modelBuffer,
