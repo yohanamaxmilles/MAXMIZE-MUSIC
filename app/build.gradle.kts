@@ -112,6 +112,8 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer)
   implementation(libs.androidx.media3.session)
   implementation(libs.androidx.media3.common)
+  // On-device inference for Rhythm Intelligence.
+  implementation(libs.tensorflow.lite)
   // implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
