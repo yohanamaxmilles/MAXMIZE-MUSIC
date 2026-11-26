@@ -57,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -79,8 +80,6 @@ import com.example.data.model.TrackAnalysis
 import com.example.player.RealtimeSpectrumBus
 import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
-import com.example.ui.theme.LavenderCard
-import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoStatStyle
 import com.example.ui.theme.MonoTimecodeStyle
@@ -210,13 +209,13 @@ fun AutomixScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(LavenderCardDeep)
+                                .background(Color(0xFF24311A))
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                         ) {
                             Text(
                                 text = "${automixState.currentCompatibilityScore}% MATCH",
                                 style = MonoBadgeStyle,
-                                color = LavenderCard,
+                                color = Color(0xFFE2F36B),
                             )
                         }
                     }
