@@ -153,7 +153,7 @@ fun AutomixSettingsScreen(
 
         // A. Mixing Intelligence
         item {
-            DjSettingsSectionTitle("A · MIXING INTELLIGENCE")
+            DjSettingsSectionTitle("Mixing intelligence")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Mix Mode", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
@@ -241,7 +241,7 @@ fun AutomixSettingsScreen(
 
         // B. Genre Compatibility
         item {
-            DjSettingsSectionTitle("B · GENRE COMPATIBILITY")
+            DjSettingsSectionTitle("Genre compatibility")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Strict Genre Matching",
@@ -276,7 +276,7 @@ fun AutomixSettingsScreen(
 
         // C. BPM and Beatmatching
         item {
-            DjSettingsSectionTitle("C · BPM & BEATMATCHING")
+            DjSettingsSectionTitle("Tempo and beatmatching")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -331,7 +331,7 @@ fun AutomixSettingsScreen(
 
         // D. Harmonic Mixing
         item {
-            DjSettingsSectionTitle("D · HARMONIC MIXING")
+            DjSettingsSectionTitle("Harmonic mixing")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Key Matching",
@@ -397,7 +397,7 @@ fun AutomixSettingsScreen(
 
         // E. Energy Progression
         item {
-            DjSettingsSectionTitle("E · ENERGY PROGRESSION")
+            DjSettingsSectionTitle("Energy progression")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Energy Curve", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
@@ -476,7 +476,7 @@ fun AutomixSettingsScreen(
 
         // F. Transition and Crossfade
         item {
-            DjSettingsSectionTitle("F · TRANSITION & CROSSFADE")
+            DjSettingsSectionTitle("Transitions and crossfade")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamNavRow(
                     title = "Transition Style",
@@ -518,7 +518,7 @@ fun AutomixSettingsScreen(
 
         // G. Dual Deck
         item {
-            DjSettingsSectionTitle("G · DUAL DECK")
+            DjSettingsSectionTitle("Dual deck")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Auto Gain (LUFS)",
@@ -541,7 +541,7 @@ fun AutomixSettingsScreen(
 
         // H. Automix Behavior
         item {
-            DjSettingsSectionTitle("H · AUTOMIX BEHAVIOR")
+            DjSettingsSectionTitle("Automix behavior")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ParamSwitchRow(
                     title = "Avoid Repeats",
@@ -561,7 +561,7 @@ fun AutomixSettingsScreen(
 
         // I. DJ Voice
         item {
-            DjSettingsSectionTitle("I · DJ VOICE")
+            DjSettingsSectionTitle("DJ voice")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
                 Text(
                     "Choose the announcer voice used during DJ sessions.",
