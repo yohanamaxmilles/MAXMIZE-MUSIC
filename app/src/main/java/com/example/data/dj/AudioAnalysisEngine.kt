@@ -12,10 +12,12 @@ import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.abs
@@ -66,6 +68,8 @@ class AudioAnalysisEngine(
             analysisDao.upsertAnalysis(res.toEntity())
             analyzed++
             onProgress(index + 1, total)
+            yield()
+            delay(20L)
         }
         analyzed
     }

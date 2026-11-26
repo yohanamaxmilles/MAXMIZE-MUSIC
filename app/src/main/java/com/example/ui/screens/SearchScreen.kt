@@ -313,6 +313,7 @@ fun SearchScreen(
                                 onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
                                 onAddToPlaylist = { onTrackMenuAction(track, TrackMenuEvent.AddToPlaylist) },
                                 onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
+                                onAutoFixMetadata = { onTrackMenuAction(track, TrackMenuEvent.AutoFixMetadata) },
                                 onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
                                 onGoToAlbum = { onTrackMenuAction(track, TrackMenuEvent.GoToAlbum) },
                                 onGoToArtist = { onTrackMenuAction(track, TrackMenuEvent.GoToArtist) },

@@ -1,6 +1,6 @@
 package com.example
 
-import com.example.data.lyrics.LyricsRepository.LrcParser
+import com.example.data.lyrics.LrcParser
 import com.example.player.BalanceAudioProcessor
 import com.example.ui.components.formatDurationSummary
 import com.example.ui.components.formatFileSize

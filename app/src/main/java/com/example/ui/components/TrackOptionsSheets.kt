@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.metadata.MetadataEditor
+import com.example.data.metadata.SmartTrackFixSuggestion
 import com.example.data.model.ArtworkSearchCandidate
 import com.example.data.model.Playlist
 import com.example.data.model.SleepTimerState
@@ -304,6 +305,7 @@ fun EditMetadataSheet(
     isSearchingArtwork: Boolean = false,
     onSearchArtworkOnline: ((Track) -> Unit)? = null,
     onApplyArtworkCandidate: ((Track, ArtworkSearchCandidate, (String) -> Unit) -> Unit)? = null,
+    onSmartAutoFix: (suspend (Track) -> SmartTrackFixSuggestion)? = null,
     onSave: (title: String, artist: String, album: String, genre: String, year: Int?, artworkUri: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -313,6 +315,8 @@ fun EditMetadataSheet(
     var genre by remember(track.id) { mutableStateOf(track.genre) }
     var yearText by remember(track.id) { mutableStateOf(if (track.year > 0) track.year.toString() else "") }
     var pickedArtworkUri by remember(track.id) { mutableStateOf(track.customArtworkUri) }
+    var isSmartFixing by remember(track.id) { mutableStateOf(false) }
+    var smartFixNote by remember(track.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val suggestedTags = remember(track.id, track.filePath) {
@@ -389,6 +393,60 @@ fun EditMetadataSheet(
                             }
                         }
                     }
+                    if (onSmartAutoFix != null) {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isSmartFixing = true
+                                    smartFixNote = null
+                                    val fix = runCatching {
+                                        onSmartAutoFix(
+                                            track.copy(
+                                                title = title,
+                                                artist = artist,
+                                                album = album,
+                                                genre = genre,
+                                                year = yearText.toIntOrNull() ?: track.year,
+                                            )
+                                        )
+                                    }.getOrNull()
+                                    isSmartFixing = false
+                                    if (fix != null) {
+                                        title = fix.title
+                                        artist = fix.artist
+                                        album = fix.album
+                                        genre = fix.genre
+                                        if ((fix.year ?: 0) > 0) yearText = fix.year.toString()
+                                        if (!fix.localArtworkUri.isNullOrBlank()) {
+                                            pickedArtworkUri = fix.localArtworkUri
+                                        }
+                                        smartFixNote = if (!fix.localArtworkUri.isNullOrBlank()) {
+                                            "Found via ${fix.provider} — tap Save Changes to embed cover & tags"
+                                        } else {
+                                            "Updated tags via ${fix.provider} — tap Save Changes to embed"
+                                        }
+                                    } else {
+                                        smartFixNote = "No online match found — try editing Title/Artist first"
+                                    }
+                                }
+                            },
+                            enabled = !isSmartFixing,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("autofix_smart_btn"),
+                        ) {
+                            if (isSmartFixing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            } else {
+                                Icon(Icons.Rounded.AutoFixHigh, contentDescription = null, modifier = Modifier.size(15.dp))
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Smart Auto-Fix Info & Cover", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
                     if (suggestedTags != null) {
                         OutlinedButton(
                             onClick = {
@@ -404,6 +462,14 @@ fun EditMetadataSheet(
                         }
                     }
                 }
+            }
+
+            if (smartFixNote != null) {
+                Text(
+                    text = smartFixNote.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
 
             if (artworkCandidates.isNotEmpty() && onApplyArtworkCandidate != null) {
@@ -426,12 +492,19 @@ fun EditMetadataSheet(
                                 .clickable {
                                     onApplyArtworkCandidate(track, cand) { localUri ->
                                         pickedArtworkUri = localUri
-                                        if (album.equals("Unknown Album", true) && cand.album.isNotBlank()) {
+                                        if ((artist.equals("Unknown Artist", true) || artist.equals("<unknown>", true) || artist.isBlank()) && cand.artist.isNotBlank()) {
+                                            artist = cand.artist
+                                        }
+                                        if ((album.equals("Unknown Album", true) || album.equals("<unknown>", true) || album.isBlank()) && cand.album.isNotBlank()) {
                                             album = cand.album
+                                        }
+                                        if ((genre.equals("Unknown Genre", true) || genre.equals("Unknown", true) || genre.isBlank()) && cand.genre.isNotBlank()) {
+                                            genre = cand.genre
                                         }
                                         if (yearText.isBlank() && (cand.releaseYear ?: 0) > 0) {
                                             yearText = cand.releaseYear.toString()
                                         }
+                                        smartFixNote = "Cover selected (${cand.provider}) — tap Save Changes to embed"
                                     }
                                 }
                                 .padding(6.dp),

@@ -103,7 +103,10 @@ fun EqualizerScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.testTag("eq_back_btn"),
+            ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
                     contentDescription = "Back",

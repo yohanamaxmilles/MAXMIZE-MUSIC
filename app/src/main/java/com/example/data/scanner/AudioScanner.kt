@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
 import android.database.ContentObserver
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -33,6 +34,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.File
 import java.security.MessageDigest
 
@@ -244,29 +246,42 @@ class AudioScanner(
             val updates = mutableListOf<TrackEntity>()
             for (t in needsEnrich) {
                 semaphore.withPermit {
-                    val enriched = extractTechnicalMetadata(Uri.parse(t.contentUri))
+                    val enriched = extractTechnicalMetadata(Uri.parse(t.contentUri), t.artworkUri)
                     val newGenre = if ((t.genre.isBlank() || t.genre.equals("Unknown Genre", true)) && enriched.genre.isNotBlank()) {
                         enriched.genre
                     } else t.genre
                     val newYear = if (t.year == 0 && enriched.year > 0) enriched.year else t.year
                     val newBitrate = if (enriched.bitrateKbps > 0) enriched.bitrateKbps else t.bitrateKbps
                     val newSampleRate = if (enriched.sampleRateHz > 0) enriched.sampleRateHz else t.sampleRateHz
+                    val verifiedArtworkUri = if (enriched.hasReadableArtwork) {
+                        t.artworkUri ?: t.contentUri.takeIf { enriched.hasEmbeddedPicture }
+                    } else {
+                        null
+                    }
 
-                    if (newGenre != t.genre || newYear != t.year || newBitrate != t.bitrateKbps || newSampleRate != t.sampleRateHz) {
+                    if (newGenre != t.genre ||
+                        newYear != t.year ||
+                        newBitrate != t.bitrateKbps ||
+                        newSampleRate != t.sampleRateHz ||
+                        verifiedArtworkUri != t.artworkUri
+                    ) {
                         updates.add(
                             t.copy(
                                 genre = newGenre,
                                 year = newYear,
                                 bitrateKbps = newBitrate,
                                 sampleRateHz = newSampleRate,
+                                artworkUri = verifiedArtworkUri,
                             )
                         )
                     }
-                    if (updates.size >= 25) {
+                    if (updates.size >= 50) {
                         trackDao.upsertTracks(updates.toList())
                         updates.clear()
                     }
                 }
+                yield()
+                delay(15L)
             }
             if (updates.isNotEmpty()) {
                 trackDao.upsertTracks(updates.toList())
@@ -554,6 +569,8 @@ class AudioScanner(
         val year: Int = 0,
         val bitrateKbps: Int = 0,
         val sampleRateHz: Int = 0,
+        val hasEmbeddedPicture: Boolean = false,
+        val hasReadableArtwork: Boolean = false,
     )
 
     private data class FullMeta(
@@ -569,7 +586,7 @@ class AudioScanner(
         val sampleRateHz: Int,
     )
 
-    private fun extractTechnicalMetadata(uri: Uri): TechnicalMeta {
+    private fun extractTechnicalMetadata(uri: Uri, candidateArtworkUri: String?): TechnicalMeta {
         val retriever = MediaMetadataRetriever()
         return try {
             retriever.setDataSource(context, uri)
@@ -579,17 +596,32 @@ class AudioScanner(
             val sampleRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull() ?: 0
             } else 0
+            val hasEmbedded = runCatching { retriever.embeddedPicture?.isNotEmpty() == true }.getOrDefault(false)
+            val hasReadable = hasEmbedded || canDecodeUriBounds(candidateArtworkUri)
             TechnicalMeta(
                 genre = genre,
                 year = year,
                 bitrateKbps = bitrateBps / 1000,
                 sampleRateHz = sampleRate,
+                hasEmbeddedPicture = hasEmbedded,
+                hasReadableArtwork = hasReadable,
             )
         } catch (_: Throwable) {
-            TechnicalMeta()
+            TechnicalMeta(hasReadableArtwork = canDecodeUriBounds(candidateArtworkUri))
         } finally {
             runCatching { retriever.release() }
         }
+    }
+
+    private fun canDecodeUriBounds(uriString: String?): Boolean {
+        if (uriString.isNullOrBlank()) return false
+        return runCatching {
+            context.contentResolver.openInputStream(Uri.parse(uriString))?.use { stream ->
+                val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeStream(stream, null, opts)
+                opts.outWidth > 0 && opts.outHeight > 0
+            } ?: false
+        }.getOrDefault(false)
     }
 
     private fun extractFullMetadata(uri: Uri, fileName: String): FullMeta? {

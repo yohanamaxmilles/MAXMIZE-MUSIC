@@ -30,8 +30,10 @@ object RealtimeSpectrumBus {
         1000.0, 1600.0, 2500.0, 4000.0, 6400.0, 10000.0,
     )
 
+    fun hasSubscribers(): Boolean = _bands.subscriptionCount.value > 0
+
     fun publishFrame(monoWindow: FloatArray, count: Int, sampleRate: Int) {
-        if (count < 64 || sampleRate <= 0) return
+        if (_bands.subscriptionCount.value == 0 || count < 64 || sampleRate <= 0) return
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastPublishMs < 40L) return
         lastPublishMs = now
@@ -117,7 +119,7 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
         val normGain = normalizationGain
         val leftGain = (if (currentBalance > 0f) (1f - currentBalance).coerceIn(0f, 1f) else 1f) * normGain
         val rightGain = (if (currentBalance < 0f) (1f + currentBalance).coerceIn(0f, 1f) else 1f) * normGain
-        val shouldEmit = emitSpectrum
+        val shouldEmit = emitSpectrum && RealtimeSpectrumBus.hasSubscribers()
 
         val outputBuffer = replaceOutputBuffer(remaining)
         while (inputBuffer.remaining() >= 4) {

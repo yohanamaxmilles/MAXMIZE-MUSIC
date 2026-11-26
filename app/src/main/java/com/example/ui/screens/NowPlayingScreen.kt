@@ -1,6 +1,22 @@
 package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
+import com.example.ui.components.CoverAmbientStyle
+import com.example.ui.components.MaxmizeIcons
+import com.example.ui.components.extractCoverAmbientStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -93,6 +109,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.model.PlaybackUiState
 import com.example.data.model.RepeatMode
@@ -104,6 +122,7 @@ import com.example.ui.theme.LavenderCard
 import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
 import com.example.ui.theme.MonoTimecodeStyle
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.Locale
 
@@ -111,6 +130,7 @@ import java.util.Locale
 @Composable
 fun NowPlayingScreen(
     playbackState: PlaybackUiState,
+    positionMsFlow: StateFlow<Long>? = null,
     isAutomixActive: Boolean = false,
     onCollapse: () -> Unit,
     onOpenDjMode: () -> Unit = {},
@@ -127,7 +147,6 @@ fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
     onToggleFavorite: (String) -> Unit,
-    onOpenEqualizer: () -> Unit,
     onOpenLyrics: (Track) -> Unit,
     onStartDjMix: (Track) -> Unit = {},
     onOpenSleepTimer: () -> Unit,
@@ -158,130 +177,39 @@ fun NowPlayingScreen(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .background(NowPlayingBg)
                 .testTag("now_playing_screen"),
         ) {
             val isWideOrLandscape = maxWidth > maxHeight || maxWidth >= 600.dp
+            val compact = maxHeight < 700.dp
 
+            // Blurred, colour-blended artwork that fills the whole screen (updates with the track)
             NowPlayingBackdrop(track = track)
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Minimal Top Bar
-                Row(
+            if (isWideOrLandscape) {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
                 ) {
-                    IconButton(
-                        onClick = onCollapse,
-                        modifier = Modifier.testTag("now_playing_collapse_btn"),
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                            contentDescription = "Collapse player",
-                            modifier = Modifier.size(30.dp),
-                        )
-                    }
-
-                    if (isAutomixActive) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(100.dp))
-                                .background(LavenderCardDeep)
-                                .border(0.75.dp, LavenderCard.copy(alpha = 0.65f), RoundedCornerShape(100.dp))
-                                .clickable(onClick = onOpenDjMode)
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                                .testTag("now_playing_automix_pill"),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.GraphicEq,
-                                contentDescription = "Automix active",
-                                tint = LavenderCard,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "AUTOMIX ACTIVE",
-                                style = MonoBadgeStyle,
-                                color = LavenderCard,
-                            )
-                        }
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onOpenSleepTimer,
-                            modifier = Modifier.testTag("now_playing_sleep_btn"),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Bedtime,
-                                contentDescription = "Sleep timer",
-                                tint = if (playbackState.sleepTimer.isActive) {
-                                    MaterialTheme.colorScheme.primary
-                                } else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(21.dp),
-                            )
-                        }
-                        Box {
-                            IconButton(
-                                onClick = { moreMenuOpen = true },
-                                modifier = Modifier.testTag("now_playing_more_btn"),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.MoreVert,
-                                    contentDescription = stringResource(R.string.cd_more_options),
-                                )
-                            }
-                            DropdownMenu(expanded = moreMenuOpen, onDismissRequest = { moreMenuOpen = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(if (isAutomixActive) "Open DJ Mode" else "Mix in DJ Mode") },
-                                    leadingIcon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
-                                    onClick = {
-                                        moreMenuOpen = false
-                                        if (isAutomixActive) onOpenDjMode() else onStartDjMix(track)
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Seek Back 10s") },
-                                    leadingIcon = { Icon(Icons.Rounded.Replay10, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; onSeekBackward() },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Seek Forward 10s") },
-                                    leadingIcon = { Icon(Icons.Rounded.Forward10, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; onSeekForward() },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Add to Playlist") },
-                                    leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; onAddToPlaylist(track) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Edit Metadata & Art") },
-                                    leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; onEditMetadata(track) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Speed & Balance") },
-                                    leadingIcon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; showAudioTuningSheet = true },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Track Info") },
-                                    leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null) },
-                                    onClick = { moreMenuOpen = false; onTrackInfo(track) },
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (isWideOrLandscape) {
+                    NowPlayingTopBar(
+                        track = track,
+                        isAutomixActive = isAutomixActive,
+                        sleepTimerActive = playbackState.sleepTimer.isActive,
+                        moreMenuOpen = moreMenuOpen,
+                        onMoreMenuOpenChange = { moreMenuOpen = it },
+                        onCollapse = onCollapse,
+                        onOpenDjMode = onOpenDjMode,
+                        onOpenSleepTimer = onOpenSleepTimer,
+                        onStartDjMix = onStartDjMix,
+                        onSeekBackward = onSeekBackward,
+                        onSeekForward = onSeekForward,
+                        onAddToPlaylist = onAddToPlaylist,
+                        onEditMetadata = onEditMetadata,
+                        onShowAudioTuning = { showAudioTuningSheet = true },
+                        onTrackInfo = onTrackInfo,
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -299,6 +227,7 @@ fun NowPlayingScreen(
                                 queue = playbackState.queue,
                                 currentIndex = playbackState.currentIndex,
                                 onPageSelected = onSelectQueueIndex,
+                                cornerRadius = 28.dp,
                                 modifier = Modifier
                                     .widthIn(max = 320.dp)
                                     .aspectRatio(1f),
@@ -312,6 +241,9 @@ fun NowPlayingScreen(
                                 track = track,
                                 upNextTrack = upNextTrack,
                                 playbackState = playbackState,
+                                positionMsFlow = positionMsFlow,
+                                compact = true,
+                                showUpNextCard = false,
                                 onToggleFavorite = { onToggleFavorite(track.id) },
                                 onSeekTo = onSeekTo,
                                 onToggleShuffle = onToggleShuffle,
@@ -319,42 +251,87 @@ fun NowPlayingScreen(
                                 onTogglePlayPause = onTogglePlayPause,
                                 onSkipNext = onSkipNext,
                                 onCycleRepeat = onCycleRepeat,
-                                onOpenEqualizer = onOpenEqualizer,
                                 onOpenLyrics = { onOpenLyrics(track) },
                                 onOpenQueue = { showQueueScreen = true },
+                                onSelectQueueIndex = onSelectQueueIndex,
                             )
                         }
                     }
-                } else {
-                    Column(
+                }
+            } else {
+                // Sharp full-bleed artwork hero covering the upper part of the screen
+                val heroHeight = maxHeight * 0.58f
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(heroHeight),
+                ) {
+                    ArtworkPager(
+                        queue = playbackState.queue,
+                        currentIndex = playbackState.currentIndex,
+                        onPageSelected = onSelectQueueIndex,
+                        cornerRadius = 0.dp,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        // Artwork is used as the full-screen backdrop on portrait layouts.
-                        // Keep the pager only on wide/landscape layouts to avoid the circular cover.
-                        Spacer(modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        PlayerControlsBlock(
-                            track = track,
-                            upNextTrack = upNextTrack,
-                            playbackState = playbackState,
-                            onToggleFavorite = { onToggleFavorite(track.id) },
-                            onSeekTo = onSeekTo,
-                            onToggleShuffle = onToggleShuffle,
-                            onSkipPrevious = onSkipPrevious,
-                            onTogglePlayPause = onTogglePlayPause,
-                            onSkipNext = onSkipNext,
-                            onCycleRepeat = onCycleRepeat,
-                            onOpenEqualizer = onOpenEqualizer,
-                            onOpenLyrics = { onOpenLyrics(track) },
-                            onOpenQueue = { showQueueScreen = true },
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.28f),
+                                    0.16f to Color.Transparent,
+                                    0.60f to Color.Transparent,
+                                    0.84f to NowPlayingBg.copy(alpha = 0.72f),
+                                    1f to NowPlayingBg,
+                                ),
+                            ),
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
+                ) {
+                    NowPlayingTopBar(
+                        track = track,
+                        isAutomixActive = isAutomixActive,
+                        sleepTimerActive = playbackState.sleepTimer.isActive,
+                        moreMenuOpen = moreMenuOpen,
+                        onMoreMenuOpenChange = { moreMenuOpen = it },
+                        onCollapse = onCollapse,
+                        onOpenDjMode = onOpenDjMode,
+                        onOpenSleepTimer = onOpenSleepTimer,
+                        onStartDjMix = onStartDjMix,
+                        onSeekBackward = onSeekBackward,
+                        onSeekForward = onSeekForward,
+                        onAddToPlaylist = onAddToPlaylist,
+                        onEditMetadata = onEditMetadata,
+                        onShowAudioTuning = { showAudioTuningSheet = true },
+                        onTrackInfo = onTrackInfo,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    PlayerControlsBlock(
+                        track = track,
+                        upNextTrack = upNextTrack,
+                        playbackState = playbackState,
+                        positionMsFlow = positionMsFlow,
+                        compact = compact,
+                        showUpNextCard = true,
+                        onToggleFavorite = { onToggleFavorite(track.id) },
+                        onSeekTo = onSeekTo,
+                        onToggleShuffle = onToggleShuffle,
+                        onSkipPrevious = onSkipPrevious,
+                        onTogglePlayPause = onTogglePlayPause,
+                        onSkipNext = onSkipNext,
+                        onCycleRepeat = onCycleRepeat,
+                        onOpenLyrics = { onOpenLyrics(track) },
+                        onOpenQueue = { showQueueScreen = true },
+                        onSelectQueueIndex = onSelectQueueIndex,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
@@ -362,8 +339,8 @@ fun NowPlayingScreen(
         // Dedicated Full-Screen Queue View (matches showcase Queue screen)
         AnimatedVisibility(
             visible = showQueueScreen,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(180)),
+            exit = slideOutVertically(tween(220, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(160)),
         ) {
             QueueFullScreen(
                 playbackState = playbackState,
@@ -444,33 +421,53 @@ fun NowPlayingScreen(
     }
 }
 
+private val NowPlayingBg = Color(0xFF09090D)
+
 @Composable
 private fun NowPlayingBackdrop(track: Track) {
-    val bg = MaterialTheme.colorScheme.background
-    val supportsBlur = android.os.Build.VERSION.SDK_INT >= 31
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Keep the current track's artwork clearly visible behind the player controls.
-        // A very strong blur and near-opaque gradient made the image look completely black.
-        ArtworkImage(
-            artworkUri = track.customArtworkUri ?: track.artworkUri,
+    val context = LocalContext.current
+    val ambient by androidx.compose.runtime.produceState(
+        initialValue = CoverAmbientStyle(),
+        track.id,
+        track.displayArtwork,
+    ) {
+        value = extractCoverAmbientStyle(
+            context = context,
+            artworkUri = track.displayArtwork,
             fallbackUri = track.contentUri,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (supportsBlur) Modifier.blur(18.dp) else Modifier)
-                .alpha(0.88f),
-            cornerRadius = 0.dp,
+            seedKey = track.id,
         )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    0f to ambient.primaryColor.copy(alpha = 0.72f),
+                    0.5f to ambient.secondaryColor.copy(alpha = 0.52f),
+                    1f to NowPlayingBg,
+                ),
+            ),
+    ) {
+        val blurredBmp = ambient.blurredBitmap
+        if (blurredBmp != null) {
+            Image(
+                bitmap = blurredBmp,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alpha = 0.42f,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            bg.copy(alpha = 0.08f),
-                            bg.copy(alpha = 0.24f),
-                            bg.copy(alpha = 0.52f),
-                            bg.copy(alpha = 0.78f),
-                        ),
+                        0f to NowPlayingBg.copy(alpha = 0.35f),
+                        0.55f to NowPlayingBg.copy(alpha = 0.78f),
+                        1f to NowPlayingBg,
                     ),
                 ),
         )
@@ -483,6 +480,7 @@ private fun ArtworkPager(
     currentIndex: Int,
     onPageSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    cornerRadius: Dp = 0.dp,
 ) {
     if (queue.isEmpty()) return
     val safeIndex = currentIndex.coerceIn(0, queue.lastIndex)
@@ -506,16 +504,202 @@ private fun ArtworkPager(
 
     HorizontalPager(
         state = pagerState,
+        key = { page -> queue.getOrNull(page)?.id ?: page },
         modifier = modifier,
     ) { page ->
         val pageTrack = queue[page]
         ArtworkImage(
             artworkUri = pageTrack.customArtworkUri ?: pageTrack.artworkUri,
             fallbackUri = pageTrack.contentUri,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(6.dp),
-            cornerRadius = 500.dp,
+            maxSizePx = 800,
+            modifier = Modifier.fillMaxSize(),
+            cornerRadius = cornerRadius,
+        )
+    }
+}
+
+@Composable
+private fun TopBarCircleButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = 0.26f)),
+    ) { content() }
+}
+
+@Composable
+private fun NowPlayingTopBar(
+    track: Track,
+    isAutomixActive: Boolean,
+    sleepTimerActive: Boolean,
+    moreMenuOpen: Boolean,
+    onMoreMenuOpenChange: (Boolean) -> Unit,
+    onCollapse: () -> Unit,
+    onOpenDjMode: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+    onStartDjMix: (Track) -> Unit,
+    onSeekBackward: () -> Unit,
+    onSeekForward: () -> Unit,
+    onAddToPlaylist: (Track) -> Unit,
+    onEditMetadata: (Track) -> Unit,
+    onShowAudioTuning: () -> Unit,
+    onTrackInfo: (Track) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        TopBarCircleButton(
+            onClick = onCollapse,
+            modifier = Modifier.testTag("now_playing_collapse_btn"),
+        ) {
+            Icon(
+                imageVector = MaxmizeIcons.ChevronDown,
+                contentDescription = "Collapse player",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+
+        if (isAutomixActive) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(LavenderCardDeep.copy(alpha = 0.85f))
+                    .border(1.dp, LavenderCard.copy(alpha = 0.55f), RoundedCornerShape(100.dp))
+                    .clickable(onClick = onOpenDjMode)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .testTag("now_playing_automix_pill"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = MaxmizeIcons.Audio,
+                    contentDescription = "Automix active",
+                    tint = LavenderCard,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = "Automix on",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = LavenderCard,
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TopBarCircleButton(
+                onClick = onOpenSleepTimer,
+                modifier = Modifier.testTag("now_playing_sleep_btn"),
+            ) {
+                Icon(
+                    imageVector = MaxmizeIcons.Moon,
+                    contentDescription = "Sleep timer",
+                    tint = if (sleepTimerActive) MaterialTheme.colorScheme.primary else Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Box {
+                TopBarCircleButton(
+                    onClick = { onMoreMenuOpenChange(true) },
+                    modifier = Modifier.testTag("now_playing_more_btn"),
+                ) {
+                    Icon(
+                        imageVector = MaxmizeIcons.More,
+                        contentDescription = stringResource(R.string.cd_more_options),
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+                DropdownMenu(expanded = moreMenuOpen, onDismissRequest = { onMoreMenuOpenChange(false) }) {
+                    DropdownMenuItem(
+                        text = { Text(if (isAutomixActive) "Open DJ Mode" else "Mix in DJ Mode") },
+                        leadingIcon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+                        onClick = {
+                            onMoreMenuOpenChange(false)
+                            if (isAutomixActive) onOpenDjMode() else onStartDjMix(track)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Seek Back 10s") },
+                        leadingIcon = { Icon(Icons.Rounded.Replay10, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onSeekBackward() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Seek Forward 10s") },
+                        leadingIcon = { Icon(Icons.Rounded.Forward10, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onSeekForward() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add to Playlist") },
+                        leadingIcon = { Icon(Icons.Rounded.PlaylistAdd, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onAddToPlaylist(track) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Edit Metadata & Art") },
+                        leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onEditMetadata(track) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Speed & Balance") },
+                        leadingIcon = { Icon(Icons.Rounded.Tune, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onShowAudioTuning() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Track Info") },
+                        leadingIcon = { Icon(Icons.Rounded.Info, contentDescription = null) },
+                        onClick = { onMoreMenuOpenChange(false); onTrackInfo(track) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransportSideButton(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    circleBackground: Boolean = false,
+    iconSize: Dp = 22.dp,
+    buttonSize: Dp = 48.dp,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.90f else 1f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 500f),
+        label = "transportScale",
+    )
+    Box(
+        modifier = modifier
+            .size(buttonSize)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(CircleShape)
+            .then(if (circleBackground) Modifier.background(Color.White.copy(alpha = 0.09f)) else Modifier)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize),
         )
     }
 }
@@ -525,6 +709,7 @@ private fun PlayerControlsBlock(
     track: Track,
     upNextTrack: Track?,
     playbackState: PlaybackUiState,
+    positionMsFlow: StateFlow<Long>?,
     onToggleFavorite: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onToggleShuffle: () -> Unit,
@@ -532,11 +717,17 @@ private fun PlayerControlsBlock(
     onTogglePlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onCycleRepeat: () -> Unit,
-    onOpenEqualizer: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    showUpNextCard: Boolean = true,
+    onSelectQueueIndex: (Int) -> Unit = {},
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val accent = MaterialTheme.colorScheme.primary
+    val softWhite = Color.White.copy(alpha = 0.88f)
+
+    Column(modifier = modifier.fillMaxWidth()) {
         // Track title, artist, favorite
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -545,19 +736,23 @@ private fun PlayerControlsBlock(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = 22.sp,
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = if (compact) 24.sp else 28.sp,
+                        lineHeight = if (compact) 30.sp else 34.sp,
                         fontWeight = FontWeight.Bold,
                     ),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = track.artist,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = if (compact) 16.sp else 18.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = Color.White.copy(alpha = 0.68f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -565,57 +760,30 @@ private fun PlayerControlsBlock(
             IconButton(
                 onClick = onToggleFavorite,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(52.dp)
                     .testTag("now_playing_favorite_btn"),
             ) {
                 Icon(
-                    imageVector = if (track.isFavorite) Icons.Rounded.Favorite else Icons.Outlined.FavoriteBorder,
+                    imageVector = if (track.isFavorite) MaxmizeIcons.HeartFilled else MaxmizeIcons.Heart,
                     contentDescription = stringResource(R.string.cd_favorite),
-                    tint = if (track.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
+                    tint = if (track.isFavorite) accent else Color.White,
+                    modifier = Modifier.size(28.dp),
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(if (compact) 4.dp else 10.dp))
 
-        // Seek bar (keyed by track.id so transitions reset any active scrub state)
-        val duration = playbackState.durationMs.coerceAtLeast(1L)
-        var isDragging by remember(track.id) { mutableStateOf(false) }
-        var dragPos by remember(track.id) { mutableFloatStateOf(0f) }
-        val sliderValue = if (isDragging) dragPos else playbackState.positionMs.toFloat().coerceIn(0f, duration.toFloat())
-
-        MaxmizeSlider(
-            value = sliderValue,
-            onValueChange = {
-                isDragging = true
-                dragPos = it
-            },
-            onValueChangeFinished = {
-                isDragging = false
-                onSeekTo(dragPos.toLong())
-            },
-            valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.testTag("now_playing_seekbar"),
+        // Seek bar (isolated leaf composable so time ticks never recompose artwork/controls)
+        NowPlayingSeekBarSection(
+            trackId = track.id,
+            positionMsFlow = positionMsFlow,
+            fallbackPositionMs = playbackState.positionMs,
+            durationMs = playbackState.durationMs,
+            onSeekTo = onSeekTo,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = formatTimecode(if (isDragging) dragPos.toLong() else playbackState.positionMs),
-                style = MonoTimecodeStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = formatTimecode(playbackState.durationMs),
-                style = MonoTimecodeStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(if (compact) 8.dp else 14.dp))
 
         // Main transport controls
         Row(
@@ -623,169 +791,313 @@ private fun PlayerControlsBlock(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
+            TransportSideButton(
+                icon = MaxmizeIcons.Shuffle,
+                contentDescription = stringResource(R.string.cd_shuffle),
+                tint = if (playbackState.shuffleEnabled) accent else softWhite,
                 onClick = onToggleShuffle,
-                modifier = Modifier
-                    .size(48.dp)
-                    .testTag("now_playing_shuffle_btn"),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Shuffle,
-                    contentDescription = stringResource(R.string.cd_shuffle),
-                    tint = if (playbackState.shuffleEnabled) {
-                        MaterialTheme.colorScheme.primary
-                    } else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                circleBackground = true,
+                modifier = Modifier.testTag("now_playing_shuffle_btn"),
+            )
 
-            IconButton(
+            TransportSideButton(
+                icon = MaxmizeIcons.Previous,
+                contentDescription = stringResource(R.string.cd_previous_track),
+                tint = Color.White,
                 onClick = onSkipPrevious,
-                modifier = Modifier
-                    .size(48.dp)
-                    .testTag("now_playing_prev_btn"),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SkipPrevious,
-                    contentDescription = stringResource(R.string.cd_previous_track),
-                    modifier = Modifier.size(34.dp),
-                )
-            }
+                iconSize = 32.dp,
+                buttonSize = 56.dp,
+                modifier = Modifier.testTag("now_playing_prev_btn"),
+            )
 
+            // Large neon play/pause with soft glow and press animation
+            val playInteraction = remember { MutableInteractionSource() }
+            val playPressed by playInteraction.collectIsPressedAsState()
+            val playScale by animateFloatAsState(
+                targetValue = if (playPressed) 0.92f else 1f,
+                animationSpec = spring(dampingRatio = 0.5f, stiffness = 420f),
+                label = "playScale",
+            )
             Box(
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onTogglePlayPause)
-                    .testTag("now_playing_play_pause_btn"),
+                modifier = Modifier.size(76.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = if (playbackState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = stringResource(R.string.cd_play_pause),
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(36.dp),
+                Box(
+                    modifier = Modifier
+                        .requiredSize(124.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(accent.copy(alpha = 0.30f), Color.Transparent),
+                            ),
+                            CircleShape,
+                        ),
                 )
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .graphicsLayer { scaleX = playScale; scaleY = playScale }
+                        .clip(CircleShape)
+                        .background(accent)
+                        .clickable(
+                            interactionSource = playInteraction,
+                            indication = null,
+                            onClick = onTogglePlayPause,
+                        )
+                        .testTag("now_playing_play_pause_btn"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Crossfade(
+                        targetState = playbackState.isPlaying,
+                        animationSpec = tween(160),
+                        label = "playPauseIcon",
+                    ) { playing ->
+                        Icon(
+                            imageVector = if (playing) MaxmizeIcons.Pause else MaxmizeIcons.Play,
+                            contentDescription = stringResource(R.string.cd_play_pause),
+                            tint = Color(0xFF0A0A0F),
+                            modifier = Modifier.size(34.dp),
+                        )
+                    }
+                }
             }
 
-            IconButton(
+            TransportSideButton(
+                icon = MaxmizeIcons.Next,
+                contentDescription = stringResource(R.string.cd_next_track),
+                tint = Color.White,
                 onClick = onSkipNext,
-                modifier = Modifier
-                    .size(48.dp)
-                    .testTag("now_playing_next_btn"),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.SkipNext,
-                    contentDescription = stringResource(R.string.cd_next_track),
-                    modifier = Modifier.size(34.dp),
-                )
-            }
+                iconSize = 32.dp,
+                buttonSize = 56.dp,
+                modifier = Modifier.testTag("now_playing_next_btn"),
+            )
 
-            IconButton(
+            TransportSideButton(
+                icon = if (playbackState.repeatMode == RepeatMode.ONE) MaxmizeIcons.RepeatOne else MaxmizeIcons.Repeat,
+                contentDescription = stringResource(R.string.cd_repeat),
+                tint = if (playbackState.repeatMode != RepeatMode.OFF) accent else softWhite,
                 onClick = onCycleRepeat,
-                modifier = Modifier
-                    .size(48.dp)
-                    .testTag("now_playing_repeat_btn"),
-            ) {
-                Icon(
-                    imageVector = if (playbackState.repeatMode == RepeatMode.ONE) {
-                        Icons.Rounded.RepeatOne
-                    } else Icons.Rounded.Repeat,
-                    contentDescription = stringResource(R.string.cd_repeat),
-                    tint = if (playbackState.repeatMode != RepeatMode.OFF) {
-                        MaterialTheme.colorScheme.primary
-                    } else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Uncluttered 3-Pill Bottom Action Row: Queue, Lyrics, Audio
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            NowPlayingActionChip(
-                icon = Icons.Rounded.QueueMusic,
-                label = "Queue",
-                onClick = onOpenQueue,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("now_playing_queue_btn"),
-            )
-            NowPlayingActionChip(
-                icon = Icons.Rounded.Lyrics,
-                label = "Lyrics",
-                onClick = onOpenLyrics,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("now_playing_lyrics_btn"),
-            )
-            NowPlayingActionChip(
-                icon = Icons.Rounded.Equalizer,
-                label = "Audio",
-                onClick = onOpenEqualizer,
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("now_playing_eq_btn"),
+                circleBackground = true,
+                modifier = Modifier.testTag("now_playing_repeat_btn"),
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(if (compact) 10.dp else 18.dp))
 
-        // Up Next Dock Card
-        val dockShape = RoundedCornerShape(14.dp)
+        // Lyrics pill only (Queue lives in Up Next below; EQ lives in Settings -> Audio)
+        NowPlayingActionChip(
+            icon = MaxmizeIcons.Lyrics,
+            label = "Lyrics",
+            onClick = onOpenLyrics,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("now_playing_lyrics_btn"),
+        )
+
+        if (showUpNextCard) {
+            Spacer(modifier = Modifier.height(if (compact) 10.dp else 12.dp))
+            UpNextGlassCard(
+                track = track,
+                upNextTrack = upNextTrack,
+                playbackState = playbackState,
+                onOpenQueue = onOpenQueue,
+                onSelectQueueIndex = onSelectQueueIndex,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NowPlayingSeekBarSection(
+    trackId: String,
+    positionMsFlow: StateFlow<Long>?,
+    fallbackPositionMs: Long,
+    durationMs: Long,
+    onSeekTo: (Long) -> Unit,
+) {
+    val livePos = if (positionMsFlow != null) {
+        positionMsFlow.collectAsStateWithLifecycle().value
+    } else {
+        fallbackPositionMs
+    }
+    val duration = durationMs.coerceAtLeast(1L)
+    var isDragging by remember(trackId) { mutableStateOf(false) }
+    var dragPos by remember(trackId) { mutableFloatStateOf(0f) }
+    val sliderValue = if (isDragging) dragPos else livePos.toFloat().coerceIn(0f, duration.toFloat())
+
+    MaxmizeSlider(
+        value = sliderValue,
+        onValueChange = {
+            isDragging = true
+            dragPos = it
+        },
+        onValueChangeFinished = {
+            isDragging = false
+            onSeekTo(dragPos.toLong())
+        },
+        valueRange = 0f..duration.toFloat(),
+        trackHeight = 3.dp,
+        thumbRadius = 7.dp,
+        modifier = Modifier.testTag("now_playing_seekbar"),
+    )
+
+    val timeStyle = MaterialTheme.typography.labelLarge.copy(
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        fontFeatureSettings = "tnum",
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = formatTimecode(if (isDragging) dragPos.toLong() else livePos),
+            style = timeStyle,
+            color = Color.White.copy(alpha = 0.62f),
+        )
+        Text(
+            text = formatTimecode(durationMs),
+            style = timeStyle,
+            color = Color.White.copy(alpha = 0.62f),
+        )
+    }
+}
+
+@Composable
+private fun UpNextGlassCard(
+    track: Track,
+    upNextTrack: Track?,
+    playbackState: PlaybackUiState,
+    onOpenQueue: () -> Unit,
+    onSelectQueueIndex: (Int) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val cardShape = RoundedCornerShape(26.dp)
+    val upcoming = remember(playbackState.queue, playbackState.currentIndex) {
+        val start = playbackState.currentIndex + 1
+        if (start in playbackState.queue.indices) {
+            playbackState.queue.drop(start).take(3).mapIndexed { i, t -> (start + i) to t }
+        } else emptyList()
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(Color.White.copy(alpha = 0.07f))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), cardShape)
+            .animateContentSize(),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(dockShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, dockShape)
-                .clickable(onClick = onOpenQueue)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val previewTrack = upNextTrack ?: track
             ArtworkImage(
                 artworkUri = previewTrack.customArtworkUri ?: previewTrack.artworkUri,
                 fallbackUri = previewTrack.contentUri,
-                modifier = Modifier.size(38.dp),
-                cornerRadius = 8.dp,
+                maxSizePx = 160,
+                modifier = Modifier.size(48.dp),
+                cornerRadius = 24.dp,
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (upNextTrack != null) "Up Next" else "Queue (${playbackState.queue.size})",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
                 )
                 Text(
                     text = if (upNextTrack != null) {
                         "${upNextTrack.title} · ${upNextTrack.artist}"
                     } else {
-                        "End of current queue"
+                        "Tap to view playback queue"
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.66f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Box(
+            IconButton(
+                onClick = onOpenQueue,
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center,
+                    .background(Color.White.copy(alpha = 0.10f))
+                    .testTag("up_next_open_queue_btn"),
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowUp,
+                    imageVector = MaxmizeIcons.Queue,
                     contentDescription = "Open queue",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = Color.White,
                     modifier = Modifier.size(18.dp),
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (expanded) MaxmizeIcons.ChevronDown else MaxmizeIcons.ChevronUp,
+                    contentDescription = if (expanded) "Collapse up next" else "Expand up next",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
+        if (expanded) {
+            upcoming.forEach { (index, t) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectQueueIndex(index) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ArtworkImage(
+                        artworkUri = t.customArtworkUri ?: t.artworkUri,
+                        fallbackUri = t.contentUri,
+                        modifier = Modifier.size(42.dp),
+                        cornerRadius = 12.dp,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = t.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = t.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.60f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "View full queue",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onOpenQueue)
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
+            )
         }
     }
 }
@@ -797,13 +1109,13 @@ private fun NowPlayingActionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(26.dp)
     Row(
         modifier = modifier
-            .height(42.dp)
+            .height(52.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.Center,
@@ -812,14 +1124,14 @@ private fun NowPlayingActionChip(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(17.dp),
+            tint = Color.White,
+            modifier = Modifier.size(20.dp),
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = Color.White,
             maxLines = 1,
         )
     }

@@ -165,7 +165,6 @@ data class LyricLine(
 )
 
 enum class LyricsSource(val badgeLabel: String) {
-    NONE("UNAVAILABLE"),
     MANUAL_OR_IMPORTED("LOCAL / IMPORTED"),
     SIDECAR_LRC("LOCAL .LRC"),
     EMBEDDED_TAG("EMBEDDED"),
@@ -175,18 +174,28 @@ enum class LyricsSource(val badgeLabel: String) {
 }
 
 @Immutable
-data class LyricsResult(
+data class LyricsDocument(
     val trackId: String,
-    val lines: List<LyricLine> = emptyList(),
-    val rawText: String = "",
-    val isSynced: Boolean = false,
+    val lines: List<LyricLine>,
+    val rawText: String,
+    val isSynced: Boolean,
     val hasWordSync: Boolean = false,
-    val source: LyricsSource = LyricsSource.NONE,
+    val source: LyricsSource,
     val syncOffsetMs: Long = 0L,
     val providerName: String = "",
-    val isLoading: Boolean = false,
-    val statusNote: String? = null,
 )
+
+sealed class LyricsError {
+    data object Offline : LyricsError()
+    data object WifiOnlyBlocked : LyricsError()
+    data class NetworkFailure(val detail: String) : LyricsError()
+}
+
+sealed class LyricsLookupOutcome {
+    data class Found(val document: LyricsDocument) : LyricsLookupOutcome()
+    data class Empty(val trackId: String, val reason: String? = null) : LyricsLookupOutcome()
+    data class Failure(val trackId: String, val error: LyricsError) : LyricsLookupOutcome()
+}
 
 @Immutable
 data class LyricsSearchCandidate(
@@ -400,6 +409,7 @@ data class ArtworkSearchCandidate(
     val releaseYear: Int?,
     val provider: String,
     val confidenceScore: Int,
+    val genre: String = "",
 )
 
 @Immutable

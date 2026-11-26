@@ -14,6 +14,7 @@ import com.example.data.local.prefs.UserPreferences
 import com.example.data.metadata.ArtworkFetchResult
 import com.example.data.metadata.MetadataEditor
 import com.example.data.metadata.MetadataSaveResult
+import com.example.data.metadata.SmartTrackFixSuggestion
 import com.example.data.model.AccentPreset
 import com.example.data.model.AlbumSummary
 import com.example.data.model.ArtistSummary
@@ -27,8 +28,6 @@ import com.example.data.model.FontChoice
 import com.example.data.model.GenreSummary
 import com.example.data.model.LibraryCategory
 import com.example.data.model.LibraryStats
-import com.example.data.model.LyricsResult
-import com.example.data.model.LyricsSearchCandidate
 import com.example.data.model.MetadataHealthReport
 import com.example.data.model.MixHistoryEntry
 import com.example.data.model.PlaybackUiState
@@ -44,6 +43,7 @@ import com.example.data.model.TrackAnalysis
 import com.example.data.model.UiDensity
 import com.example.ui.screens.DjSectionTab
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -67,7 +68,9 @@ data class PendingWriteEdit(
     val title: String,
     val artist: String,
     val album: String,
+    val genre: String,
     val year: Int?,
+    val artworkUri: String?,
 )
 
 data class SearchResults(
@@ -111,9 +114,12 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
         initialValue = emptyList(),
     )
 
-    val sortedTracks: StateFlow<List<Track>> = combine(tracks, preferences) { list, prefs ->
-        musicRepo.sortTracks(list, prefs.sortOption, prefs.sortOrder)
-    }.stateIn(
+    val sortedTracks: StateFlow<List<Track>> = combine(
+        tracks,
+        preferences.map { it.sortOption to it.sortOrder }.distinctUntilChanged(),
+    ) { list, (sortOption, sortOrder) ->
+        musicRepo.sortTracks(list, sortOption, sortOrder)
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList(),
@@ -163,6 +169,7 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
 
     val scanState: StateFlow<ScanState> = scanner.scanState
     val playbackState: StateFlow<PlaybackUiState> = playbackController.uiState
+    val playbackPositionMs: StateFlow<Long> = playbackController.positionMsFlow
     val equalizerState: StateFlow<EqualizerUiState> = audioEffectsManager.uiState
     val automixState: StateFlow<AutomixUiState> = automixRuntime.uiState
 
@@ -206,7 +213,9 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
             initialValue = 0,
         )
 
+    @OptIn(FlowPreview::class)
     val metadataHealth: StateFlow<MetadataHealthReport> = tracks
+        .debounce(150)
         .map { MetadataEditor.analyzeLibraryHealth(it) }
         .flowOn(Dispatchers.Default)
         .stateIn(
@@ -215,32 +224,89 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
             initialValue = MetadataHealthReport(),
         )
 
+    @OptIn(FlowPreview::class)
     val libraryStats: StateFlow<LibraryStats> = combine(tracks, trackAnalyses) { list, analyses ->
-        LibraryStats(
-            totalTracks = list.size,
-            totalDurationMs = list.sumOf { it.durationMs },
-            totalSizeBytes = list.sumOf { it.fileSizeBytes },
-            totalPlays = list.sumOf { it.playCount },
-            totalSkips = list.sumOf { it.skipCount },
-            favoriteCount = list.count { it.isFavorite },
-            analyzedCount = list.count { analyses.containsKey(it.id) },
-            topGenres = list.groupBy { it.genre.ifBlank { "Unknown" } }
-                .map { (g, t) -> g to t.size }
-                .sortedByDescending { it.second }
-                .take(6),
-            topArtists = list.groupBy { it.artist.ifBlank { "Unknown Artist" } }
-                .map { (a, t) -> a to t.sumOf { tr -> tr.playCount.coerceAtLeast(1) } }
-                .sortedByDescending { it.second }
-                .take(6),
-            topTracks = list.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5),
-            formatBreakdown = list.groupBy { it.formatLabel }
-                .map { (f, t) -> f to t.size }
-                .sortedByDescending { it.second },
+        list to analyses
+    }
+        .debounce(150)
+        .map { (list, analyses) ->
+            LibraryStats(
+                totalTracks = list.size,
+                totalDurationMs = list.sumOf { it.durationMs },
+                totalSizeBytes = list.sumOf { it.fileSizeBytes },
+                totalPlays = list.sumOf { it.playCount },
+                totalSkips = list.sumOf { it.skipCount },
+                favoriteCount = list.count { it.isFavorite },
+                analyzedCount = list.count { analyses.containsKey(it.id) },
+                topGenres = list.groupBy { it.genre.ifBlank { "Unknown" } }
+                    .map { (g, t) -> g to t.size }
+                    .sortedByDescending { it.second }
+                    .take(6),
+                topArtists = list.groupBy { it.artist.ifBlank { "Unknown Artist" } }
+                    .map { (a, t) -> a to t.sumOf { tr -> tr.playCount.coerceAtLeast(1) } }
+                    .sortedByDescending { it.second }
+                    .take(6),
+                topTracks = list.filter { it.playCount > 0 }.sortedByDescending { it.playCount }.take(5),
+                formatBreakdown = list.groupBy { it.formatLabel }
+                    .map { (f, t) -> f to t.size }
+                    .sortedByDescending { it.second },
+            )
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = LibraryStats(),
+        )
+
+    val smartPlaylistCounts: StateFlow<Map<SmartPlaylistType, Int>> = combine(tracks, trackAnalyses) { all, analyses ->
+        var recentlyPlayed = 0
+        var mostPlayed = 0
+        var favorites = 0
+        var topRated = 0
+        var highEnergy = 0
+        var chillVibes = 0
+        var recentlySkipped = 0
+        for (track in all) {
+            if (track.lastPlayedAt > 0L) recentlyPlayed++
+            if (track.playCount > 0) mostPlayed++
+            if (track.isFavorite) favorites++
+            if (track.rating >= 4) topRated++
+            if (track.skipCount > 0) recentlySkipped++
+            val a = analyses[track.id]
+            val g = track.genre
+            if ((a != null && (a.energy >= 0.58f || a.bpm >= 118f)) ||
+                g.contains("dance", true) ||
+                g.contains("edm", true) ||
+                g.contains("hip", true) ||
+                g.contains("pop", true)
+            ) {
+                highEnergy++
+            }
+            if ((a != null && a.energy <= 0.58f) ||
+                g.contains("jazz", true) ||
+                g.contains("acoustic", true) ||
+                g.contains("ambient", true) ||
+                g.contains("chill", true) ||
+                g.contains("r&b", true)
+            ) {
+                chillVibes++
+            }
+        }
+        mapOf(
+            SmartPlaylistType.RECENTLY_PLAYED to minOf(recentlyPlayed, 50),
+            SmartPlaylistType.MOST_PLAYED to minOf(mostPlayed, 50),
+            SmartPlaylistType.RECENTLY_ADDED to minOf(all.size, 50),
+            SmartPlaylistType.FAVORITES to favorites,
+            SmartPlaylistType.TOP_RATED to topRated,
+            SmartPlaylistType.HIGH_ENERGY to highEnergy,
+            SmartPlaylistType.CHILL_VIBES to chillVibes,
+            SmartPlaylistType.RECENTLY_SKIPPED to minOf(recentlySkipped, 50),
         )
     }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = LibraryStats(),
+        initialValue = emptyMap(),
     )
 
     private val _selectedLibraryCategory = MutableStateFlow<LibraryCategory?>(null)
@@ -287,20 +353,11 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
                 it.folderName.lowercase().contains(q) || it.folderPath.lowercase().contains(q)
             },
         )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = SearchResults(),
     )
-
-    private val _currentLyrics = MutableStateFlow<LyricsResult?>(null)
-    val currentLyrics: StateFlow<LyricsResult?> = _currentLyrics.asStateFlow()
-
-    private val _lyricsCandidates = MutableStateFlow<List<LyricsSearchCandidate>>(emptyList())
-    val lyricsCandidates: StateFlow<List<LyricsSearchCandidate>> = _lyricsCandidates.asStateFlow()
-
-    private val _isSearchingLyrics = MutableStateFlow(false)
-    val isSearchingLyrics: StateFlow<Boolean> = _isSearchingLyrics.asStateFlow()
 
     private val _lyricsBatchStatus = MutableStateFlow<String?>(null)
     val lyricsBatchStatus: StateFlow<String?> = _lyricsBatchStatus.asStateFlow()
@@ -314,8 +371,6 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     private val _artworkBatchStatus = MutableStateFlow<String?>(null)
     val artworkBatchStatus: StateFlow<String?> = _artworkBatchStatus.asStateFlow()
 
-    private var lyricsFetchJob: Job? = null
-    private var lyricsSearchJob: Job? = null
     private var lyricsBatchJob: Job? = null
     private var artworkSearchJob: Job? = null
     private var artworkBatchJob: Job? = null
@@ -329,34 +384,6 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
 
     init {
         scanner.startWatchingMediaStore()
-        // Reactive track-transition listener: guarantees Lyrics always stays 100% synchronized
-        // with the currently playing track (Song A -> Song B transitions never show stale lyrics).
-        viewModelScope.launch {
-            playbackState
-                .map { it.currentTrack }
-                .distinctUntilChanged { a, b ->
-                    a?.id == b?.id && a?.title == b?.title && a?.artist == b?.artist
-                }
-                .collect { activeTrack ->
-                    lyricsFetchJob?.cancel()
-                    if (activeTrack == null) {
-                        _currentLyrics.value = null
-                    } else {
-                        _currentLyrics.value = LyricsResult(
-                            trackId = activeTrack.id,
-                            isLoading = true,
-                        )
-                        lyricsFetchJob = launch {
-                            val prefs = prefsRepo.getOnce()
-                            val allowOnline = prefs.autoDownloadLyrics && prefs.downloadLyricsOnPlayStart
-                            val result = lyricsRepo.getLyricsForTrack(activeTrack, allowOnlineLookup = allowOnline)
-                            if (playbackState.value.currentTrack?.id == activeTrack.id) {
-                                _currentLyrics.value = result
-                            }
-                        }
-                    }
-                }
-        }
     }
 
     override fun onCleared() {
@@ -557,67 +584,7 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
         viewModelScope.launch { musicRepo.clearSearchHistory() }
     }
 
-    // --- Smart Lyrics Engine Actions ---
-
-    fun loadLyrics(track: Track) {
-        lyricsFetchJob?.cancel()
-        _currentLyrics.value = LyricsResult(trackId = track.id, isLoading = true)
-        lyricsFetchJob = viewModelScope.launch {
-            val prefs = prefsRepo.getOnce()
-            val result = lyricsRepo.getLyricsForTrack(track, allowOnlineLookup = prefs.autoDownloadLyrics)
-            val currentActiveId = playbackState.value.currentTrack?.id
-            if (currentActiveId == null || currentActiveId == track.id || _currentLyrics.value?.trackId == track.id) {
-                _currentLyrics.value = result
-            }
-        }
-    }
-
-    fun refreshLyrics(track: Track) {
-        lyricsFetchJob?.cancel()
-        _currentLyrics.value = LyricsResult(trackId = track.id, isLoading = true)
-        lyricsFetchJob = viewModelScope.launch {
-            val res = lyricsRepo.refreshLyricsForTrack(track)
-            if (_currentLyrics.value?.trackId == track.id || playbackState.value.currentTrack?.id == track.id) {
-                _currentLyrics.value = res
-            }
-            _snackbarMessages.tryEmit(
-                if (res.lines.isNotEmpty()) "Lyrics refreshed (${res.source.badgeLabel})"
-                else "No matching lyrics found"
-            )
-        }
-    }
-
-    fun searchLyricsCandidates(track: Track, query: String?) {
-        lyricsSearchJob?.cancel()
-        _isSearchingLyrics.value = true
-        lyricsSearchJob = viewModelScope.launch {
-            val results = lyricsRepo.searchOnlineCandidates(track, query)
-            _lyricsCandidates.value = results
-            _isSearchingLyrics.value = false
-        }
-    }
-
-    fun applyLyricsCandidate(track: Track, candidate: LyricsSearchCandidate) {
-        viewModelScope.launch {
-            val res = lyricsRepo.applySearchCandidate(track.id, candidate)
-            _currentLyrics.value = res
-            _snackbarMessages.tryEmit("Applied lyrics from ${candidate.provider}")
-        }
-    }
-
-    fun adjustLyricsSyncOffset(track: Track, deltaMs: Long) {
-        viewModelScope.launch {
-            val current = _currentLyrics.value ?: return@launch
-            if (current.trackId != track.id) return@launch
-            val nextOffset = (current.syncOffsetMs + deltaMs).coerceIn(-15_000L, 15_000L)
-            lyricsRepo.updateSyncOffset(track.id, nextOffset)
-            _currentLyrics.value = current.copy(syncOffsetMs = nextOffset)
-        }
-    }
-
-    fun setLyricsFontSize(sizeSp: Float) {
-        viewModelScope.launch { prefsRepo.setLyricsFontSizeSp(sizeSp) }
-    }
+    // --- Lyrics Settings & Batch Library Actions ---
 
     fun setAutoDownloadLyrics(enabled: Boolean) {
         viewModelScope.launch { prefsRepo.setAutoDownloadLyrics(enabled) }
@@ -658,30 +625,7 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     fun clearLyricsCache() {
         viewModelScope.launch {
             lyricsRepo.clearAllLyricsCache()
-            playbackState.value.currentTrack?.let { loadLyrics(it) }
             _snackbarMessages.tryEmit("Cleared cached lyrics")
-        }
-    }
-
-    fun saveManualLyrics(track: Track, rawText: String) {
-        viewModelScope.launch {
-            lyricsRepo.saveManualLyrics(track.id, rawText)
-            _currentLyrics.value = lyricsRepo.getLyricsForTrack(track, allowOnlineLookup = false)
-            _snackbarMessages.tryEmit("Lyrics saved")
-        }
-    }
-
-    fun importLyricsUri(track: Track, uri: Uri) {
-        viewModelScope.launch {
-            _currentLyrics.value = lyricsRepo.importLyricsFromUri(track.id, uri)
-            _snackbarMessages.tryEmit("Imported lyrics file")
-        }
-    }
-
-    fun clearManualLyrics(track: Track) {
-        viewModelScope.launch {
-            lyricsRepo.clearManualLyrics(track.id)
-            _currentLyrics.value = lyricsRepo.getLyricsForTrack(track, allowOnlineLookup = false)
         }
     }
 
@@ -721,20 +665,57 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     }
 
     fun autoFixArtworkForTrack(track: Track) {
+        smartAutoFixTrack(track)
+    }
+
+    fun smartAutoFixTrack(track: Track) {
         viewModelScope.launch {
-            when (val res = artworkRepo.fetchAndApplyForTrack(track, allowMediumAutoApply = true)) {
-                is ArtworkFetchResult.Applied -> {
-                    _snackbarMessages.tryEmit("Updated cover (${res.candidate.provider})")
+            _snackbarMessages.tryEmit("Searching tags & cover for \"${track.title}\"...")
+            val result = artworkRepo.smartAutoFixAndEmbed(
+                track = track,
+                metadataEditor = metadataEditor,
+                allowMediumAutoApply = true,
+            )
+            when (result) {
+                is MetadataSaveResult.SavedToAudioFileAndDb -> {
+                    _snackbarMessages.tryEmit(
+                        if (result.embeddedCover) "Fixed tags & embedded cover into audio file"
+                        else "Fixed song tags & embedded into audio file"
+                    )
                 }
-                is ArtworkFetchResult.NeedsConfirmation -> {
-                    _artworkCandidates.value = res.candidates
-                    _snackbarMessages.tryEmit("Select matching cover from candidates")
+                is MetadataSaveResult.SavedToMediaStoreAndDb,
+                is MetadataSaveResult.SavedToDbOnly -> {
+                    _snackbarMessages.tryEmit("Fixed song info & cover in Maxmize library")
                 }
-                is ArtworkFetchResult.Failed -> {
-                    _snackbarMessages.tryEmit(res.reason)
+                is MetadataSaveResult.NeedsWriteConsent -> {
+                    val suggestion = artworkRepo.resolveSmartTrackFix(track, allowNetwork = true)
+                    _pendingWriteIntent.tryEmit(
+                        result.intentSender to PendingWriteEdit(
+                            track = track,
+                            title = suggestion.title,
+                            artist = suggestion.artist,
+                            album = suggestion.album,
+                            genre = suggestion.genre,
+                            year = suggestion.year,
+                            artworkUri = suggestion.localArtworkUri ?: track.customArtworkUri,
+                        )
+                    )
+                }
+                null -> {
+                    val candidates = artworkRepo.searchCandidates(track)
+                    if (candidates.isNotEmpty()) {
+                        _artworkCandidates.value = candidates
+                        _snackbarMessages.tryEmit("Found candidates — open Edit Metadata to pick")
+                    } else {
+                        _snackbarMessages.tryEmit("No confident online match found for \"${track.title}\"")
+                    }
                 }
             }
         }
+    }
+
+    suspend fun previewSmartAutoFix(track: Track): SmartTrackFixSuggestion {
+        return artworkRepo.resolveSmartTrackFix(track, allowNetwork = true)
     }
 
     fun batchFixMissingArtwork(silentIfNone: Boolean = false) {
@@ -745,17 +726,17 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
         }
         artworkBatchJob?.cancel()
         artworkBatchJob = viewModelScope.launch {
-            _artworkBatchStatus.value = "Checking covers..."
-            val applied = artworkRepo.batchFixMissingArtwork(list) { done, total, count ->
+            _artworkBatchStatus.value = "Checking tags & covers..."
+            val applied = artworkRepo.batchFixMissingArtwork(list, metadataEditor) { done, total, count ->
                 if (total > 0) {
-                    _artworkBatchStatus.value = "Applied $count ($done/$total)"
+                    _artworkBatchStatus.value = "Fixed $count ($done/$total)"
                 }
             }
             _artworkBatchStatus.value = null
             if (!silentIfNone || applied > 0) {
                 _snackbarMessages.tryEmit(
-                    if (applied > 0) "Applied verified artwork for $applied tracks"
-                    else "No confident cover updates found"
+                    if (applied > 0) "Fixed tags & embedded covers for $applied tracks"
+                    else "No missing tags or confident covers needed"
                 )
             }
         }
@@ -953,6 +934,12 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     ) {
         viewModelScope.launch {
             when (val res = metadataEditor.saveMetadataEdit(track, title, artist, album, genre, year, artworkUri)) {
+                is MetadataSaveResult.SavedToAudioFileAndDb -> {
+                    _snackbarMessages.tryEmit(
+                        if (res.embeddedCover) "Embedded tags & cover into audio file"
+                        else "Embedded tags into audio file"
+                    )
+                }
                 is MetadataSaveResult.SavedToMediaStoreAndDb -> {
                     _snackbarMessages.tryEmit("Updated audio file and library metadata")
                 }
@@ -961,7 +948,7 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
                 }
                 is MetadataSaveResult.NeedsWriteConsent -> {
                     _pendingWriteIntent.tryEmit(
-                        res.intentSender to PendingWriteEdit(track, title, artist, album, year)
+                        res.intentSender to PendingWriteEdit(track, title, artist, album, genre, year, artworkUri)
                     )
                 }
             }
@@ -970,14 +957,19 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
 
     fun completePendingMediaStoreWrite(pending: PendingWriteEdit) {
         viewModelScope.launch {
-            metadataEditor.commitPendingMediaStoreUpdate(
-                pending.track,
-                pending.title,
-                pending.artist,
-                pending.album,
-                pending.year,
+            val ok = metadataEditor.commitPendingMediaStoreUpdate(
+                track = pending.track,
+                title = pending.title,
+                artist = pending.artist,
+                album = pending.album,
+                genre = pending.genre,
+                year = pending.year,
+                artworkUri = pending.artworkUri,
             )
-            _snackbarMessages.tryEmit("Updated audio file metadata")
+            _snackbarMessages.tryEmit(
+                if (ok) "Embedded tags & cover into audio file"
+                else "Saved changes in Maxmize library"
+            )
         }
     }
 

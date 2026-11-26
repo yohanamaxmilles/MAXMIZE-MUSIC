@@ -253,6 +253,7 @@ fun PlaylistDetailScreen(
                                 onPlayNext = { onTrackMenuAction(track, TrackMenuEvent.PlayNext) },
                                 onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
                                 onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
+                                onAutoFixMetadata = { onTrackMenuAction(track, TrackMenuEvent.AutoFixMetadata) },
                                 onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
                                 onTrackInfo = { onTrackMenuAction(track, TrackMenuEvent.TrackInfo) },
                             )

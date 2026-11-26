@@ -1,6 +1,10 @@
 package com.example
 
 import android.app.Application
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.example.data.backup.BackupRepository
 import com.example.data.dj.AudioAnalysisEngine
 import com.example.data.local.db.MaxmizeDatabase
@@ -84,12 +88,30 @@ class AppContainer(context: Application) {
     }
 }
 
-class MaxmizeApplication : Application() {
+class MaxmizeApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
         private set
 
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.18)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil_image_cache"))
+                    .maxSizeBytes(64L * 1024L * 1024L)
+                    .build()
+            }
+            .allowRgb565(true)
+            .crossfade(false)
+            .build()
     }
 }

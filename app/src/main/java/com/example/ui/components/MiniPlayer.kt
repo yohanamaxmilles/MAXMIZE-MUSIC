@@ -39,11 +39,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.R
 import com.example.data.model.PlaybackUiState
 import com.example.ui.theme.LavenderCard
 import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.MonoBadgeStyle
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun MiniPlayer(
@@ -54,11 +56,9 @@ fun MiniPlayer(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     modifier: Modifier = Modifier,
+    positionMsFlow: StateFlow<Long>? = null,
 ) {
     val track = playbackState.currentTrack ?: return
-    val progress = if (playbackState.durationMs > 0L) {
-        (playbackState.positionMs.toFloat() / playbackState.durationMs.toFloat()).coerceIn(0f, 1f)
-    } else 0f
 
     var dragDelta by remember { mutableFloatStateOf(0f) }
     val shape = RoundedCornerShape(26.dp)
@@ -172,20 +172,42 @@ fun MiniPlayer(
                 }
             }
 
-            // Thin solid progress hairline along bottom edge
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progress)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary),
-                )
-            }
+            // Thin solid progress hairline along bottom edge (recomposed independently)
+            MiniPlayerProgressBar(
+                positionMsFlow = positionMsFlow,
+                fallbackPositionMs = playbackState.positionMs,
+                durationMs = playbackState.durationMs,
+            )
         }
+    }
+}
+
+@Composable
+private fun MiniPlayerProgressBar(
+    positionMsFlow: StateFlow<Long>?,
+    fallbackPositionMs: Long,
+    durationMs: Long,
+) {
+    val livePos = if (positionMsFlow != null) {
+        positionMsFlow.collectAsStateWithLifecycle().value
+    } else {
+        fallbackPositionMs
+    }
+    val progress = if (durationMs > 0L) {
+        (livePos.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(3.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(progress)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.primary),
+        )
     }
 }

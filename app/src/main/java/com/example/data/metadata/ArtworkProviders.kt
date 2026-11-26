@@ -34,7 +34,8 @@ object ArtworkMatchValidator {
         candYear: Int?,
         candDurationMs: Long?,
     ): Int {
-        val cleanTitle = TrackMatchValidator.cleanTrackTitle(track.title)
+        val (inferredArtist, inferredTitle) = TrackMatchValidator.inferArtistAndTitle(track)
+        val cleanTitle = inferredTitle.ifBlank { TrackMatchValidator.cleanTrackTitle(track.title) }
         val cleanCandTitle = TrackMatchValidator.cleanTrackTitle(candTitle)
         if (cleanTitle.isBlank() && cleanCandTitle.isBlank()) return 0
 
@@ -49,7 +50,7 @@ object ArtworkMatchValidator {
             score += ((inter / union) * 40f).toInt()
         }
 
-        val cleanArtist = TrackMatchValidator.cleanArtistName(track.artist)
+        val cleanArtist = inferredArtist
         val cleanCandArtist = TrackMatchValidator.cleanArtistName(candArtist)
         if (cleanArtist.isNotBlank() && cleanCandArtist.isNotBlank()) {
             val artA = TrackMatchValidator.normalizeTokens(cleanArtist)
@@ -121,6 +122,7 @@ private data class ItunesTrackRecord(
     val artworkUrl100: String = "",
     val releaseDate: String = "",
     val trackTimeMillis: Long = 0L,
+    val primaryGenreName: String = "",
 )
 
 class ItunesArtworkAdapter(
@@ -130,15 +132,23 @@ class ItunesArtworkAdapter(
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun search(track: Track): List<ArtworkSearchCandidate> = withContext(Dispatchers.IO) {
-        val cleanTitle = TrackMatchValidator.cleanTrackTitle(track.title)
-        val cleanArtist = TrackMatchValidator.cleanArtistName(track.artist)
-        val term = listOf(cleanArtist, cleanTitle).filter { it.isNotBlank() }.joinToString(" ").trim()
+        val (inferredArtist, inferredTitle) = TrackMatchValidator.inferArtistAndTitle(track)
+        val term = listOf(inferredArtist, inferredTitle).filter { it.isNotBlank() }.joinToString(" ").trim()
         if (term.isBlank()) return@withContext emptyList()
 
+        val primary = queryItunes(track, term)
+        if (primary.isNotEmpty() || inferredArtist.isBlank()) {
+            return@withContext primary
+        }
+        // Retry with title-only if combined artist+title search yielded nothing
+        if (inferredTitle.isNotBlank()) queryItunes(track, inferredTitle) else emptyList()
+    }
+
+    private fun queryItunes(track: Track, term: String): List<ArtworkSearchCandidate> {
         val url = "https://itunes.apple.com/search".toHttpUrl().newBuilder()
             .addQueryParameter("term", term)
             .addQueryParameter("entity", "song")
-            .addQueryParameter("limit", "6")
+            .addQueryParameter("limit", "8")
             .build()
 
         val req = Request.Builder()
@@ -151,12 +161,12 @@ class ItunesArtworkAdapter(
                 if (!resp.isSuccessful) return@use null
                 resp.body?.string()
             }
-        }.getOrNull() ?: return@withContext emptyList()
+        }.getOrNull() ?: return emptyList()
 
         val decoded = runCatching { json.decodeFromString<ItunesSearchResponse>(body) }.getOrNull()
-            ?: return@withContext emptyList()
+            ?: return emptyList()
 
-        decoded.results.mapNotNull { rec ->
+        return decoded.results.mapNotNull { rec ->
             if (rec.artworkUrl100.isBlank()) return@mapNotNull null
             val hiResUrl = rec.artworkUrl100
                 .replace("100x100bb", "600x600bb")
@@ -179,6 +189,7 @@ class ItunesArtworkAdapter(
                 releaseYear = year,
                 provider = providerName,
                 confidenceScore = score,
+                genre = rec.primaryGenreName,
             )
         }.sortedByDescending { it.confidenceScore }
     }
@@ -219,8 +230,7 @@ class MusicBrainzCoverArtAdapter(
     private var lastRequestMs: Long = 0L
 
     override suspend fun search(track: Track): List<ArtworkSearchCandidate> = withContext(Dispatchers.IO) {
-        val cleanTitle = TrackMatchValidator.cleanTrackTitle(track.title)
-        val cleanArtist = TrackMatchValidator.cleanArtistName(track.artist)
+        val (cleanArtist, cleanTitle) = TrackMatchValidator.inferArtistAndTitle(track)
         if (cleanTitle.isBlank()) return@withContext emptyList()
 
         val now = System.currentTimeMillis()

@@ -128,6 +128,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
     private var currentPlaybackSpeed: Float = 1.0f
     private var gaplessEnabled: Boolean = true
     private var skipSilenceEnabled: Boolean = false
+    private var lastPersistedQueueIds: List<String>? = null
     private var loudnessNormalizationEnabled: Boolean = false
     private var automixConfig: AutomixConfig = AutomixConfig()
 
@@ -980,6 +981,10 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
         val player = activePlayer
         val count = player.mediaItemCount
         val ids = (0 until count).mapNotNull { player.getMediaItemAt(it).mediaId.takeIf(String::isNotBlank) }
+        val queueChanged = ids != lastPersistedQueueIds
+        if (queueChanged) {
+            lastPersistedQueueIds = ids
+        }
         val index = player.currentMediaItemIndex.coerceAtLeast(0)
         val pos = player.currentPosition.coerceAtLeast(0L)
         val shuffle = player.shuffleModeEnabled
@@ -989,8 +994,11 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
             else -> "OFF"
         }
         serviceScope.launch(Dispatchers.IO) {
-            container.database.playbackStateDao().replaceQueue(ids)
-            container.database.playbackStateDao().saveSnapshot(
+            val dao = container.database.playbackStateDao()
+            if (queueChanged) {
+                dao.replaceQueue(ids)
+            }
+            dao.saveSnapshot(
                 PlaybackSnapshotEntity(
                     id = 1,
                     currentIndex = index,
@@ -1013,6 +1021,7 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
 
         val player = activePlayer
         if (mediaItems.isNotEmpty() && player.mediaItemCount == 0) {
+            lastPersistedQueueIds = mediaItems.map { it.mediaId }
             player.setMediaItems(mediaItems, startIndex, startPos)
             player.shuffleModeEnabled = snapshot?.shuffleEnabled ?: false
             player.repeatMode = when (snapshot?.repeatMode) {

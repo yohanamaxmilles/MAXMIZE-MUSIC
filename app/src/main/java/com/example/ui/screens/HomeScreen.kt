@@ -70,13 +70,17 @@ import com.example.ui.components.ArtworkImage
 import com.example.ui.components.EditorialGroupCard
 import com.example.ui.components.EditorialSectionHeader
 import com.example.ui.components.PlaylistCollageArtwork
+import androidx.compose.ui.graphics.Brush
+import com.example.ui.components.MaxmizeIcons
 import com.example.ui.components.TopProfileSettingsButton
 import com.example.ui.components.TrackRow
 import com.example.ui.components.formatTimecode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.theme.LavenderCard
 import com.example.ui.theme.LavenderCardDeep
 import com.example.ui.theme.LavenderCardText
 import com.example.ui.theme.MonoBadgeStyle
+import kotlinx.coroutines.flow.StateFlow
 import java.util.Calendar
 
 @Composable
@@ -97,12 +101,14 @@ fun HomeScreen(
     onOpenNowPlaying: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenDjMode: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
     onOpenCategory: (LibraryCategory) -> Unit,
     onOpenAlbum: (String) -> Unit,
     onOpenPlaylist: (Long) -> Unit,
     onToggleFavorite: (String) -> Unit,
     onTrackMenuAction: (Track, TrackMenuEvent) -> Unit,
     modifier: Modifier = Modifier,
+    positionMsFlow: StateFlow<Long>? = null,
 ) {
     var overflowOpen by remember { mutableStateOf(false) }
 
@@ -139,36 +145,71 @@ fun HomeScreen(
         contentPadding = PaddingValues(bottom = 28.dp),
     ) {
         item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = greeting,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Maxmize",
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 38.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
-
+            Column {
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 16.dp, top = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    TopProfileSettingsButton(onClick = onOpenSettings)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = MaxmizeIcons.Pulse,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(26.dp),
+                            )
+                        }
+                        Text(
+                            text = "Maxmize",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                                .clickable(onClick = onOpenSearch)
+                                .testTag("home_search_btn"),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = MaxmizeIcons.Search,
+                                contentDescription = "Search",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                        TopProfileSettingsButton(onClick = onOpenSettings)
+                    }
                 }
+                Text(
+                    text = greeting,
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontSize = 34.sp,
+                        lineHeight = 40.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 14.dp),
+                )
             }
         }
 
@@ -209,7 +250,7 @@ fun HomeScreen(
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp),
+                modifier = Modifier.padding(bottom = 6.dp),
             ) {
                 itemsIndexed(chips, key = { _, c -> c.first }) { index, (label, category) ->
                     val selected = index == 0
@@ -248,11 +289,13 @@ fun HomeScreen(
         } else {
             // 1. Lavender Editorial Hero Card
             item {
+                EditorialSectionHeader(title = "Curated & trending")
                 HeroBannerCard(
                     tracks = tracks,
                     albums = albums,
                     isScanning = scanState.isScanning,
                     onPlayAll = { onPlayTracks(tracks, 0, false) },
+                    onShuffleAll = { onPlayTracks(tracks, 0, true) },
                 )
             }
 
@@ -265,7 +308,9 @@ fun HomeScreen(
                         track = continueTrack,
                         totalTracks = tracks.size,
                         isPlaying = playbackState.currentTrack?.id == continueTrack.id && playbackState.isPlaying,
-                        positionMs = if (playbackState.currentTrack?.id == continueTrack.id) playbackState.positionMs else 0L,
+                        isCurrentTrack = playbackState.currentTrack?.id == continueTrack.id,
+                        fallbackPositionMs = if (playbackState.currentTrack?.id == continueTrack.id) playbackState.positionMs else 0L,
+                        positionMsFlow = positionMsFlow,
                         onCardClick = {
                             if (playbackState.currentTrack?.id == continueTrack.id) {
                                 onOpenNowPlaying()
@@ -359,6 +404,7 @@ fun HomeScreen(
                             onAddToQueue = { onTrackMenuAction(track, TrackMenuEvent.AddToQueue) },
                             onAddToPlaylist = { onTrackMenuAction(track, TrackMenuEvent.AddToPlaylist) },
                             onEditMetadata = { onTrackMenuAction(track, TrackMenuEvent.EditMetadata) },
+                            onAutoFixMetadata = { onTrackMenuAction(track, TrackMenuEvent.AutoFixMetadata) },
                             onViewLyrics = { onTrackMenuAction(track, TrackMenuEvent.ViewLyrics) },
                             onGoToAlbum = { onTrackMenuAction(track, TrackMenuEvent.GoToAlbum) },
                             onGoToArtist = { onTrackMenuAction(track, TrackMenuEvent.GoToArtist) },
@@ -390,41 +436,55 @@ fun HomeScreen(
                 }
             }
 
-            // 7. Recommended Playlists
+            // 7. Playlists (reference-style rows with round play buttons)
             if (recommendedPlaylists.isNotEmpty()) {
                 item {
-                    EditorialSectionHeader(title = "Recommended Playlists")
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    EditorialSectionHeader(title = "Your playlists")
+                }
+                items(recommendedPlaylists, key = { "pl_${it.id}" }) { playlist ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenPlaylist(playlist.id) }
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        items(recommendedPlaylists, key = { "pl_${it.id}" }) { playlist ->
-                            Column(
-                                modifier = Modifier
-                                    .width(128.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable { onOpenPlaylist(playlist.id) },
-                            ) {
-                                PlaylistCollageArtwork(
-                                    customCoverUri = playlist.customCoverUri,
-                                    artworkUris = playlist.artworkUris,
-                                    modifier = Modifier.size(128.dp),
-                                    cornerRadius = 12.dp,
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = playlist.name,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = "${playlist.trackCount} songs",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                )
-                            }
+                        PlaylistCollageArtwork(
+                            customCoverUri = playlist.customCoverUri,
+                            artworkUris = playlist.artworkUris,
+                            modifier = Modifier.size(68.dp),
+                            cornerRadius = 20.dp,
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = playlist.name,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${playlist.trackCount} songs",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = MaxmizeIcons.Play,
+                                contentDescription = "Open playlist",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
                     }
                 }
@@ -438,7 +498,9 @@ private fun ContinueListeningHeroCard(
     track: Track,
     totalTracks: Int,
     isPlaying: Boolean,
-    positionMs: Long,
+    isCurrentTrack: Boolean,
+    fallbackPositionMs: Long,
+    positionMsFlow: StateFlow<Long>?,
     onCardClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayAll: () -> Unit,
@@ -448,7 +510,7 @@ private fun ContinueListeningHeroCard(
             .padding(horizontal = 20.dp, vertical = 2.dp)
             .clickable(onClick = onCardClick)
             .testTag("home_continue_listening_card"),
-        cornerRadius = 24.dp,
+        cornerRadius = 28.dp,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -457,18 +519,18 @@ private fun ContinueListeningHeroCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = if (isPlaying) "NOW PLAYING" else "CONTINUE LISTENING",
-                    style = MonoBadgeStyle,
+                    text = if (isPlaying) "Now playing" else "Continue listening",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Play All ($totalTracks)",
+                    text = "Play all ($totalTracks)",
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(50))
                         .clickable(onClick = onPlayAll)
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -476,8 +538,8 @@ private fun ContinueListeningHeroCard(
                 ArtworkImage(
                     artworkUri = track.customArtworkUri ?: track.artworkUri,
                     fallbackUri = track.contentUri,
-                    modifier = Modifier.size(64.dp),
-                    cornerRadius = 10.dp,
+                    modifier = Modifier.size(68.dp),
+                    cornerRadius = 20.dp,
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -490,20 +552,25 @@ private fun ContinueListeningHeroCard(
                     )
                     Text(
                         text = "${track.artist} · ${track.album}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    val livePos = if (isCurrentTrack && positionMsFlow != null) {
+                        positionMsFlow.collectAsStateWithLifecycle().value
+                    } else {
+                        fallbackPositionMs
+                    }
                     val dur = track.durationMs.coerceAtLeast(1L)
-                    val progress = (positionMs.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+                    val progress = (livePos.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(3.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.outline),
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f)),
                     ) {
                         Box(
                             modifier = Modifier
@@ -512,30 +579,21 @@ private fun ContinueListeningHeroCard(
                                 .background(MaterialTheme.colorScheme.primary),
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = if (positionMs > 0L) {
-                            "${formatTimecode(positionMs)} / ${formatTimecode(track.durationMs)}"
-                        } else {
-                            formatTimecode(track.durationMs)
-                        },
-                        style = MonoBadgeStyle,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(52.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .clickable(onClick = onPlayPauseClick),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        imageVector = if (isPlaying) MaxmizeIcons.Pause else MaxmizeIcons.Play,
                         contentDescription = "Play or pause",
                         tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(26.dp),
                     )
                 }
             }
@@ -549,82 +607,104 @@ private fun HeroBannerCard(
     albums: List<AlbumSummary>,
     isScanning: Boolean,
     onPlayAll: () -> Unit,
+    onShuffleAll: () -> Unit,
 ) {
     val coverUris = remember(tracks, albums) {
         val albumArts = albums.mapNotNull { it.artworkUri }.distinct()
         if (albumArts.isNotEmpty()) albumArts.take(4)
         else tracks.mapNotNull { it.displayArtwork }.distinct().take(4)
     }
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(34.dp)
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 4.dp)
             .clip(shape)
-             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(22.dp),
+            .background(LavenderCard)
+            .padding(start = 22.dp, top = 22.dp, bottom = 22.dp, end = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
-                text = "Your Music.\nYour Way.",
+                text = "Your library",
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontSize = 23.sp,
-                    lineHeight = 27.sp,
+                    fontSize = 26.sp,
+                    lineHeight = 31.sp,
                     fontWeight = FontWeight.Bold,
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = LavenderCardText,
             )
             Text(
-                text = "${tracks.size} songs · Offline",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "${tracks.size} songs, ready offline.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = LavenderCardText.copy(alpha = 0.72f),
             )
-            Spacer(modifier = Modifier.height(6.dp))
-            Button(
-                onClick = onPlayAll,
-                enabled = !isScanning,
-                shape = RoundedCornerShape(50),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.testTag("home_shuffle_all_card"),
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Play All", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(LavenderCardDeep)
+                        .clickable(enabled = !isScanning, onClick = onPlayAll)
+                        .testTag("home_shuffle_all_card"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = MaxmizeIcons.Play,
+                        contentDescription = "Play all",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(LavenderCardDeep.copy(alpha = 0.12f))
+                        .clickable(enabled = !isScanning, onClick = onShuffleAll),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = MaxmizeIcons.Shuffle,
+                        contentDescription = "Shuffle all",
+                        tint = LavenderCardDeep,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         if (coverUris.isNotEmpty()) {
             PlaylistCollageArtwork(
                 customCoverUri = null,
                 artworkUris = coverUris,
-                modifier = Modifier.size(104.dp),
-                cornerRadius = 22.dp,
+                modifier = Modifier.size(118.dp),
+                cornerRadius = 28.dp,
             )
         } else {
             Box(
                 modifier = Modifier
-                    .size(104.dp)
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
+                    .size(118.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(LavenderCardDeep.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.LibraryMusic,
+                    imageVector = MaxmizeIcons.Disc,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp),
+                    tint = LavenderCardDeep,
+                    modifier = Modifier.size(44.dp),
                 )
             }
         }
@@ -642,11 +722,9 @@ private fun QuickDjModeCard(
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(
-                width = if (isAutomixActive) 1.dp else 0.75.dp,
-                color = if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                shape = shape,
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .then(
+                if (isAutomixActive) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, shape) else Modifier,
             )
             .clickable(onClick = onOpenDjMode)
             .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -657,13 +735,13 @@ private fun QuickDjModeCard(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer),
+                .background(if (isAutomixActive) MaterialTheme.colorScheme.primary else LavenderCardDeep),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Rounded.GraphicEq,
+                imageVector = MaxmizeIcons.Pulse,
                 contentDescription = "DJ Mode",
-                tint = if (isAutomixActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (isAutomixActive) MaterialTheme.colorScheme.onPrimary else LavenderCard,
                 modifier = Modifier.size(22.dp),
             )
         }
@@ -687,7 +765,7 @@ private fun QuickDjModeCard(
             )
         }
         Icon(
-            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            imageVector = MaxmizeIcons.ChevronRight,
             contentDescription = "Open DJ Mode",
             tint = if (isAutomixActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -728,10 +806,10 @@ private fun EmptyLibraryGuidance(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Rounded.MusicNote,
+                    imageVector = MaxmizeIcons.Disc,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(38.dp),
+                    modifier = Modifier.size(40.dp),
                 )
             }
         }
@@ -776,17 +854,17 @@ private fun EditorialSquareTrackCard(
 ) {
     Column(
         modifier = Modifier
-            .width(132.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .width(148.dp)
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
     ) {
         ArtworkImage(
             artworkUri = track.customArtworkUri ?: track.artworkUri,
             fallbackUri = track.contentUri,
-            modifier = Modifier.size(132.dp),
-            cornerRadius = 12.dp,
+            modifier = Modifier.size(148.dp),
+            cornerRadius = 22.dp,
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = track.title,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -811,17 +889,17 @@ private fun EditorialAlbumCard(
 ) {
     Column(
         modifier = Modifier
-            .width(132.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .width(148.dp)
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
     ) {
         ArtworkImage(
             artworkUri = album.artworkUri,
-            modifier = Modifier.size(132.dp),
-            cornerRadius = 12.dp,
-            fallbackIcon = Icons.Rounded.Album,
+            modifier = Modifier.size(148.dp),
+            cornerRadius = 22.dp,
+            fallbackIcon = MaxmizeIcons.Disc,
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = album.albumName,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -844,6 +922,7 @@ sealed interface TrackMenuEvent {
     data object AddToQueue : TrackMenuEvent
     data object AddToPlaylist : TrackMenuEvent
     data object EditMetadata : TrackMenuEvent
+    data object AutoFixMetadata : TrackMenuEvent
     data object ViewLyrics : TrackMenuEvent
     data object GoToAlbum : TrackMenuEvent
     data object GoToArtist : TrackMenuEvent

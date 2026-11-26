@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.MaxmizeApp
+import com.example.ui.lyrics.LyricsViewModel
 import com.example.ui.viewmodel.MaxmizeViewModel
 
 class MainActivity : ComponentActivity() {
@@ -17,7 +18,13 @@ class MainActivity : ComponentActivity() {
             val viewModel: MaxmizeViewModel = viewModel(
                 factory = MaxmizeViewModel.Factory(container),
             )
-            MaxmizeApp(viewModel = viewModel)
+            val lyricsViewModel: LyricsViewModel = viewModel(
+                factory = LyricsViewModel.Factory(container),
+            )
+            MaxmizeApp(
+                viewModel = viewModel,
+                lyricsViewModel = lyricsViewModel,
+            )
         }
     }
 }

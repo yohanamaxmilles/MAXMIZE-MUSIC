@@ -7,10 +7,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,17 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.QueueMusic
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -64,6 +56,7 @@ import com.example.ui.components.EditMetadataSheet
 import com.example.ui.components.MaxmizeBottomBar
 import com.example.ui.components.MaxmizeNavigationRail
 import com.example.ui.components.MiniPlayer
+import com.example.ui.components.MaxmizeIcons
 import com.example.ui.components.NavDestinationItem
 import com.example.ui.components.SleepTimerSheet
 import com.example.ui.components.TrackInfoSheet
@@ -76,9 +69,10 @@ import com.example.ui.screens.DjModeScreen
 import com.example.ui.screens.DjQueueScreen
 import com.example.ui.screens.DjSectionTab
 import com.example.ui.screens.EqualizerScreen
+import com.example.ui.lyrics.LyricsScreen
+import com.example.ui.lyrics.LyricsViewModel
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
-import com.example.ui.screens.LyricsSheet
 import com.example.ui.screens.NowPlayingScreen
 import com.example.ui.screens.PlaylistDetailScreen
 import com.example.ui.screens.PlaylistsScreen
@@ -95,41 +89,14 @@ private data class TopRouteBinding(
 )
 
 @Composable
-fun MaxmizeApp(viewModel: MaxmizeViewModel) {
+fun MaxmizeApp(
+    viewModel: MaxmizeViewModel,
+    lyricsViewModel: LyricsViewModel,
+) {
     val context = LocalContext.current
     val prefs by viewModel.preferences.collectAsStateWithLifecycle()
-    val tracks by viewModel.tracks.collectAsStateWithLifecycle()
-    val sortedTracks by viewModel.sortedTracks.collectAsStateWithLifecycle()
-    val albums by viewModel.albums.collectAsStateWithLifecycle()
-    val artists by viewModel.artists.collectAsStateWithLifecycle()
-    val genres by viewModel.genres.collectAsStateWithLifecycle()
-    val folders by viewModel.folders.collectAsStateWithLifecycle()
-    val excludedFolders by viewModel.excludedFolders.collectAsStateWithLifecycle()
-    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
-    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-    val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
-    val equalizerState by viewModel.equalizerState.collectAsStateWithLifecycle()
     val automixState by viewModel.automixState.collectAsStateWithLifecycle()
-    val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
-    val mixHistory by viewModel.mixHistory.collectAsStateWithLifecycle()
-    val selectedCategory by viewModel.selectedLibraryCategory.collectAsStateWithLifecycle()
-    val selectedDjTab by viewModel.selectedDjTab.collectAsStateWithLifecycle()
-    val currentLyrics by viewModel.currentLyrics.collectAsStateWithLifecycle()
-    val lyricsCandidates by viewModel.lyricsCandidates.collectAsStateWithLifecycle()
-    val isSearchingLyrics by viewModel.isSearchingLyrics.collectAsStateWithLifecycle()
-    val lyricsBatchStatus by viewModel.lyricsBatchStatus.collectAsStateWithLifecycle()
-    val customDjProfiles by viewModel.customDjProfiles.collectAsStateWithLifecycle()
-    val genreRules by viewModel.genreRules.collectAsStateWithLifecycle()
-    val undoHistory by viewModel.undoHistory.collectAsStateWithLifecycle()
-    val failedArtworkCount by viewModel.failedArtworkCount.collectAsStateWithLifecycle()
-    val metadataHealth by viewModel.metadataHealth.collectAsStateWithLifecycle()
-    val libraryStats by viewModel.libraryStats.collectAsStateWithLifecycle()
-    val artworkCandidates by viewModel.artworkCandidates.collectAsStateWithLifecycle()
-    val isSearchingArtwork by viewModel.isSearchingArtwork.collectAsStateWithLifecycle()
-    val artworkBatchStatus by viewModel.artworkBatchStatus.collectAsStateWithLifecycle()
 
     var hasAudioPerm by remember { mutableStateOf(viewModel.hasAudioPermission()) }
     var isNowPlayingOpen by remember { mutableStateOf(false) }
@@ -140,16 +107,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
     var infoTrack by remember { mutableStateOf<Track?>(null) }
     var editMetadataTrack by remember { mutableStateOf<Track?>(null) }
 
-    // Reactive Lyrics Overlay State:
-    // When lyricsOverrideTrackId == null, LyricsSheet binds directly to playbackState.currentTrack,
-    // ensuring Song A -> Song B transitions immediately update displayed lyrics!
     var isLyricsOverlayOpen by remember { mutableStateOf(false) }
-    var lyricsOverrideTrackId by remember { mutableStateOf<String?>(null) }
-    val activeLyricsTrack = remember(isLyricsOverlayOpen, lyricsOverrideTrackId, tracks, playbackState.currentTrack) {
-        if (!isLyricsOverlayOpen) null
-        else if (lyricsOverrideTrackId != null) tracks.firstOrNull { it.id == lyricsOverrideTrackId }
-        else playbackState.currentTrack
-    }
 
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var pendingWriteEdit by remember { mutableStateOf<PendingWriteEdit?>(null) }
@@ -158,6 +116,12 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
     LaunchedEffect(Unit) {
         viewModel.snackbarMessages.collect { msg ->
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        lyricsViewModel.statusMessages.collect { msg ->
             snackbarHostState.showSnackbar(msg)
         }
     }
@@ -257,30 +221,30 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
     val topBindings = remember {
         listOf(
             TopRouteBinding(
-                NavDestinationItem("home", "Home", Icons.Rounded.Home, Icons.Outlined.Home, "nav_home"),
+                NavDestinationItem("home", "Home", MaxmizeIcons.HomeFilled, MaxmizeIcons.Home, "nav_home"),
                 MaxmizeRoute.Home,
             ),
             TopRouteBinding(
-                NavDestinationItem("library", "Library", Icons.Rounded.LibraryMusic, Icons.Outlined.LibraryMusic, "nav_library"),
+                NavDestinationItem("library", "Library", MaxmizeIcons.LibraryFilled, MaxmizeIcons.Library, "nav_library"),
                 MaxmizeRoute.Library,
             ),
             TopRouteBinding(
                 NavDestinationItem(
                     id = "dj_mode",
                     label = "DJ Mode",
-                    selectedIcon = Icons.Rounded.GraphicEq,
-                    unselectedIcon = Icons.Outlined.GraphicEq,
+                    selectedIcon = MaxmizeIcons.PulseFilled,
+                    unselectedIcon = MaxmizeIcons.Pulse,
                     testTag = "nav_dj_mode",
                     accentHighlighted = true,
                 ),
                 MaxmizeRoute.DjMode,
             ),
             TopRouteBinding(
-                NavDestinationItem("playlists", "Playlists", Icons.Rounded.QueueMusic, Icons.Outlined.QueueMusic, "nav_playlists"),
+                NavDestinationItem("playlists", "Playlists", MaxmizeIcons.QueueFilled, MaxmizeIcons.Queue, "nav_playlists"),
                 MaxmizeRoute.Playlists,
             ),
             TopRouteBinding(
-                NavDestinationItem("search", "Search", Icons.Rounded.Search, Icons.Outlined.Search, "nav_search"),
+                NavDestinationItem("search", "Search", MaxmizeIcons.SearchFilled, MaxmizeIcons.Search, "nav_search"),
                 MaxmizeRoute.Search,
             ),
         )
@@ -305,16 +269,9 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             }
             TrackMenuEvent.AddToPlaylist -> playlistTargetTracks = listOf(track)
             TrackMenuEvent.EditMetadata -> editMetadataTrack = track
+            TrackMenuEvent.AutoFixMetadata -> viewModel.smartAutoFixTrack(track)
             TrackMenuEvent.ViewLyrics -> {
-                if (track.id == playbackState.currentTrack?.id) {
-                    lyricsOverrideTrackId = null
-                    if (currentLyrics?.trackId != track.id) {
-                        viewModel.loadLyrics(track)
-                    }
-                } else {
-                    lyricsOverrideTrackId = track.id
-                    viewModel.loadLyrics(track)
-                }
+                lyricsViewModel.openForTrack(track)
                 isLyricsOverlayOpen = true
             }
             TrackMenuEvent.GoToAlbum -> {
@@ -327,19 +284,45 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
         }
     }
 
+    val dismissTransientOverlays = {
+        isNowPlayingOpen = false
+        isLyricsOverlayOpen = false
+        lyricsViewModel.clearTrackOverride()
+        showSleepTimerSheet = false
+        playlistTargetTracks = null
+        multiSelectPlaylistIds = null
+        infoTrack = null
+        editMetadataTrack = null
+    }
+
+    val isTopDestination: (androidx.navigation.NavDestination?) -> Boolean = { dest ->
+        dest != null && topBindings.any { dest.hasRoute(it.route::class) }
+    }
+
     val navigateTopLevel: (MaxmizeRoute) -> Unit = { route ->
-        navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
+        dismissTransientOverlays()
+        // Pop any pushed secondary screens (Settings, Equalizer, Detail views, etc.) before
+        // switching or returning to a top-level tab so Settings never gets saved into tab state.
+        while (navController.currentDestination?.let { !isTopDestination(it) } == true) {
+            if (!navController.popBackStack()) break
+        }
+        if (navController.currentDestination?.hasRoute(route::class) != true) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
-            launchSingleTop = true
-            restoreState = true
         }
     }
 
     val openSettings: () -> Unit = {
-        navController.navigate(MaxmizeRoute.Settings) {
-            launchSingleTop = true
+        dismissTransientOverlays()
+        if (navController.currentDestination?.hasRoute(MaxmizeRoute.Settings::class) != true) {
+            navController.navigate(MaxmizeRoute.Settings) {
+                launchSingleTop = true
+            }
         }
     }
 
@@ -378,6 +361,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                 if (playbackState.currentTrack != null) {
                                     MiniPlayer(
                                         playbackState = playbackState,
+                                        positionMsFlow = viewModel.playbackPositionMs,
                                         isAutomixActive = automixState.isActive,
                                         onOpenNowPlaying = { isNowPlayingOpen = true },
                                         onTogglePlayPause = viewModel.playbackController::togglePlayPause,
@@ -415,17 +399,50 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                 NavHost(
                                     navController = navController,
                                     startDestination = MaxmizeRoute.Home,
-                                    enterTransition = { fadeIn(tween(180)) },
-                                    exitTransition = { fadeOut(tween(140)) },
-                                    popEnterTransition = { fadeIn(tween(180)) },
-                                    popExitTransition = { fadeOut(tween(140)) },
+                                    enterTransition = {
+                                        if (isTopDestination(initialState.destination) && isTopDestination(targetState.destination)) {
+                                            fadeIn(tween(150, easing = FastOutSlowInEasing))
+                                        } else {
+                                            slideInHorizontally(tween(240, easing = FastOutSlowInEasing)) { it / 5 } +
+                                                fadeIn(tween(180))
+                                        }
+                                    },
+                                    exitTransition = {
+                                        if (isTopDestination(initialState.destination) && isTopDestination(targetState.destination)) {
+                                            fadeOut(tween(110, easing = FastOutSlowInEasing))
+                                        } else {
+                                            slideOutHorizontally(tween(200, easing = FastOutSlowInEasing)) { -it / 6 } +
+                                                fadeOut(tween(150))
+                                        }
+                                    },
+                                    popEnterTransition = {
+                                        if (isTopDestination(initialState.destination) && isTopDestination(targetState.destination)) {
+                                            fadeIn(tween(150, easing = FastOutSlowInEasing))
+                                        } else {
+                                            slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { -it / 6 } +
+                                                fadeIn(tween(180))
+                                        }
+                                    },
+                                    popExitTransition = {
+                                        if (isTopDestination(initialState.destination) && isTopDestination(targetState.destination)) {
+                                            fadeOut(tween(110, easing = FastOutSlowInEasing))
+                                        } else {
+                                            slideOutHorizontally(tween(220, easing = FastOutSlowInEasing)) { it / 5 } +
+                                                fadeOut(tween(150))
+                                        }
+                                    },
                                 ) {
                                     composable<MaxmizeRoute.Home> {
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val albums by viewModel.albums.collectAsStateWithLifecycle()
+                                        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+                                        val scanState by viewModel.scanState.collectAsStateWithLifecycle()
                                         HomeScreen(
                                             tracks = tracks,
                                             albums = albums,
                                             playlists = playlists,
                                             playbackState = playbackState,
+                                            positionMsFlow = viewModel.playbackPositionMs,
                                             scanState = scanState,
                                             hasAudioPermission = hasAudioPerm,
                                             isAutomixActive = automixState.isActive,
@@ -438,6 +455,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onOpenNowPlaying = { isNowPlayingOpen = true },
                                             onOpenSettings = openSettings,
                                             onOpenDjMode = { openDjMode(DjSectionTab.HOME) },
+                                            onOpenSearch = { navigateTopLevel(MaxmizeRoute.Search) },
                                             onOpenCategory = { category ->
                                                 viewModel.selectLibraryCategory(category)
                                                 navigateTopLevel(MaxmizeRoute.Library)
@@ -454,6 +472,14 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Library> {
+                                        val selectedCategory by viewModel.selectedLibraryCategory.collectAsStateWithLifecycle()
+                                        val sortedTracks by viewModel.sortedTracks.collectAsStateWithLifecycle()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val albums by viewModel.albums.collectAsStateWithLifecycle()
+                                        val artists by viewModel.artists.collectAsStateWithLifecycle()
+                                        val genres by viewModel.genres.collectAsStateWithLifecycle()
+                                        val folders by viewModel.folders.collectAsStateWithLifecycle()
+                                        val scanState by viewModel.scanState.collectAsStateWithLifecycle()
                                         LibraryScreen(
                                             selectedCategory = selectedCategory,
                                             onSelectCategory = viewModel::selectLibraryCategory,
@@ -484,6 +510,14 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.DjMode> {
+                                        val selectedDjTab by viewModel.selectedDjTab.collectAsStateWithLifecycle()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
+                                        val mixHistory by viewModel.mixHistory.collectAsStateWithLifecycle()
+                                        val genres by viewModel.genres.collectAsStateWithLifecycle()
+                                        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+                                        val customDjProfiles by viewModel.customDjProfiles.collectAsStateWithLifecycle()
+                                        val genreRules by viewModel.genreRules.collectAsStateWithLifecycle()
                                         DjModeScreen(
                                             selectedTab = selectedDjTab,
                                             onSelectTab = viewModel::selectDjTab,
@@ -531,11 +565,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Playlists> {
-                                        val smartCounts = remember(tracks, trackAnalyses) {
-                                            SmartPlaylistType.entries.associateWith {
-                                                viewModel.smartPlaylistTracks(it).size
-                                            }
-                                        }
+                                        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+                                        val smartCounts by viewModel.smartPlaylistCounts.collectAsStateWithLifecycle()
                                         PlaylistsScreen(
                                             playlists = playlists,
                                             smartPlaylistCounts = smartCounts,
@@ -552,6 +583,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Search> {
+                                        val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+                                        val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+                                        val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+                                        val artists by viewModel.artists.collectAsStateWithLifecycle()
                                         SearchScreen(
                                             query = searchQuery,
                                             results = searchResults,
@@ -575,6 +610,15 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Settings> {
+                                        val equalizerState by viewModel.equalizerState.collectAsStateWithLifecycle()
+                                        val lyricsBatchStatus by viewModel.lyricsBatchStatus.collectAsStateWithLifecycle()
+                                        val artworkBatchStatus by viewModel.artworkBatchStatus.collectAsStateWithLifecycle()
+                                        val failedArtworkCount by viewModel.failedArtworkCount.collectAsStateWithLifecycle()
+                                        val metadataHealth by viewModel.metadataHealth.collectAsStateWithLifecycle()
+                                        val libraryStats by viewModel.libraryStats.collectAsStateWithLifecycle()
+                                        val undoHistory by viewModel.undoHistory.collectAsStateWithLifecycle()
+                                        val excludedFolders by viewModel.excludedFolders.collectAsStateWithLifecycle()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
                                         SettingsScreen(
                                             prefs = prefs,
                                             equalizerState = equalizerState,
@@ -612,7 +656,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                             onSetDownloadLyricsOnPlayStart = viewModel::setDownloadLyricsOnPlayStart,
                                             onSetMusixmatchApiKey = viewModel::setMusixmatchApiKey,
                                             onBatchFetchLyrics = viewModel::batchFetchMissingLyrics,
-                                            onClearLyricsCache = viewModel::clearLyricsCache,
+                                            onClearLyricsCache = {
+                                                viewModel.clearLyricsCache()
+                                                lyricsViewModel.onCacheCleared()
+                                            },
                                             onSetAutoFixArtworkOnScan = viewModel::setAutoFixArtworkOnScan,
                                             onSetArtworkWifiOnly = viewModel::setArtworkWifiOnly,
                                             onBatchFixMissingArtwork = { viewModel.batchFixMissingArtwork(false) },
@@ -638,6 +685,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Automix> {
+                                        val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
                                         AutomixScreen(
                                             automixState = automixState,
                                             automixConfig = prefs.automixConfig,
@@ -667,6 +715,10 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.AutomixSettings> {
+                                        val genres by viewModel.genres.collectAsStateWithLifecycle()
+                                        val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+                                        val customDjProfiles by viewModel.customDjProfiles.collectAsStateWithLifecycle()
+                                        val genreRules by viewModel.genreRules.collectAsStateWithLifecycle()
                                         AutomixSettingsScreen(
                                             config = prefs.automixConfig,
                                             genres = genres,
@@ -684,6 +736,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.DjQueue> {
+                                        val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
+                                        val mixHistory by viewModel.mixHistory.collectAsStateWithLifecycle()
                                         DjQueueScreen(
                                             automixState = automixState,
                                             playbackState = playbackState,
@@ -702,6 +756,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.SmartPlaylistDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.SmartPlaylistDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
                                         val type = runCatching { SmartPlaylistType.valueOf(route.typeName) }
                                             .getOrDefault(SmartPlaylistType.RECENTLY_PLAYED)
                                         val smartTracks = remember(tracks, trackAnalyses, type) {
@@ -722,6 +778,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.AlbumDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.AlbumDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val albums by viewModel.albums.collectAsStateWithLifecycle()
                                         val albumTracks = remember(tracks, route.albumKey) {
                                             tracks.filter { MusicRepository.albumKey(it) == route.albumKey }
                                                 .sortedBy { it.trackNumber }
@@ -742,6 +800,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.ArtistDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.ArtistDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
+                                        val artists by viewModel.artists.collectAsStateWithLifecycle()
                                         val artistTracks = remember(tracks, route.artistName) {
                                             tracks.filter { it.artist == route.artistName }
                                         }
@@ -761,6 +821,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.GenreDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.GenreDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
                                         val genreTracks = remember(tracks, route.genreName) {
                                             tracks.filter { it.genre == route.genreName }
                                         }
@@ -779,6 +840,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.FolderDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.FolderDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
                                         val folderTracks = remember(tracks, route.folderPath) {
                                             tracks.filter { it.folderPath == route.folderPath }
                                         }
@@ -797,6 +859,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
 
                                     composable<MaxmizeRoute.PlaylistDetail> { entry ->
                                         val route = entry.toRoute<MaxmizeRoute.PlaylistDetail>()
+                                        val tracks by viewModel.tracks.collectAsStateWithLifecycle()
                                         val playlistWithTracks by viewModel.observePlaylistWithTracks(route.playlistId)
                                             .collectAsStateWithLifecycle(initialValue = null)
                                         PlaylistDetailScreen(
@@ -816,6 +879,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Equalizer> {
+                                        val equalizerState by viewModel.equalizerState.collectAsStateWithLifecycle()
                                         EqualizerScreen(
                                             eqState = equalizerState,
                                             playbackSpeed = playbackState.playbackSpeed,
@@ -837,6 +901,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                             if (useNavRail && playbackState.currentTrack != null) {
                                 MiniPlayer(
                                     playbackState = playbackState,
+                                    positionMsFlow = viewModel.playbackPositionMs,
                                     isAutomixActive = automixState.isActive,
                                     onOpenNowPlaying = { isNowPlayingOpen = true },
                                     onTogglePlayPause = viewModel.playbackController::togglePlayPause,
@@ -852,11 +917,12 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             // Full-Screen Expandable Now Playing Overlay
             AnimatedVisibility(
                 visible = isNowPlayingOpen && playbackState.currentTrack != null,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it }),
+                enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(180)),
+                exit = slideOutVertically(tween(220, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(160)),
             ) {
                 NowPlayingScreen(
                     playbackState = playbackState,
+                    positionMsFlow = viewModel.playbackPositionMs,
                     isAutomixActive = automixState.isActive,
                     onCollapse = { isNowPlayingOpen = false },
                     onOpenDjMode = {
@@ -876,15 +942,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                     onToggleShuffle = viewModel.playbackController::toggleShuffle,
                     onCycleRepeat = viewModel.playbackController::cycleRepeat,
                     onToggleFavorite = viewModel::toggleFavorite,
-                    onOpenEqualizer = {
-                        isNowPlayingOpen = false
-                        navController.navigate(MaxmizeRoute.Equalizer)
-                    },
-                    onOpenLyrics = { tr ->
-                        lyricsOverrideTrackId = null
-                        if (currentLyrics?.trackId != tr.id) {
-                            viewModel.loadLyrics(tr)
-                        }
+                    onOpenLyrics = { _ ->
+                        lyricsViewModel.openForCurrentPlayback()
                         isLyricsOverlayOpen = true
                     },
                     onStartDjMix = { tr ->
@@ -901,44 +960,24 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                 )
             }
 
-            // Full-Screen Editorial Lyrics Overlay (Reactively bound to current track)
+            // Full-Screen Lyrics Screen (Reactively driven by LyricsViewModel)
             AnimatedVisibility(
-                visible = isLyricsOverlayOpen && activeLyricsTrack != null,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                visible = isLyricsOverlayOpen,
+                enter = slideInVertically(tween(260, easing = FastOutSlowInEasing)) { it } + fadeIn(tween(180)),
+                exit = slideOutVertically(tween(220, easing = FastOutSlowInEasing)) { it } + fadeOut(tween(160)),
             ) {
-                activeLyricsTrack?.let { tr ->
-                    LyricsSheet(
-                        track = tr,
-                        lyricsResult = currentLyrics,
-                        positionMs = playbackState.positionMs,
-                        durationMs = playbackState.durationMs,
-                        isPlaying = playbackState.isPlaying,
-                        fontSizeSp = prefs.lyricsFontSizeSp,
-                        searchCandidates = lyricsCandidates,
-                        isSearchingOnline = isSearchingLyrics,
-                        onSeekTo = viewModel.playbackController::seekTo,
-                        onTogglePlayPause = viewModel.playbackController::togglePlayPause,
-                        onSkipPrevious = viewModel.playbackController::skipPrevious,
-                        onSkipNext = viewModel.playbackController::skipNext,
-                        onRefreshLyrics = { viewModel.refreshLyrics(tr) },
-                        onSearchOnline = { q -> viewModel.searchLyricsCandidates(tr, q) },
-                        onApplyCandidate = { cand -> viewModel.applyLyricsCandidate(tr, cand) },
-                        onAdjustSyncOffset = { delta -> viewModel.adjustLyricsSyncOffset(tr, delta) },
-                        onChangeFontSize = viewModel::setLyricsFontSize,
-                        onImportLyricsUri = { uri -> viewModel.importLyricsUri(tr, uri) },
-                        onSaveManualLyrics = { raw -> viewModel.saveManualLyrics(tr, raw) },
-                        onClearManualLyrics = { viewModel.clearManualLyrics(tr) },
-                        onDismiss = {
-                            isLyricsOverlayOpen = false
-                            lyricsOverrideTrackId = null
-                        },
-                    )
-                }
+                LyricsScreen(
+                    viewModel = lyricsViewModel,
+                    onDismiss = {
+                        isLyricsOverlayOpen = false
+                        lyricsViewModel.clearTrackOverride()
+                    },
+                )
             }
 
             // Shared Bottom Sheets & Dialogs
             playlistTargetTracks?.let { target ->
+                val playlists by viewModel.playlists.collectAsStateWithLifecycle()
                 AddToPlaylistSheet(
                     playlists = playlists,
                     trackCount = target.size,
@@ -967,6 +1006,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             }
 
             infoTrack?.let { tr ->
+                val trackAnalyses by viewModel.trackAnalyses.collectAsStateWithLifecycle()
+                val undoHistory by viewModel.undoHistory.collectAsStateWithLifecycle()
                 TrackInfoSheet(
                     track = tr,
                     analysis = trackAnalyses[tr.id],
@@ -978,6 +1019,8 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
             }
 
             editMetadataTrack?.let { tr ->
+                val artworkCandidates by viewModel.artworkCandidates.collectAsStateWithLifecycle()
+                val isSearchingArtwork by viewModel.isSearchingArtwork.collectAsStateWithLifecycle()
                 EditMetadataSheet(
                     track = tr,
                     metadataEditor = viewModel.container.metadataEditor,
@@ -985,6 +1028,7 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                     isSearchingArtwork = isSearchingArtwork,
                     onSearchArtworkOnline = viewModel::searchArtworkForTrack,
                     onApplyArtworkCandidate = viewModel::applyArtworkCandidate,
+                    onSmartAutoFix = viewModel::previewSmartAutoFix,
                     onSave = { title, artist, album, genre, year, art ->
                         viewModel.saveTrackMetadata(tr, title, artist, album, genre, year, art)
                     },

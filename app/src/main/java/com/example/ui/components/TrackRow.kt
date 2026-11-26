@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Equalizer
@@ -53,6 +54,9 @@ import com.example.data.model.Track
 import com.example.ui.theme.LocalDensityMetrics
 import com.example.ui.theme.MonoTimecodeStyle
 
+private val TrackRowShape = RoundedCornerShape(20.dp)
+private val TrackArtOverlayShape = RoundedCornerShape(16.dp)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackRow(
@@ -68,6 +72,7 @@ fun TrackRow(
     onAddToQueue: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onEditMetadata: (() -> Unit)? = null,
+    onAutoFixMetadata: (() -> Unit)? = null,
     onViewLyrics: (() -> Unit)? = null,
     onGoToAlbum: (() -> Unit)? = null,
     onGoToArtist: (() -> Unit)? = null,
@@ -81,17 +86,16 @@ fun TrackRow(
         isCurrent -> MaterialTheme.colorScheme.surfaceContainerHigh
         else -> MaterialTheme.colorScheme.background
     }
-    val shape = RoundedCornerShape(20.dp)
     val densityMetrics = LocalDensityMetrics.current
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(shape)
+            .clip(TrackRowShape)
             .background(rowBg)
             .let {
                 if (isCurrent || isSelected) {
-                    it.border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                    it.border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, TrackRowShape)
                 } else it
             }
             .combinedClickable(
@@ -117,6 +121,7 @@ fun TrackRow(
             ArtworkImage(
                 artworkUri = track.customArtworkUri ?: track.artworkUri,
                 fallbackUri = track.contentUri,
+                maxSizePx = 160,
                 modifier = Modifier.size(54.dp),
                 cornerRadius = 16.dp,
             )
@@ -124,7 +129,7 @@ fun TrackRow(
                 Box(
                     modifier = Modifier
                         .size(54.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(TrackArtOverlayShape)
                         .background(MaterialTheme.colorScheme.background.copy(alpha = 0.68f)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -239,6 +244,13 @@ fun TrackRow(
                             text = { Text("Lyrics") },
                             leadingIcon = { Icon(Icons.Rounded.Lyrics, contentDescription = null) },
                             onClick = { menuExpanded = false; onViewLyrics() },
+                        )
+                    }
+                    if (onAutoFixMetadata != null) {
+                        DropdownMenuItem(
+                            text = { Text("Auto-Fix Song & Cover") },
+                            leadingIcon = { Icon(Icons.Rounded.AutoFixHigh, contentDescription = null) },
+                            onClick = { menuExpanded = false; onAutoFixMetadata() },
                         )
                     }
                     if (onEditMetadata != null) {

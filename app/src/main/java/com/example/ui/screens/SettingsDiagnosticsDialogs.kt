@@ -141,17 +141,15 @@ fun MetadataHealthDialog(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            if (track.customArtworkUri.isNullOrBlank() && track.artworkUri.isNullOrBlank()) {
-                                IconButton(onClick = { onAutoFixArtwork(track) }, modifier = Modifier.size(34.dp)) {
-                                    Icon(Icons.Rounded.AutoFixHigh, contentDescription = "Fetch cover art", modifier = Modifier.size(18.dp))
-                                }
+                            IconButton(onClick = { onAutoFixArtwork(track) }, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Rounded.AutoFixHigh, contentDescription = "Auto-fix song info & cover", modifier = Modifier.size(18.dp))
                             }
                             IconButton(
                                 onClick = {
                                     onDismiss()
                                     onEditTrack(track)
                                 },
-                                modifier = Modifier.size(34.dp),
+                                modifier = Modifier.size(36.dp),
                             ) {
                                 Icon(Icons.Rounded.Edit, contentDescription = "Edit track tags", modifier = Modifier.size(18.dp))
                             }
@@ -162,11 +160,11 @@ fun MetadataHealthDialog(
         },
         confirmButton = {
             Row {
-                if (health.missingArtworkTracks.isNotEmpty()) {
+                if (flagged.isNotEmpty()) {
                     TextButton(onClick = {
                         onBatchFixArtwork()
                         onDismiss()
-                    }) { Text("Auto-Fix Covers") }
+                    }) { Text("Auto-Fix Songs & Covers") }
                 }
                 TextButton(onClick = onDismiss) { Text("Close") }
             }

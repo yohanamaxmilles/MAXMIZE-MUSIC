@@ -489,7 +489,43 @@ fun SettingsScreen(
             }
         }
 
-        // 3. MUSIC LIBRARY
+        // 3. AUDIO & EQUALIZER
+        item {
+            SettingsCategoryLabel("AUDIO & EQUALIZER")
+            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
+                SettingsNavRow(
+                    icon = Icons.Rounded.Equalizer,
+                    title = "Equalizer · 10-Band & Presets",
+                    valueText = prefs.eqPreset,
+                    onClick = onOpenEqualizer,
+                    modifier = Modifier.testTag("settings_open_eq"),
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.Speaker,
+                    title = "Bass Boost",
+                    checked = equalizerState.bassBoostStrength > 0,
+                    onCheckedChange = onToggleBassBoost,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.SurroundSound,
+                    title = "Virtualizer",
+                    checked = equalizerState.virtualizerStrength > 0,
+                    onCheckedChange = onToggleVirtualizer,
+                )
+                RowDivider()
+                SettingsSwitchRow(
+                    icon = Icons.Rounded.VolumeUp,
+                    title = "Loudness Normalization",
+                    subtitle = "Target balanced -14 LUFS playback level",
+                    checked = prefs.loudnessNormalizationEnabled,
+                    onCheckedChange = onSetLoudnessNormalization,
+                )
+            }
+        }
+
+        // 4. MUSIC LIBRARY
         item {
             SettingsCategoryLabel("MUSIC LIBRARY")
             EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -634,7 +670,7 @@ fun SettingsScreen(
                 RowDivider()
                 SettingsNavRow(
                     icon = Icons.Rounded.Image,
-                    title = "Find Missing Album Covers",
+                    title = "Auto-Fix Songs & Embed Covers",
                     valueText = artworkBatchStatus ?: "${metadataHealth.missingArtworkTracks.size} missing",
                     onClick = onBatchFixMissingArtwork,
                     modifier = Modifier.testTag("settings_batch_artwork"),
@@ -667,42 +703,6 @@ fun SettingsScreen(
                     icon = Icons.Rounded.DeleteOutline,
                     title = "Clear Artwork Cache",
                     onClick = onClearArtworkCache,
-                )
-            }
-        }
-
-        // 6. AUDIO
-        item {
-            SettingsCategoryLabel("AUDIO")
-            EditorialGroupCard(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SettingsNavRow(
-                    icon = Icons.Rounded.Equalizer,
-                    title = "Equalizer",
-                    valueText = prefs.eqPreset,
-                    onClick = onOpenEqualizer,
-                    modifier = Modifier.testTag("settings_open_eq"),
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.Speaker,
-                    title = "Bass Boost",
-                    checked = equalizerState.bassBoostStrength > 0,
-                    onCheckedChange = onToggleBassBoost,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.SurroundSound,
-                    title = "Virtualizer",
-                    checked = equalizerState.virtualizerStrength > 0,
-                    onCheckedChange = onToggleVirtualizer,
-                )
-                RowDivider()
-                SettingsSwitchRow(
-                    icon = Icons.Rounded.VolumeUp,
-                    title = "Loudness Normalization",
-                    subtitle = "Target balanced -14 LUFS playback level",
-                    checked = prefs.loudnessNormalizationEnabled,
-                    onCheckedChange = onSetLoudnessNormalization,
                 )
             }
         }

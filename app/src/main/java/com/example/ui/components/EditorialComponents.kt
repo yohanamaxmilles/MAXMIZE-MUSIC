@@ -80,16 +80,15 @@ fun TopProfileSettingsButton(
             .size(46.dp)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(onClick = onClick)
             .testTag("top_settings_btn"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Outlined.Settings,
+            imageVector = MaxmizeIcons.Sliders,
             contentDescription = "Settings and Profile",
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(21.dp),
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -166,8 +165,7 @@ fun MaxmizeBottomBar(
                 .clip(barShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .border(0.75.dp, MaterialTheme.colorScheme.outlineVariant, barShape)
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEach { item ->
@@ -178,6 +176,7 @@ fun MaxmizeBottomBar(
                         item.accentHighlighted -> LavenderCardDeep.copy(alpha = 0.45f)
                         else -> Color.Transparent
                     },
+                    animationSpec = androidx.compose.animation.core.tween(150),
                     label = "navCircleBg",
                 )
                 val iconTint by animateColorAsState(
@@ -186,29 +185,38 @@ fun MaxmizeBottomBar(
                         item.accentHighlighted -> LavenderCard
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
+                    animationSpec = androidx.compose.animation.core.tween(150),
                     label = "navIconTint",
                 )
                 val interactionSource = remember { MutableInteractionSource() }
 
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .weight(1f)
+                        .fillMaxHeight()
                         .clip(CircleShape)
-                        .background(circleBg)
                         .clickable(
                             interactionSource = interactionSource,
-                            indication = ripple(bounded = true),
+                            indication = ripple(bounded = false, radius = 28.dp),
                             onClick = { onSelect(item) },
                         )
                         .testTag(item.testTag),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(circleBg),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label,
+                            tint = iconTint,
+                            modifier = Modifier.size(25.dp),
+                        )
+                    }
                 }
             }
         }
@@ -361,7 +369,7 @@ fun MaxmizeSlider(
     val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.0001f)
     val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
     val activeColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    val inactiveColor = MaterialTheme.colorScheme.outline
+    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.20f)
 
     val density = LocalDensity.current
     val thumbRadiusPx = with(density) { thumbRadius.toPx() }

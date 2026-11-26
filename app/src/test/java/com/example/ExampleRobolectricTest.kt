@@ -150,4 +150,47 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_about_row"))
         composeTestRule.onNodeWithTag("settings_about_row").assertIsDisplayed()
     }
+
+    @Test
+    fun `tapping bottom bar tabs from settings or equalizer immediately switches tabs without getting stuck`() {
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("home_screen").assertIsDisplayed()
+
+        // Home -> Settings -> tap Home bottom tab directly
+        composeTestRule.onNodeWithTag("top_settings_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("settings_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("settings_screen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("home_screen").assertIsDisplayed()
+
+        // Playlists -> Settings -> tap Home bottom tab -> tap Playlists again (must NOT stay stuck on Settings)
+        composeTestRule.onNodeWithTag("nav_playlists").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("playlists_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("top_settings_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("settings_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("home_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("nav_playlists").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("settings_screen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("playlists_screen").assertIsDisplayed()
+
+        // Playlists -> Settings -> Equalizer -> tap Library bottom tab directly
+        composeTestRule.onNodeWithTag("top_settings_btn").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_open_eq"))
+        composeTestRule.onNodeWithTag("settings_open_eq").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("equalizer_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("nav_library").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("equalizer_screen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("settings_screen").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("library_screen").assertIsDisplayed()
+    }
 }

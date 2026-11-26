@@ -18,8 +18,10 @@ import com.example.data.model.PlaylistWithTracks
 import com.example.data.model.SortOption
 import com.example.data.model.SortOrder
 import com.example.data.model.Track
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 class MusicRepository(
@@ -34,7 +36,7 @@ class MusicRepository(
     ) { entities, overrides ->
         val overrideMap = overrides.associateBy { it.trackId }
         entities.map { entity -> entity.toDomain(overrideMap[entity.id]) }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val playlistsFlow: Flow<List<Playlist>> = combine(
         playlistDao.observePlaylists(),
@@ -59,7 +61,7 @@ class MusicRepository(
                 artworkUris = pTracks.mapNotNull { it.displayArtwork }.distinct().take(4),
             )
         }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val albumsFlow: Flow<List<AlbumSummary>> = tracksFlow.map { tracks ->
         tracks.groupBy { albumKey(it) }
@@ -78,7 +80,7 @@ class MusicRepository(
                 )
             }
             .sortedBy { it.albumName.lowercase() }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val artistsFlow: Flow<List<ArtistSummary>> = tracksFlow.map { tracks ->
         tracks.groupBy { it.artist }
@@ -93,7 +95,7 @@ class MusicRepository(
                 )
             }
             .sortedBy { it.artistName.lowercase() }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val genresFlow: Flow<List<GenreSummary>> = tracksFlow.map { tracks ->
         tracks.groupBy { it.genre }
@@ -106,7 +108,7 @@ class MusicRepository(
                 )
             }
             .sortedBy { it.genreName.lowercase() }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val foldersFlow: Flow<List<FolderSummary>> = combine(
         tracksFlow,
@@ -124,7 +126,7 @@ class MusicRepository(
                 )
             }
             .sortedBy { it.folderName.lowercase() }
-    }
+    }.flowOn(Dispatchers.Default)
 
     val excludedFoldersFlow: Flow<List<String>> = exclusionDao.observeExcludedFolders()
         .map { list -> list.map { it.folderPath } }
@@ -154,7 +156,7 @@ class MusicRepository(
             ),
             tracks = pTracks,
         )
-    }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun toggleFavorite(trackId: String) {
         val current = trackDao.getTrackById(trackId) ?: return
