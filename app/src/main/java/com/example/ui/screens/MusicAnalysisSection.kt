@@ -126,6 +126,13 @@ fun MusicAnalysisSection(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            DjStudioSectionHeader(
+                eyebrow = "LIBRARY INTELLIGENCE",
+                title = "Track analysis",
+                description = "Review tempo, musical key, energy and analysis confidence.",
+            )
+        }
         // Overview Progress Card
         item {
             EditorialGroupCard(cornerRadius = 16.dp) {
