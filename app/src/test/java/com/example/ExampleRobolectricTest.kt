@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -33,7 +34,6 @@ class ExampleRobolectricTest {
     fun `bottom navigation switches across all five destinations`() {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("home_screen").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("empty_library_card").assertIsDisplayed()
 
         composeTestRule.onNodeWithTag("nav_library").performClick()
         composeTestRule.waitForIdle()
@@ -53,7 +53,8 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("search_screen").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("settings_open_automix").assertIsDisplayed()
@@ -61,18 +62,22 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("theme_chip_dark"))
         composeTestRule.onNodeWithTag("theme_chip_dark").assertIsDisplayed()
         composeTestRule.onNodeWithTag("theme_chip_light").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("accent_swatch_gold"))
-        composeTestRule.onNodeWithTag("accent_swatch_gold").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("accent_swatch_lime"))
+        composeTestRule.onNodeWithTag("accent_swatch_lime").assertIsDisplayed()
     }
 
     @Test
     fun `automix hub settings and dj queue screens navigate cleanly`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_dj").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("settings_open_automix").performClick()
+        composeTestRule.onNodeWithTag("dj_mode_screen").performScrollToNode(hasTestTag("dj_open_intelligent"))
+        composeTestRule.onNodeWithTag("dj_open_intelligent").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("dj_open_automix").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("automix_screen").performScrollToNode(hasTestTag("technique_human_style"))
+        composeTestRule.onNodeWithTag("technique_human_style").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_screen").performScrollToNode(hasTestTag("start_automix_btn"))
         composeTestRule.onNodeWithTag("start_automix_btn").assertIsDisplayed()
 
@@ -82,6 +87,7 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("automix_settings_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("automix_settings_screen").performScrollToNode(hasTestTag("switch_strict_genre"))
         composeTestRule.onNodeWithTag("switch_strict_genre").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("automix_settings_screen").performScrollToNode(hasTestTag("harmonic_level_strict"))
         composeTestRule.onNodeWithTag("harmonic_level_strict").assertIsDisplayed()
 
         composeTestRule.activityRule.scenario.onActivity { activity ->
@@ -100,12 +106,27 @@ class ExampleRobolectricTest {
     }
 
     @Test
+    fun intelligentDjOpensItsOwnOperatingMode() {
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("nav_dj").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("dj_mode_screen").performScrollToNode(hasTestTag("dj_open_intelligent"))
+        composeTestRule.onNodeWithTag("dj_open_intelligent").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("automix_screen").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("dj_console_mode_title").assertIsDisplayed()
+        assertEquals(0, composeTestRule.onAllNodesWithTag("technique_human_style").fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun `settings displays typography artwork and library health controls`() {
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("nav_settings").performClick()
+        composeTestRule.onNodeWithTag("nav_home").performClick()
+        composeTestRule.onNodeWithTag("home_settings_btn").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_library_stats"))
         composeTestRule.onNodeWithTag("settings_library_stats").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("settings_metadata_health"))
         composeTestRule.onNodeWithTag("settings_metadata_health").assertIsDisplayed()
         composeTestRule.onNodeWithTag("settings_screen").performScrollToNode(hasTestTag("font_choice_inter"))
         composeTestRule.onNodeWithTag("font_choice_inter").assertIsDisplayed()

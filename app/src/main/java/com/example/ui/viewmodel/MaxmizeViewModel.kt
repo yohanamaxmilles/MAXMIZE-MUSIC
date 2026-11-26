@@ -808,9 +808,17 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
     }
 
     fun updateAutomixConfig(transform: (AutomixConfig) -> AutomixConfig) {
+        updateAutomixConfig(transform, null)
+    }
+
+    fun updateAutomixConfig(
+        transform: (AutomixConfig) -> AutomixConfig,
+        onUpdated: (() -> Unit)?,
+    ) {
         viewModelScope.launch {
             prefsRepo.updateAutomixConfig(transform)
             // Service observes preferencesFlow and refreshes DJ queue asynchronously without audio interruption
+            onUpdated?.invoke()
         }
     }
 

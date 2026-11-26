@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 fun DjModeScreen(
     isAutomixActive: Boolean,
     onOpenAutomix: () -> Unit,
+    onOpenIntelligentDj: () -> Unit,
     onOpenQueue: () -> Unit,
     onOpenProfiles: () -> Unit,
     onOpenAnalysis: () -> Unit,
@@ -116,6 +117,15 @@ fun DjModeScreen(
                 icon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 testTag = "dj_open_automix",
                 onClick = onOpenAutomix,
+            )
+        }
+        item {
+            DjActionCard(
+                title = "Intelligent DJ",
+                description = "Let the DJ read the musical flow, build the energy journey and manage transitions with DJ voice.",
+                icon = { Icon(Icons.Rounded.Analytics, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                testTag = "dj_open_intelligent",
+                onClick = onOpenIntelligentDj,
             )
         }
         item {

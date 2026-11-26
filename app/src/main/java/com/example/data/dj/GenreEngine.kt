@@ -68,7 +68,7 @@ object GenreEngine {
         GenreSpec("House", GenreFamily.HOUSE, listOf("house", "tropical house", "future house", "club house")),
 
         GenreSpec("Hard Techno", GenreFamily.TECHNO, listOf("hard techno", "hardtechno", "industrial techno", "schranz")),
-        GenreSpec("Melodic Techno", GenreFamily.TECHNO, listOf("melodic techno", "afterlife")),
+        GenreSpec("Melodic Techno", GenreFamily.TECHNO, listOf("melodic techno")),
         GenreSpec("Minimal Techno", GenreFamily.TECHNO, listOf("minimal techno", "minimal")),
         GenreSpec("Techno", GenreFamily.TECHNO, listOf("techno", "acid techno")),
 
@@ -80,7 +80,7 @@ object GenreEngine {
         GenreSpec("Future Bass", GenreFamily.BASS, listOf("future bass")),
 
         GenreSpec("Electro", GenreFamily.ELECTRONIC, listOf("electro", "electro house", "synthwave")),
-        GenreSpec("EDM", GenreFamily.ELECTRONIC, listOf("edm", "big room", "festival", "dance", "electronica", "electronic", "club")),
+        GenreSpec("EDM", GenreFamily.ELECTRONIC, listOf("edm", "big room", "electronica", "electronic")),
 
         GenreSpec("Trap", GenreFamily.HIP_HOP, listOf("trap")),
         GenreSpec("Drill", GenreFamily.HIP_HOP, listOf("drill", "uk drill", "ny drill")),
@@ -94,11 +94,11 @@ object GenreEngine {
         GenreSpec("Dance Pop", GenreFamily.POP, listOf("dance pop", "dance-pop", "synth pop", "synthpop", "electropop", "electro pop")),
         GenreSpec("Pop", GenreFamily.POP, listOf("pop", "k-pop", "kpop", "indie pop", "mainstream pop")),
 
-        GenreSpec("Bongo Flava", GenreFamily.AFRO, listOf("bongo flava", "bongoflava", "bongo", "tanzania")),
-        GenreSpec("Amapiano", GenreFamily.AFRO, listOf("amapiano", "piano")),
+        GenreSpec("Bongo Flava", GenreFamily.AFRO, listOf("bongo flava", "bongoflava", "bongo")),
+        GenreSpec("Amapiano", GenreFamily.AFRO, listOf("amapiano")),
         GenreSpec("Afrobeats", GenreFamily.AFRO, listOf("afrobeats", "afrobeat", "afro beat", "afropop", "afro pop", "afro fusion", "gengetone")),
 
-        GenreSpec("Reggae", GenreFamily.CARIBBEAN_LATIN, listOf("reggae", "roots reggae", "dub", "lovers rock")),
+        GenreSpec("Reggae", GenreFamily.CARIBBEAN_LATIN, listOf("reggae", "roots reggae", "lovers rock")),
         GenreSpec("Dancehall", GenreFamily.CARIBBEAN_LATIN, listOf("dancehall", "ragga")),
         GenreSpec("Reggaeton", GenreFamily.CARIBBEAN_LATIN, listOf("reggaeton", "dembow", "urbano")),
         GenreSpec("Latin", GenreFamily.CARIBBEAN_LATIN, listOf("latin", "salsa", "bachata", "latin pop", "merengue")),
@@ -169,7 +169,10 @@ object GenreEngine {
         val longestAlias = TAXONOMY
             .flatMap { spec -> spec.aliases.map { alias -> spec to alias } }
             .sortedByDescending { it.second.length }
-        longestAlias.firstOrNull { (_, alias) -> norm == alias || norm.contains(alias) }?.let { return it.first }
+        longestAlias.firstOrNull { (_, alias) ->
+            Regex("(^|[^a-z0-9])" + Regex.escape(alias) + "([^a-z0-9]|$)")
+                .containsMatchIn(norm)
+        }?.let { return it.first }
         return null
     }
 
@@ -197,7 +200,7 @@ object GenreEngine {
                 subgenre = fromTitleHint.canonical,
                 secondaryGenre = "",
                 family = fromTitleHint.family,
-                confidence = 0.78f,
+                confidence = 0.55f,
             )
         }
 
@@ -231,41 +234,26 @@ object GenreEngine {
         val lower = title.lowercase()
         val markers = listOf("amapiano", "deep house", "afro house", "tech house", "hard techno",
             "psytrance", "bongo flava", "dancehall", "reggaeton", "dubstep", "dnb", "acoustic", "lo-fi")
-        for (m in markers) {
-            if (lower.contains(m)) return canonicalize(m)
+        for (marker in markers) {
+            val boundaryMatch = Regex("(^|[^a-z0-9])" + Regex.escape(marker) + "([^a-z0-9]|$)")
+                .containsMatchIn(lower)
+            if (boundaryMatch) return canonicalize(marker)
         }
         return null
     }
 
+    /**
+     * Tempo, energy and spectral brightness cannot uniquely identify a music genre.
+     * Keep the genre unknown until trusted metadata or a validated classifier supplies evidence.
+     */
     fun inferFromAudioFeatures(a: TrackAnalysis): GenreClassification {
-        val bpm = a.bpm
-        val energy = a.energy
-        val onsets = a.onsetDensity
-        val centroid = a.spectralCentroidHz
-        val dr = a.dynamicRangeDb
-
-        return when {
-            bpm >= 162f && onsets >= 2.8f ->
-                GenreClassification("Bass", "Drum and Bass", "Electronic", GenreFamily.BASS, 0.56f)
-            bpm in 137f..155f && energy >= 0.68f && centroid >= 2200f ->
-                GenreClassification("Techno", "Hard Techno", "Psytrance", GenreFamily.TECHNO, 0.52f)
-            bpm in 134f..145f && onsets in 1.6f..3.6f && energy >= 0.55f ->
-                GenreClassification("Trance", "Trance", "Techno", GenreFamily.TRANCE, 0.48f)
-            bpm in 119f..131f && onsets >= 2.0f && energy >= 0.52f ->
-                GenreClassification("House", "Tech House", "House", GenreFamily.HOUSE, 0.54f)
-            bpm in 118f..126f && energy in 0.35f..0.62f ->
-                GenreClassification("House", "Deep House", "Afro House", GenreFamily.HOUSE, 0.50f)
-            bpm in 108f..118f && energy in 0.42f..0.75f ->
-                GenreClassification("Afro", "Amapiano", "Afrobeats", GenreFamily.AFRO, 0.46f)
-            bpm in 85f..104f && onsets >= 1.8f && centroid < 1800f ->
-                GenreClassification("Hip-Hop", "Hip-Hop", "R&B", GenreFamily.HIP_HOP, 0.48f)
-            bpm in 70f..98f && energy < 0.46f ->
-                GenreClassification("R&B / Soul", "R&B", "Chillout", GenreFamily.RNB_SOUL, 0.44f)
-            dr >= 12f && energy < 0.38f ->
-                GenreClassification("Jazz / Classical / Chill", "Acoustic", "Ambient", GenreFamily.ACOUSTIC_HERITAGE, 0.45f)
-            else ->
-                GenreClassification("Pop", "Pop", "Dance Pop", GenreFamily.POP, 0.36f)
-        }
+        return GenreClassification(
+            primaryGenre = "Unknown",
+            subgenre = "Unknown",
+            secondaryGenre = "",
+            family = GenreFamily.UNKNOWN,
+            confidence = 0.10f,
+        )
     }
 
     fun evaluateCompatibility(

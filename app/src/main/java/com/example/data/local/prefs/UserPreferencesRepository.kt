@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.data.model.AccentPreset
+import com.example.data.model.AutomixTechnique
+import com.example.data.model.DjOperatingMode
 import com.example.data.model.AutomixConfig
 import com.example.data.model.EnergyProgression
 import com.example.data.model.FontChoice
@@ -106,6 +108,8 @@ class UserPreferencesRepository(private val context: Context) {
 
         // Automix & DJ Intelligence
         val DJ_ENABLED = booleanPreferencesKey("dj_enabled")
+        val DJ_OPERATING_MODE = stringPreferencesKey("dj_operating_mode")
+        val DJ_AUTOMIX_TECHNIQUE = stringPreferencesKey("dj_automix_technique")
         val DJ_PROFILE_ID = stringPreferencesKey("dj_profile_id")
         val DJ_MODE = stringPreferencesKey("dj_mode")
         val DJ_BPM_MIN = intPreferencesKey("dj_bpm_min")
@@ -196,6 +200,8 @@ class UserPreferencesRepository(private val context: Context) {
 
         return AutomixConfig(
             enabled = prefs[Keys.DJ_ENABLED] ?: false,
+            operatingMode = prefs[Keys.DJ_OPERATING_MODE]?.let { runCatching { DjOperatingMode.valueOf(it) }.getOrNull() } ?: DjOperatingMode.AUTOMIX,
+            technique = prefs[Keys.DJ_AUTOMIX_TECHNIQUE]?.let { runCatching { AutomixTechnique.valueOf(it) }.getOrNull() } ?: AutomixTechnique.HUMAN_STYLE,
             activeProfileId = prefs[Keys.DJ_PROFILE_ID] ?: "club_house",
             mode = mixMode,
             bpmMin = (prefs[Keys.DJ_BPM_MIN] ?: 60).coerceIn(50, 200),
@@ -352,6 +358,8 @@ class UserPreferencesRepository(private val context: Context) {
             val current = readAutomixConfig(prefs)
             val next = transform(current)
             prefs[Keys.DJ_ENABLED] = next.enabled
+            prefs[Keys.DJ_OPERATING_MODE] = next.operatingMode.name
+            prefs[Keys.DJ_AUTOMIX_TECHNIQUE] = next.technique.name
             prefs[Keys.DJ_PROFILE_ID] = next.activeProfileId
             prefs[Keys.DJ_MODE] = next.mode.name
             prefs[Keys.DJ_BPM_MIN] = next.bpmMin.coerceIn(50, 200)

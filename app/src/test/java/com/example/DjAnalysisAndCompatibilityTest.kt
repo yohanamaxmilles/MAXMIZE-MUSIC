@@ -123,6 +123,27 @@ class DjAnalysisAndCompatibilityTest {
         assertTrue(result.loudnessLufs < 0f && result.loudnessLufs > -40f)
         assertEquals("A min", result.musicalKey)
         assertEquals("8A", result.camelotCode)
+        assertTrue("Stable synthetic beat should produce measurable tempo stability", result.tempoStability >= 0.5f)
+        assertEquals(3, result.analysisVersion)
+    }
+
+    @Test
+    fun detectsConservativeIntroAndOutroEnergyBoundaries() {
+        val samples = FloatArray(22_050 * 8)
+        for (i in samples.indices) {
+            samples[i] = (0.2 * sin(2.0 * PI * 440.0 * i / 22_050.0)).toFloat()
+        }
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "structure-test",
+            samples = samples,
+            sampleRate = 22_050,
+            durationMs = 240_000L,
+            introRms = floatArrayOf(0.01f, 0.01f, 0.01f, 0.01f, 0.05f, 0.05f, 0.05f, 0.05f),
+            outroRms = floatArrayOf(0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.05f, 0.01f, 0.01f, 0.01f, 0.01f),
+            outroOffsetMs = 200_000L,
+        )
+        assertEquals(4_000L, result.introEndMs)
+        assertEquals(204_000L, result.outroStartMs)
     }
 
     @Test
@@ -200,6 +221,14 @@ class DjAnalysisAndCompatibilityTest {
     }
 
     @Test
+    fun genreAliasesRequireRealTokenBoundaries() {
+        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Popular Music"))
+        assertEquals(null, com.example.data.dj.GenreEngine.canonicalize("Tanzania"))
+        assertEquals("Classical", com.example.data.dj.GenreEngine.canonicalize("Piano Solo")?.canonical)
+        assertEquals("Deep House", com.example.data.dj.GenreEngine.canonicalize("Electronic; Deep House")?.canonical)
+    }
+
+    @Test
     fun `HarmonicCompatibility enforces strict harmonic matching and reports empty reason`() {
         val current = track("c1", "Starter", genre = "Pop")
         val incompatible = track("i1", "Industrial Slam", genre = "Hard Techno")
@@ -241,5 +270,49 @@ class DjAnalysisAndCompatibilityTest {
         )
         assertEquals(1, flexibleRes.queue.size)
         assertEquals(clashKeyPop.id, flexibleRes.queue.first().track.id)
+    }
+
+    @Test
+    fun `silent audio does not receive invented BPM or musical key`() {
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "silence",
+            samples = FloatArray(22_050 * 8),
+            sampleRate = 22_050,
+            durationMs = 8_000L,
+        )
+        assertEquals(0f, result.bpm, 0f)
+        assertEquals(0f, result.bpmConfidence, 0f)
+        assertEquals("Unknown", result.musicalKey)
+        assertEquals("--", result.camelotCode)
+        assertEquals(0L, result.beatIntervalMs)
+        assertEquals(0L, result.phraseLengthMs)
+    }
+
+    @Test
+    fun `key analysis samples the full analysis window instead of only the opening seconds`() {
+        val sampleRate = 22_050
+        val seconds = 12
+        val samples = FloatArray(sampleRate * seconds)
+        for (i in samples.indices) {
+            val t = i.toDouble() / sampleRate
+            val tone = if (t < 2.0) {
+                0.45 * sin(2.0 * PI * 261.63 * t) +
+                    0.35 * sin(2.0 * PI * 329.63 * t) +
+                    0.25 * sin(2.0 * PI * 392.0 * t)
+            } else {
+                0.45 * sin(2.0 * PI * 220.0 * t) +
+                    0.35 * sin(2.0 * PI * 261.63 * t) +
+                    0.25 * sin(2.0 * PI * 329.63 * t)
+            }
+            samples[i] = tone.toFloat()
+        }
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "full-window-key-test",
+            samples = samples,
+            sampleRate = sampleRate,
+            durationMs = seconds * 1000L,
+        )
+        assertEquals("A min", result.musicalKey)
+        assertEquals(3, result.analysisVersion)
     }
 }

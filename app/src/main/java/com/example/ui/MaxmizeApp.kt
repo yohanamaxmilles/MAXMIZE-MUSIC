@@ -522,7 +522,23 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     composable<MaxmizeRoute.DjMode> {
                                         DjModeScreen(
                                             isAutomixActive = automixState.isActive,
-                                            onOpenAutomix = { navController.navigate(MaxmizeRoute.Automix) },
+                                            onOpenAutomix = {
+                                                viewModel.updateAutomixConfig(
+                                                    transform = { it.copy(operatingMode = com.example.data.model.DjOperatingMode.AUTOMIX) },
+                                                    onUpdated = { navController.navigate(MaxmizeRoute.Automix) },
+                                                )
+                                            },
+                                            onOpenIntelligentDj = {
+                                                viewModel.updateAutomixConfig(
+                                                    transform = {
+                                                        it.copy(
+                                                            operatingMode = com.example.data.model.DjOperatingMode.INTELLIGENT_DJ,
+                                                            technique = com.example.data.model.AutomixTechnique.HUMAN_STYLE,
+                                                        )
+                                                    },
+                                                    onUpdated = { navController.navigate(MaxmizeRoute.Automix) },
+                                                )
+                                            },
                                             onOpenQueue = { navController.navigate(MaxmizeRoute.DjQueue) },
                                             onOpenProfiles = { navController.navigate(MaxmizeRoute.AutomixSettings) },
                                             onOpenAnalysis = { navController.navigate(MaxmizeRoute.Automix) },
@@ -617,6 +633,9 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                                 val entries = com.example.data.model.MixMode.entries
                                                 val next = entries[(prefs.automixConfig.mode.ordinal + 1) % entries.size]
                                                 viewModel.updateAutomixConfig { it.copy(mode = next) }
+                                            },
+                                            onSelectTechnique = { technique ->
+                                                viewModel.updateAutomixConfig { it.copy(technique = technique) }
                                             },
                                             onAnalyzeLibrary = viewModel::analyzeLibraryBatch,
                                             onCorrectAnalysis = viewModel::correctTrackAnalysis,

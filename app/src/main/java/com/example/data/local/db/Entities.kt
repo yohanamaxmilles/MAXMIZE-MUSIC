@@ -1,5 +1,6 @@
 package com.example.data.local.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -171,6 +172,8 @@ data class TrackAnalysisEntity(
     val phraseLengthMs: Long = 0L,
     val downbeatConfidence: Float = 0.5f,
     val spectralCentroidHz: Float = 1500f,
+    @ColumnInfo(defaultValue = "0")
+    val analysisVersion: Int = 0,
 )
 
 @Entity(tableName = "custom_dj_profiles")

@@ -41,7 +41,7 @@ object HarmonicCompatibility {
     val ALL_KEYS: List<String> = KEY_TO_CAMELOT.keys.toList()
 
     fun camelotForKey(musicalKey: String): String =
-        KEY_TO_CAMELOT[musicalKey] ?: "8A"
+        KEY_TO_CAMELOT[musicalKey] ?: "--"
 
     fun parseCamelot(code: String): Pair<Int, Char>? {
         val clean = code.trim().uppercase()
@@ -85,7 +85,7 @@ object HarmonicCompatibility {
     }
 
     fun bpmCompatibilityScore(bpmA: Float, bpmB: Float): Int {
-        if (bpmA <= 1f || bpmB <= 1f) return 55
+        if (bpmA <= 1f || bpmB <= 1f) return 50
         val ratio = computeBeatmatchRatio(bpmA, bpmB)
         val pctDiff = abs(ratio - 1.0f) * 100f
         return when {
@@ -123,12 +123,12 @@ object HarmonicCompatibility {
             )
         }
 
-        val bpmA = currentAnalysis?.bpm ?: 120f
-        val bpmB = candidateAnalysis?.bpm ?: 120f
-        val keyA = currentAnalysis?.camelotCode ?: "8A"
-        val keyB = candidateAnalysis?.camelotCode ?: "8A"
-        val energyA = currentAnalysis?.energy ?: 0.55f
-        val energyB = candidateAnalysis?.energy ?: 0.55f
+        val bpmA = currentAnalysis?.takeIf { it.bpmConfidence >= 0.60f }?.bpm ?: 0f
+        val bpmB = candidateAnalysis?.takeIf { it.bpmConfidence >= 0.60f }?.bpm ?: 0f
+        val keyA = currentAnalysis?.takeIf { it.keyConfidence >= 0.60f }?.camelotCode ?: "--"
+        val keyB = candidateAnalysis?.takeIf { it.keyConfidence >= 0.60f }?.camelotCode ?: "--"
+        val energyA = currentAnalysis?.takeIf { it.bpmConfidence >= 0.45f }?.energy ?: 0.55f
+        val energyB = candidateAnalysis?.takeIf { it.bpmConfidence >= 0.45f }?.energy ?: 0.55f
 
         val rawHarmonic = harmonicScore(keyA, keyB)
         if (config.keyMatchingEnabled &&
