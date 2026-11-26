@@ -108,7 +108,10 @@ class ExampleRobolectricTest {
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("dj_subtab_queue").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("dj_tab_profiles").performClick()
+        // Profiles is inside the DJ hub's More menu.
+        composeTestRule.onNodeWithTag("dj_tab_more").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Profiles").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("dj_profiles_section").assertIsDisplayed()
 
