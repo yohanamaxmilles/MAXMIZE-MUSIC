@@ -106,7 +106,7 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("dj_queue_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_subtab_history").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("dj_subtab_queue").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No Mix History Yet").assertIsDisplayed()
 
         // Profiles is inside the DJ hub's More menu.
         composeTestRule.onNodeWithTag("dj_tab_more").performClick()
