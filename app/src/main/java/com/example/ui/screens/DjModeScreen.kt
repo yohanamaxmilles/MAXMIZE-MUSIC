@@ -45,6 +45,7 @@ enum class DjSectionTab(val label: String, val testTag: String) {
     QUEUE("Queue", "dj_tab_queue"),
     PROFILES("Profiles", "dj_tab_profiles"),
     ANALYSIS("Analysis", "dj_tab_analysis"),
+    RHYTHM("Rhythm AI", "dj_tab_rhythm"),
     SETTINGS("DJ Settings", "dj_tab_settings"),
 }
 
@@ -103,7 +104,7 @@ fun DjModeScreen(
             onOpenSettings = onOpenSettings,
         )
 
-        // Internal 6-section DJ navigation bar
+        // DJ section navigation
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -213,6 +214,8 @@ fun DjModeScreen(
                     onAnalyzeLibrary = onAnalyzeLibrary,
                     onCorrectAnalysis = onCorrectAnalysis,
                 )
+
+                DjSectionTab.RHYTHM -> RhythmIntelligenceSection()
 
                 DjSectionTab.SETTINGS -> AutomixSettingsScreen(
                     config = automixConfig,
