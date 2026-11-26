@@ -3,9 +3,9 @@ package com.example.data.online
 /**
  * Provider-neutral contracts for MAXMIZE MUSIC online catalogues.
  *
- * UI and playback code should depend on these contracts, never on a provider's
- * private API or response format. A provider implementation must use an
- * authorized playback method and must not extract or bypass protected streams.
+ * UI and playback code depend on these contracts, never on a provider's
+ * private API or response format. Providers expose only capabilities
+ * explicitly allowed by their developer terms and content licences.
  */
 
 data class OnlineTrack(
@@ -55,26 +55,27 @@ data class OnlinePlaybackSource(
     val expiresAtEpochMs: Long? = null,
 )
 
-/**
- * Implementations are added per licensed/authorized music provider.
- * Keep provider-specific authentication and response parsing inside the
- * implementation, not in Compose screens or the DJ engine.
- */
 interface OnlineMusicProvider {
     val providerId: String
     val displayName: String
 
+    /** True only when the provider authorizes direct in-app audio playback. */
+    val supportsInAppAudioPlayback: Boolean
+        get() = false
+
+    /** True only when the provider's licence permits DJ processing/mixing. */
+    val supportsDjProcessing: Boolean
+        get() = false
+
     suspend fun search(query: String): OnlineSearchResults
-
     suspend fun getFeaturedPlaylists(): List<OnlinePlaylist>
-
     suspend fun getMoods(): List<OnlineMood>
-
     suspend fun getPlaylistTracks(playlistId: String): List<OnlineTrack>
 
     /**
-     * Return a playback source only when the provider explicitly permits
-     * third-party playback through the returned URI.
+     * Return a direct audio source only when the provider explicitly permits
+     * third-party playback through that URI. Discovery-only providers must
+     * leave this unsupported.
      */
     suspend fun getPlaybackSource(track: OnlineTrack): OnlinePlaybackSource
 }
