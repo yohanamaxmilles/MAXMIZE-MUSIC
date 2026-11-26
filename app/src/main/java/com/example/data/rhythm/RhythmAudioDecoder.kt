@@ -1,6 +1,7 @@
 package com.example.data.rhythm
 
 import android.content.Context
+import android.media.AudioFormat
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -48,7 +49,7 @@ object RhythmAudioDecoder {
             } else {
                 1
             }
-            var pcmEncoding = MediaFormat.ENCODING_PCM_16BIT
+            var pcmEncoding = AudioFormat.ENCODING_PCM_16BIT
 
             val monoSamples = ArrayList<Float>(sampleRate * RhythmAudioConfig.DURATION_SECONDS)
             var inputEnded = false
@@ -147,9 +148,9 @@ object RhythmAudioDecoder {
         require(channels > 0) { "Invalid audio channel count: $channels." }
 
         val bytesPerSample = when (encoding) {
-            MediaFormat.ENCODING_PCM_16BIT -> 2
-            MediaFormat.ENCODING_PCM_FLOAT -> 4
-            MediaFormat.ENCODING_PCM_8BIT -> 1
+            AudioFormat.ENCODING_PCM_16BIT -> 2
+            AudioFormat.ENCODING_PCM_FLOAT -> 4
+            AudioFormat.ENCODING_PCM_8BIT -> 1
             else -> error("Unsupported decoded PCM encoding: $encoding.")
         }
 
@@ -161,9 +162,9 @@ object RhythmAudioDecoder {
             var sum = 0f
             repeat(channels) {
                 val value = when (encoding) {
-                    MediaFormat.ENCODING_PCM_16BIT -> pcm.short / 32768f
-                    MediaFormat.ENCODING_PCM_FLOAT -> pcm.float
-                    MediaFormat.ENCODING_PCM_8BIT -> ((pcm.get().toInt() and 0xFF) - 128) / 128f
+                    AudioFormat.ENCODING_PCM_16BIT -> pcm.short / 32768f
+                    AudioFormat.ENCODING_PCM_FLOAT -> pcm.float
+                    AudioFormat.ENCODING_PCM_8BIT -> ((pcm.get().toInt() and 0xFF) - 128) / 128f
                     else -> 0f
                 }
                 sum += value
