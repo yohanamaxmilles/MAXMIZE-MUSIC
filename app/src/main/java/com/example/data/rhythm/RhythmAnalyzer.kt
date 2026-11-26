@@ -17,7 +17,7 @@ class RhythmAnalyzer(
     classLabels: List<String>,
     modelAssetPath: String = RhythmInferenceEngine.DEFAULT_MODEL_ASSET,
     numThreads: Int = RhythmInferenceEngine.DEFAULT_NUM_THREADS,
-    threshold: Float = RhythmAudioConfig.DEFAULT_PREDICTION_THRESHOLD
+    private val threshold: Float = RhythmAudioConfig.DEFAULT_PREDICTION_THRESHOLD
 ) : Closeable {
 
     private val featureExtractor = RhythmFeatureExtractor()
@@ -49,7 +49,7 @@ class RhythmAnalyzer(
             detectedInstruments = predictions.filter { it.detected },
             inputSampleRateHz = RhythmAudioConfig.SAMPLE_RATE,
             analyzedDurationSeconds = RhythmAudioConfig.DURATION_SECONDS,
-            threshold = RhythmAudioConfig.DEFAULT_PREDICTION_THRESHOLD
+            threshold = threshold
         )
     }
 
