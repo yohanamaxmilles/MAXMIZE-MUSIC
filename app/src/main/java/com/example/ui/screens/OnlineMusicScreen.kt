@@ -170,8 +170,7 @@ fun OnlineMusicScreen(
                         )
                     }
                     Text(
-                        text = "A bigger world
-of music awaits.",
+                        text = "A bigger world\nof music awaits.",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-1.1).sp,
