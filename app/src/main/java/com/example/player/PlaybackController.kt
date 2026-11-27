@@ -2,6 +2,7 @@ package com.example.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.media3.common.MediaItem
@@ -12,6 +13,8 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.example.data.local.db.PlaybackStateDao
+import com.example.data.online.OnlinePlaybackSource
+import com.example.data.online.OnlineTrack
 import com.example.data.local.prefs.UserPreferencesRepository
 import com.example.data.model.PlaybackUiState
 import com.example.data.model.RepeatMode
@@ -226,6 +229,47 @@ class PlaybackController(
         mc.prepare()
         mc.play()
         syncStateFromController()
+    }
+
+    fun playOnlineTrack(track: OnlineTrack, source: OnlinePlaybackSource) {
+        val mediaItem = MediaItem.Builder()
+            .setMediaId("${track.providerId}:${track.id}")
+            .setUri(source.uri)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(track.title)
+                    .setArtist(track.artistName)
+                    .setAlbumTitle(track.albumName.ifBlank { "Audius" })
+                    .setArtworkUri(track.artworkUrl?.let(Uri::parse))
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .build()
+            )
+            .build()
+
+        if (automixRuntime.uiState.value.isActive) stopAutomix()
+        val mc = controller
+        if (mc != null) {
+            mc.setMediaItem(mediaItem)
+            mc.prepare()
+            mc.play()
+            syncStateFromController()
+        } else {
+            connect()
+            scope.launch {
+                repeat(50) {
+                    val connected = controller
+                    if (connected != null) {
+                        connected.setMediaItem(mediaItem)
+                        connected.prepare()
+                        connected.play()
+                        syncStateFromController()
+                        return@launch
+                    }
+                    delay(100L)
+                }
+            }
+        }
     }
 
     fun playTrackAtQueueIndex(index: Int) {
