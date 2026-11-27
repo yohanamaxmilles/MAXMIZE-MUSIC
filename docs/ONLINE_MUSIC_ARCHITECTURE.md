@@ -2,34 +2,35 @@
 
 ## Architecture
 
-MAXMIZE follows a provider-adapter architecture:
-- provider-neutral catalogue models and interface;
-- provider-specific networking and response parsing isolated from Compose;
-- discovery and playback capabilities declared separately;
-- the existing Media3 service, local library and DJ engine remain independent.
+MAXMIZE uses provider adapters:
+- provider-neutral catalogue models in `data/online`;
+- provider-specific API requests and response parsing stay outside Compose;
+- catalogue discovery and playback permissions are declared separately;
+- the existing Media3 player service remains the playback engine;
+- local Library data and DJ processing remain separate from online catalogue data.
 
-This implementation is written for MAXMIZE. It does not copy BitChord source files.
+## Audius provider
 
-## Current implementation
+`AudiusMusicProvider` provides:
+- public track search through the official Audius REST API;
+- artist, title, artwork, duration and canonical track-page metadata;
+- direct streaming through the official `/tracks/{track_id}/stream` endpoint;
+- filtering of tracks marked as stream-gated.
 
-`YoutubeDataApiProvider` uses the official YouTube Data API v3 search endpoint. It returns video metadata and canonical YouTube links.
+Audius' published Free API plan currently allows 10 requests per second and 500,000 requests per month. A developer API key is required for the app integration. The key is free to create and Audius documents it as safe for client-side use. MAXMIZE stores the key locally in app preferences. No bearer token, Audius login, subscription or paid plan is required.
 
-The adapter is intentionally discovery-only:
-- it does not extract media URLs;
-- it does not bypass YouTube's player;
-- it does not send YouTube catalogue results to ExoPlayer;
-- it does not permit DJ processing of YouTube catalogue results.
+The app only streams tracks returned as public and not marked stream-gated. A creator can disable third-party API streaming, and those tracks will not be playable through this integration.
 
-An API key must be supplied through secure runtime configuration or a backend. Do not commit keys.
+## Playback and DJ boundaries
 
-## Next stages
+Audius streams are passed to the existing Media3 playback controller as remote MediaItems. The app does not extract streams from YouTube or other services.
 
-1. Add secure API-key configuration and quota/error handling.
-2. Connect catalogue search state to the Online Music screen.
-3. Open results through an approved YouTube playback experience.
-4. Add a separate music provider whose licence explicitly permits direct in-app audio playback.
-5. Enable DJ Engine routing only for providers whose agreements expressly permit mixing, pitch/time changes and crossfades.
+Online Audius tracks are not converted into local Library records. DJ processing is disabled for Audius tracks because permission to stream does not by itself establish permission for tempo changes, key changes, crossfades or other DJ transformations.
+
+## YouTube adapter
+
+`YoutubeDataApiProvider` remains discovery-only. It returns YouTube catalogue metadata and canonical YouTube links. It does not extract media URLs or send YouTube results to ExoPlayer. YouTube playback must use an approved YouTube player experience.
 
 ## Local playback protection
 
-Do not change the local-file Track model, MusicRepository, PlaybackController, or MaxmizeMediaLibraryService to implement catalogue search. Keep online catalogue models separate until an authorized playback provider is selected.
+The local-file Track model, MusicRepository, local scanning, Offline Library and DJ engine are kept separate from Audius catalogue results. The existing Media3 service is reused only for normal remote playback. No changes are made to Automix transition logic or Dual Deck processing for Audius content.
