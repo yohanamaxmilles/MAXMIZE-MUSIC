@@ -3,11 +3,12 @@ package com.example.data.online
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -92,34 +93,34 @@ class AudiusMusicProvider(
         val items = root["data"]?.jsonArray ?: return OnlineSearchResults()
         val tracks = items.mapNotNull { element ->
             val item = element.jsonObject
-            if (item["is_stream_gated"]?.jsonPrimitive?.booleanOrNull == true) {
+            if ((item["is_stream_gated"] as? JsonPrimitive)?.booleanOrNull == true) {
                 return@mapNotNull null
             }
 
-            val id = item["id"]?.jsonPrimitive?.content
+            val id = (item["id"] as? JsonPrimitive)?.content
                 ?: return@mapNotNull null
-            val title = item["title"]?.jsonPrimitive?.content
+            val title = (item["title"] as? JsonPrimitive)?.content
                 ?: return@mapNotNull null
-            val user = item["user"]?.jsonObject
-            val artist = user?.get("name")?.jsonPrimitive?.content
-                ?: user?.get("handle")?.jsonPrimitive?.content
+            val user = item["user"] as? JsonObject
+            val artist = (user?.get("name") as? JsonPrimitive)?.content
+                ?: (user?.get("handle") as? JsonPrimitive)?.content
                 ?: "Unknown artist"
-            val artwork = item["artwork"]?.jsonObject
-            val artworkUrl = artwork?.get("480x480")?.jsonPrimitive?.content
-                ?: artwork?.get("150x150")?.jsonPrimitive?.content
-                ?: artwork?.get("1000x1000")?.jsonPrimitive?.content
-            val durationSeconds = item["duration"]?.jsonPrimitive?.doubleOrNull ?: 0.0
+            val artwork = item["artwork"] as? JsonObject
+            val artworkUrl = (artwork?.get("480x480") as? JsonPrimitive)?.content
+                ?: (artwork?.get("150x150") as? JsonPrimitive)?.content
+                ?: (artwork?.get("1000x1000") as? JsonPrimitive)?.content
+            val durationSeconds = (item["duration"] as? JsonPrimitive)?.doubleOrNull ?: 0.0
 
             OnlineTrack(
                 id = id,
                 providerId = PROVIDER_ID,
                 title = title,
                 artistName = artist,
-                albumName = item["album"]?.jsonObject?.get("title")?.jsonPrimitive?.content.orEmpty(),
+                albumName = ((item["album"] as? JsonObject)?.get("title") as? JsonPrimitive)?.content.orEmpty(),
                 artworkUrl = artworkUrl,
                 durationMs = (durationSeconds * 1000.0).toLong(),
-                explicit = item["explicit"]?.jsonPrimitive?.booleanOrNull ?: false,
-                permalink = item["permalink"]?.jsonPrimitive?.content,
+                explicit = (item["explicit"] as? JsonPrimitive)?.booleanOrNull ?: false,
+                permalink = (item["permalink"] as? JsonPrimitive)?.content,
             )
         }
         return OnlineSearchResults(tracks = tracks)
