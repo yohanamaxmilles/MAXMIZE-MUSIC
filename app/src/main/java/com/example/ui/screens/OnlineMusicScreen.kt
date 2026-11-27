@@ -38,6 +38,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.online.AudiusMusicProvider
 import com.example.data.online.OnlinePlaybackSource
@@ -100,7 +101,7 @@ fun OnlineMusicScreen(
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
                     text = "MAXMIZE",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 3f),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 3.sp),
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
