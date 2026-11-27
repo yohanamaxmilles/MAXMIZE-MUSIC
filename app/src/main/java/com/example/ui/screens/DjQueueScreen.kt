@@ -149,8 +149,8 @@ fun DjQueueScreen(
                             else MaterialTheme.colorScheme.outlineVariant,
                             shape = shape,
                         )
-                        .clickable { selectedTab = idx }
-                        .semantics { this.selected = selected; role = Role.Tab }
+                        .clickable(role = Role.Tab) { selectedTab = idx }
+                        .semantics { this.selected = selected }
                         .testTag("dj_subtab_${label.lowercase()}"),
                     contentAlignment = Alignment.Center,
                 ) {
