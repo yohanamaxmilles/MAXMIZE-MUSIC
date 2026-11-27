@@ -6,7 +6,6 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.core.app.ApplicationProvider
@@ -107,8 +106,7 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("dj_queue_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_subtab_history").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onRoot().printToLog("DJ_HISTORY_DEBUG")
-        composeTestRule.onNodeWithTag("dj_history_list").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No Mix History Yet").assertIsDisplayed()
 
         // Profiles is inside the DJ hub's More menu.
         composeTestRule.onNodeWithTag("dj_tab_more").performClick()
