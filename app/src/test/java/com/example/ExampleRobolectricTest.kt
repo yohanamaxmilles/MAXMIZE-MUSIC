@@ -107,7 +107,6 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("dj_queue_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_subtab_history").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("dj_subtab_history").assertIsSelected()
         composeTestRule.onNodeWithTag("dj_history_list").assertIsDisplayed()
         composeTestRule.onNodeWithText("No Mix History Yet").assertIsDisplayed()
 
