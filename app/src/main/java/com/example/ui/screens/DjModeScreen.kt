@@ -427,7 +427,7 @@ fun DjModeScreen(
 }
 
 @Composable
-private fun DjNavigationPill(label: String, selected: Boolean, testTag: String, onClick: () -> Unit) {
+fun DjNavigationPill(label: String, selected: Boolean, testTag: String, onClick: () -> Unit) {
     val shape = RoundedCornerShape(12.dp)
     Box(
         modifier = Modifier.height(40.dp).clip(shape)
