@@ -360,8 +360,6 @@ class MaxmizeMediaLibraryService : MediaLibraryService() {
                 if (deckIndex != activeDeckIndex) return
                 if (!isPlaying && !isMixingTransition) {
                     RealtimeSpectrumBus.reset()
-        djVoiceDirector?.close()
-        djVoiceDirector = null
                 }
                 updateWidgetFromPlayer()
                 if (!isPlaying) {
