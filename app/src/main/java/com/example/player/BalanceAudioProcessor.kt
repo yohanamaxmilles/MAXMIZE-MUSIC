@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.sqrt
 
 /**
@@ -85,6 +86,17 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
     @Volatile
     var emitSpectrum: Boolean = true
 
+    @Volatile private var lowBandGain: Float = 1.0f
+    @Volatile private var midBandGain: Float = 1.0f
+    @Volatile private var highBandGain: Float = 1.0f
+
+    private var lowStateLeft = 0f
+    private var lowStateRight = 0f
+    private var upperStateLeft = 0f
+    private var upperStateRight = 0f
+    private var lowAlpha = 0.025f
+    private var upperAlpha = 0.35f
+
     private val spectrumWindow = FloatArray(256)
     private var windowFill = 0
     private var configuredSampleRate = 44100
@@ -95,6 +107,15 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
 
     fun getBalance(): Float = balance
 
+    /** Three-band DJ EQ gains, applied to decoded PCM on this deck. */
+    fun setDjEq(low: Float, mid: Float, high: Float) {
+        lowBandGain = low.coerceIn(0f, 1.8f)
+        midBandGain = mid.coerceIn(0f, 1.8f)
+        highBandGain = high.coerceIn(0f, 1.8f)
+    }
+
+    fun resetDjEq() = setDjEq(1f, 1f, 1f)
+
     fun setNormalizationGain(gain: Float) {
         normalizationGain = gain.coerceIn(0.35f, 1.65f)
     }
@@ -104,6 +125,12 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
             return AudioProcessor.AudioFormat.NOT_SET
         }
         configuredSampleRate = inputAudioFormat.sampleRate.coerceAtLeast(8000)
+        lowAlpha = (1.0 - exp(-2.0 * PI * 180.0 / configuredSampleRate)).toFloat()
+        upperAlpha = (1.0 - exp(-2.0 * PI * 4200.0 / configuredSampleRate)).toFloat()
+        lowStateLeft = 0f
+        lowStateRight = 0f
+        upperStateLeft = 0f
+        upperStateRight = 0f
         return inputAudioFormat
     }
 
@@ -117,6 +144,9 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
 
         val currentBalance = balance
         val normGain = normalizationGain
+        val lowGain = lowBandGain
+        val midGain = midBandGain
+        val highGain = highBandGain
         val leftGain = (if (currentBalance > 0f) (1f - currentBalance).coerceIn(0f, 1f) else 1f) * normGain
         val rightGain = (if (currentBalance < 0f) (1f + currentBalance).coerceIn(0f, 1f) else 1f) * normGain
         val shouldEmit = emitSpectrum && RealtimeSpectrumBus.hasSubscribers()
@@ -125,9 +155,24 @@ class BalanceAudioProcessor : BaseAudioProcessor() {
         while (inputBuffer.remaining() >= 4) {
             val leftSample = inputBuffer.short
             val rightSample = inputBuffer.short
-            val adjustedLeft = (leftSample * leftGain).toInt()
+            val left = leftSample / 32768f
+            val right = rightSample / 32768f
+            lowStateLeft += lowAlpha * (left - lowStateLeft)
+            lowStateRight += lowAlpha * (right - lowStateRight)
+            upperStateLeft += upperAlpha * (left - upperStateLeft)
+            upperStateRight += upperAlpha * (right - upperStateRight)
+
+            val leftLow = lowStateLeft
+            val rightLow = lowStateRight
+            val leftHigh = left - upperStateLeft
+            val rightHigh = right - upperStateRight
+            val leftMid = upperStateLeft - lowStateLeft
+            val rightMid = upperStateRight - lowStateRight
+            val equalizedLeft = (leftLow * lowGain + leftMid * midGain + leftHigh * highGain) * 32768f
+            val equalizedRight = (rightLow * lowGain + rightMid * midGain + rightHigh * highGain) * 32768f
+            val adjustedLeft = (equalizedLeft * leftGain).toInt()
                 .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
-            val adjustedRight = (rightSample * rightGain).toInt()
+            val adjustedRight = (equalizedRight * rightGain).toInt()
                 .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
             outputBuffer.putShort(adjustedLeft)
             outputBuffer.putShort(adjustedRight)

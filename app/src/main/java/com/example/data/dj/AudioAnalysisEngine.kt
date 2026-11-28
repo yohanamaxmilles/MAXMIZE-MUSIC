@@ -10,6 +10,8 @@ import com.example.data.local.db.AnalysisDao
 import com.example.data.local.db.TrackAnalysisEntity
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
+import com.example.data.dj.next.DjVocalEvidenceAnalyzer
+import com.example.data.dj.next.YamnetVocalClassifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -33,12 +35,15 @@ class AudioAnalysisEngine(
     private val context: Context,
     private val analysisDao: AnalysisDao,
 ) {
+    private val yamnetVocalClassifier by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        YamnetVocalClassifier(context.applicationContext)
+    }
     val analysesFlow: Flow<Map<String, TrackAnalysis>> = analysisDao.observeAllAnalyses()
         .map { list -> list.associate { it.trackId to it.toDomain() } }
 
     suspend fun getAnalysisForTrack(track: Track): TrackAnalysis = withContext(Dispatchers.IO) {
         val existing = analysisDao.getAnalysisOnce(track.id)
-        if (existing != null && existing.phraseLengthMs > 0L) {
+        if (existing != null && existing.phraseLengthMs > 0L && existing.vocalAnalysisVersion >= 1) {
             return@withContext existing.toDomain()
         }
 
@@ -54,7 +59,7 @@ class AudioAnalysisEngine(
         val existingById = analysisDao.getAllAnalysesOnce().associateBy { it.trackId }
         val missing = tracks.filter {
             val existing = existingById[it.id]
-            existing == null || existing.phraseLengthMs <= 0L
+            existing == null || existing.phraseLengthMs <= 0L || existing.vocalAnalysisVersion < 1
         }
         if (missing.isEmpty()) {
             onProgress(tracks.size, tracks.size)
@@ -102,14 +107,40 @@ class AudioAnalysisEngine(
         if (!Build.FINGERPRINT.equals("robolectric", ignoreCase = true)) {
             val decoded = decodePcmWindows(Uri.parse(track.contentUri), track.durationMs)
             if (decoded != null && decoded.samples.size >= decoded.sampleRate * 2) {
-                return analyzePcmSamples(
+                val audioProfile = analyzePcmSamples(
                     trackId = track.id,
                     samples = decoded.samples,
                     sampleRate = decoded.sampleRate,
                     durationMs = track.durationMs,
+                    sampleOffsetMs = decoded.analysisStartMs,
                     introRms = decoded.introRms,
                     outroRms = decoded.outroRms,
                     trackHint = track,
+                )
+                val vocalFrames = runCatching {
+                    decoded.vocalSegments.flatMap { (segmentSamples, segmentOffsetMs) ->
+                        yamnetVocalClassifier.analyze(
+                            samples = segmentSamples,
+                            sampleRate = decoded.sampleRate,
+                            absoluteOffsetMs = segmentOffsetMs,
+                        )
+                    }
+                }.getOrDefault(emptyList())
+                val vocal = DjVocalEvidenceAnalyzer.analyze(vocalFrames)
+                val segmentsJson = vocal.segments.joinToString(
+                    prefix = "[",
+                    postfix = "]",
+                ) { segment ->
+                    """{"startMs":${segment.startMs},"endMs":${segment.endMs},"kind":"${segment.kind.name}","peakProbability":${segment.peakProbability}}"""
+                }
+                return audioProfile.copy(
+                    vocalAverageProbability = vocal.averageVocalProbability,
+                    vocalPeakProbability = vocal.peakVocalProbability,
+                    vocalActiveRatio = vocal.vocalActiveRatio,
+                    vocalAverageSpeechProbability = vocal.averageSpeechProbability,
+                    vocalConfidence = if (vocalFrames.isEmpty()) "UNKNOWN" else vocal.confidence.name,
+                    vocalSegmentsJson = segmentsJson,
+                    vocalAnalysisVersion = if (vocalFrames.isEmpty()) 0 else 1,
                 )
             }
         }
@@ -141,6 +172,8 @@ class AudioAnalysisEngine(
             rhythmSignature = "4/4",
             downbeatConfidence = 0.3f,
             spectralCentroidHz = 1500f,
+            vocalConfidence = "UNKNOWN",
+            vocalAnalysisVersion = 0,
         )
         val genre = GenreEngine.classifyTrack(track, partial)
         return partial.copy(
@@ -156,107 +189,188 @@ class AudioAnalysisEngine(
         val sampleRate: Int,
         val introRms: FloatArray,
         val outroRms: FloatArray,
+        val analysisStartMs: Long,
+        val vocalSegments: List<Pair<FloatArray, Long>>,
     )
 
     private fun decodePcmWindows(uri: Uri, durationMs: Long): DecodedAudioWindow? {
-        val extractor = MediaExtractor()
-        var codec: MediaCodec? = null
+        val metadataExtractor = MediaExtractor()
         return try {
-            extractor.setDataSource(context, uri, null)
+            metadataExtractor.setDataSource(context, uri, null)
             var audioTrackIdx = -1
-            var format: MediaFormat? = null
-            for (i in 0 until extractor.trackCount) {
-                val f = extractor.getTrackFormat(i)
-                val mime = f.getString(MediaFormat.KEY_MIME).orEmpty()
-                if (mime.startsWith("audio/")) {
+            var audioFormat: MediaFormat? = null
+            for (i in 0 until metadataExtractor.trackCount) {
+                val candidate = metadataExtractor.getTrackFormat(i)
+                if (candidate.getString(MediaFormat.KEY_MIME).orEmpty().startsWith("audio/")) {
                     audioTrackIdx = i
-                    format = f
+                    audioFormat = candidate
                     break
                 }
             }
-            if (audioTrackIdx < 0 || format == null) return null
-            extractor.selectTrack(audioTrackIdx)
-
+            val format = audioFormat ?: return null
+            if (audioTrackIdx < 0) return null
             val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
-            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE).coerceAtLeast(8000)
+            val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE).coerceAtLeast(8_000)
             val channelCount = if (format.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
                 format.getInteger(MediaFormat.KEY_CHANNEL_COUNT).coerceAtLeast(1)
             } else 1
 
+            val segmentMs = 20_000L
+            val centerStartMs = if (durationMs > segmentMs + 8_000L) {
+                ((durationMs / 2L) - segmentMs / 2L).coerceAtLeast(0L)
+            } else 0L
+            val introSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = 0L, lengthMs = minOf(segmentMs, durationMs.coerceAtLeast(segmentMs)),
+            )
+            val centerSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = centerStartMs, lengthMs = segmentMs,
+            )
+            val outroStartMs = (durationMs - segmentMs).coerceAtLeast(0L)
+            val outroSamples = decodeAudioSegment(
+                uri, audioTrackIdx, format, mime, sampleRate, channelCount,
+                startMs = outroStartMs, lengthMs = segmentMs,
+            )
+            val analysisSegment = centerSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to centerStartMs
+            } ?: introSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to 0L
+            } ?: outroSamples?.takeIf { it.size >= sampleRate * 2 }?.let {
+                it to outroStartMs
+            } ?: return null
+
+            DecodedAudioWindow(
+                samples = analysisSegment.first,
+                sampleRate = sampleRate,
+                introRms = calculateRmsFrames(introSamples ?: FloatArray(0), sampleRate),
+                outroRms = calculateRmsFrames(outroSamples ?: FloatArray(0), sampleRate),
+                analysisStartMs = analysisSegment.second,
+                vocalSegments = listOfNotNull(
+                    introSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to 0L },
+                    centerSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to centerStartMs },
+                    outroSamples?.takeIf { it.size >= sampleRate * 2 }?.let { it to outroStartMs },
+                ).distinctBy { it.second },
+            )
+        } catch (_: Throwable) {
+            null
+        } finally {
+            runCatching { metadataExtractor.release() }
+        }
+    }
+
+    /**
+     * Decodes one bounded time range. Each range gets its own extractor/codec so
+     * non-contiguous samples are never concatenated into the tempo analysis signal.
+     */
+    private fun decodeAudioSegment(
+        uri: Uri,
+        audioTrackIndex: Int,
+        sourceFormat: MediaFormat,
+        mime: String,
+        sampleRate: Int,
+        channelCount: Int,
+        startMs: Long,
+        lengthMs: Long,
+    ): FloatArray? {
+        val extractor = MediaExtractor()
+        var codec: MediaCodec? = null
+        return try {
+            extractor.setDataSource(context, uri, null)
+            if (audioTrackIndex !in 0 until extractor.trackCount) return null
+            extractor.selectTrack(audioTrackIndex)
+            val startUs = startMs.coerceAtLeast(0L) * 1_000L
+            val endUs = startUs + lengthMs.coerceAtLeast(1L) * 1_000L
+            if (startUs > 0L) extractor.seekTo(startUs, MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+
             codec = MediaCodec.createDecoderByType(mime)
-            codec.configure(format, null, null, 0)
+            codec.configure(sourceFormat, null, null, 0)
             codec.start()
 
-            val seekUs = if (durationMs > 45_000L) 20_000_000L else 0L
-            if (seekUs > 0L) extractor.seekTo(seekUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-
-            val targetSamples = minOf(sampleRate * 24, 1_100_000)
+            val targetSamples = minOf(
+                ((lengthMs.coerceAtLeast(1L) * sampleRate) / 1_000L).toInt(),
+                sampleRate * 22,
+            ).coerceAtLeast(sampleRate)
             val collected = FloatArray(targetSamples)
             var collectedCount = 0
-
-            val bufferInfo = MediaCodec.BufferInfo()
             var sawInputEos = false
             var sawOutputEos = false
             var loopSafety = 0
+            val info = MediaCodec.BufferInfo()
 
-            while (!sawOutputEos && collectedCount < targetSamples && loopSafety < 2500) {
+            while (!sawOutputEos && collectedCount < targetSamples && loopSafety < 3000) {
                 loopSafety++
                 if (!sawInputEos) {
-                    val inIdx = codec.dequeueInputBuffer(5_000L)
-                    if (inIdx >= 0) {
-                        val inBuf = codec.getInputBuffer(inIdx)
-                        if (inBuf != null) {
-                            val size = extractor.readSampleData(inBuf, 0)
-                            if (size < 0) {
-                                codec.queueInputBuffer(inIdx, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                    val inputIndex = codec.dequeueInputBuffer(2_000L)
+                    if (inputIndex >= 0) {
+                        val input = codec.getInputBuffer(inputIndex)
+                        if (input != null) {
+                            val size = extractor.readSampleData(input, 0)
+                            val sampleTime = extractor.sampleTime
+                            if (size < 0 || sampleTime >= endUs) {
+                                codec.queueInputBuffer(
+                                    inputIndex, 0, 0, endUs,
+                                    MediaCodec.BUFFER_FLAG_END_OF_STREAM,
+                                )
                                 sawInputEos = true
                             } else {
-                                codec.queueInputBuffer(inIdx, 0, size, extractor.sampleTime, 0)
+                                codec.queueInputBuffer(inputIndex, 0, size, sampleTime, 0)
                                 extractor.advance()
                             }
                         }
                     }
                 }
 
-                val outIdx = codec.dequeueOutputBuffer(bufferInfo, 5_000L)
-                if (outIdx >= 0) {
-                    val outBuf = codec.getOutputBuffer(outIdx)
-                    if (outBuf != null && bufferInfo.size > 0) {
-                        outBuf.position(bufferInfo.offset)
-                        outBuf.limit(bufferInfo.offset + bufferInfo.size)
-                        val shortBuf = outBuf.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-                        val totalShorts = shortBuf.remaining()
-                        var i = 0
-                        while (i + channelCount <= totalShorts && collectedCount < targetSamples) {
-                            var monoSum = 0f
-                            for (c in 0 until channelCount) {
-                                monoSum += shortBuf.get(i + c) / 32768f
+                val outputIndex = codec.dequeueOutputBuffer(info, 2_000L)
+                if (outputIndex >= 0) {
+                    val output = codec.getOutputBuffer(outputIndex)
+                    if (output != null && info.size > 0) {
+                        output.position(info.offset)
+                        output.limit(info.offset + info.size)
+                        val pcm = output.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+                        val totalShorts = pcm.remaining()
+                        val frames = totalShorts / channelCount
+                        for (frame in 0 until frames) {
+                            if (collectedCount >= targetSamples) break
+                            val frameTimeUs = info.presentationTimeUs +
+                                (frame * 1_000_000L / sampleRate)
+                            if (frameTimeUs < startUs || frameTimeUs >= endUs) continue
+                            var mono = 0f
+                            for (channel in 0 until channelCount) {
+                                mono += pcm.get(frame * channelCount + channel) / 32768f
                             }
-                            collected[collectedCount++] = monoSum / channelCount
-                            i += channelCount
+                            collected[collectedCount++] = mono / channelCount
                         }
                     }
-                    codec.releaseOutputBuffer(outIdx, false)
-                    if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                    codec.releaseOutputBuffer(outputIndex, false)
+                    if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                         sawOutputEos = true
                     }
                 }
             }
-
-            if (collectedCount < sampleRate) return null
-            val trimmed = collected.copyOf(collectedCount)
-            DecodedAudioWindow(
-                samples = trimmed,
-                sampleRate = sampleRate,
-                introRms = FloatArray(0),
-                outroRms = FloatArray(0),
-            )
+            if (collectedCount == 0) null else collected.copyOf(collectedCount)
         } catch (_: Throwable) {
             null
         } finally {
             runCatching { codec?.stop() }
             runCatching { codec?.release() }
             runCatching { extractor.release() }
+        }
+    }
+
+    private fun calculateRmsFrames(samples: FloatArray, sampleRate: Int): FloatArray {
+        if (samples.isEmpty()) return FloatArray(0)
+        val frameSize = (sampleRate / 2).coerceAtLeast(1) // 500 ms envelope frames
+        val count = (samples.size + frameSize - 1) / frameSize
+        return FloatArray(count) { frame ->
+            val start = frame * frameSize
+            val end = minOf(samples.size, start + frameSize)
+            var squareSum = 0.0
+            for (i in start until end) {
+                val value = samples[i].toDouble()
+                squareSum += value * value
+            }
+            sqrt(squareSum / (end - start).coerceAtLeast(1)).toFloat()
         }
     }
 
@@ -280,6 +394,7 @@ class AudioAnalysisEngine(
             samples: FloatArray,
             sampleRate: Int,
             durationMs: Long,
+            sampleOffsetMs: Long = 0L,
             introRms: FloatArray = FloatArray(0),
             outroRms: FloatArray = FloatArray(0),
             trackHint: Track? = null,
@@ -366,7 +481,8 @@ class AudioAnalysisEngine(
                     bestPhase = phase
                 }
             }
-            val firstBeatMs = ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
+            val firstBeatMs = sampleOffsetMs.coerceAtLeast(0L) +
+                ((bestPhase / envRateHz) * 1000f).roundToInt().toLong().coerceIn(0L, beatIntervalMs)
             val avgPhaseScore = (totalPhaseScore / framesPerBeat).coerceAtLeast(1e-5f)
             val downbeatConfidence = ((bestPhaseScore / avgPhaseScore - 1f) * 0.45f + bpmConf * 0.55f)
                 .coerceIn(0.15f, 0.98f)
@@ -381,8 +497,19 @@ class AudioAnalysisEngine(
             val (musicalKey, keyConfidence) = estimateMusicalKey(samples, sampleRate)
             val camelotCode = HarmonicCompatibility.camelotForKey(musicalKey)
 
-            val introEndMs = minOf(16_000L, (safeDur * 0.14f).toLong())
-            val outroStartMs = max(safeDur - 18_000L, (safeDur * 0.84f).toLong())
+            val introEndMs = estimateBoundaryFromRms(
+                introRms,
+                sampleRate,
+                fallbackMs = minOf(16_000L, (safeDur * 0.14f).toLong()),
+                fromEnd = false,
+            ).coerceIn(0L, safeDur)
+            val outroStartMs = estimateBoundaryFromRms(
+                outroRms,
+                sampleRate,
+                fallbackMs = max(safeDur - 18_000L, (safeDur * 0.84f).toLong()),
+                fromEnd = true,
+                totalDurationMs = safeDur,
+            ).coerceIn(0L, safeDur)
 
             val base = TrackAnalysis(
                 trackId = trackId,
@@ -424,6 +551,40 @@ class AudioAnalysisEngine(
             )
         }
 
+        /**
+         * Finds a sustained change in the half-second RMS envelope. This is an
+         * acoustic boundary estimate, not a semantic musical intro/outro label.
+         */
+        private fun estimateBoundaryFromRms(
+            rmsFrames: FloatArray,
+            sampleRate: Int,
+            fallbackMs: Long,
+            fromEnd: Boolean,
+            totalDurationMs: Long = 0L,
+        ): Long {
+            if (rmsFrames.size < 4 || sampleRate <= 0) return fallbackMs
+            val peak = rmsFrames.maxOrNull()?.coerceAtLeast(1e-5f) ?: return fallbackMs
+            val threshold = max(peak * 0.28f, 0.003f)
+            val runLength = 3
+            val frameMs = 500L
+            if (!fromEnd) {
+                for (index in 0..(rmsFrames.size - runLength)) {
+                    if ((index until index + runLength).all { rmsFrames[it] >= threshold }) {
+                        return index * frameMs
+                    }
+                }
+            } else {
+                for (index in rmsFrames.size - runLength downTo 0) {
+                    if ((index until index + runLength).all { rmsFrames[it] < threshold }) {
+                        val elapsedFromOutroStart = index * frameMs
+                        return (totalDurationMs - (rmsFrames.size * frameMs - elapsedFromOutroStart))
+                            .coerceAtLeast(0L)
+                    }
+                }
+            }
+            return fallbackMs
+        }
+
         private fun estimateSpectralCentroid(
             samples: FloatArray,
             sampleRate: Int,
@@ -462,34 +623,81 @@ class AudioAnalysisEngine(
         ): Triple<Float, Float, Float> {
             val minBpm = 65
             val maxBpm = 185
-            var bestBpm = 120f
-            var bestWeightedScore = -1f
-            var totalScore = 0f
-            val scores = FloatArray(maxBpm - minBpm + 1)
+            if (onsetEnv.size < 24 || envRateHz <= 0f) return Triple(120f, 0f, 0f)
 
+            val scores = FloatArray(maxBpm - minBpm + 1)
+            var bestBpm = 120f
+            var bestScore = 0f
+            var validCount = 0
+
+            // Normalized, mean-centred autocorrelation. The previous raw
+            // correlation depended on signal level and could assign high
+            // confidence to weak/noisy material or a broad energy envelope.
             for (bpm in minBpm..maxBpm) {
-                val lag = ((60f / bpm) * envRateHz).roundToInt().coerceAtLeast(1)
-                if (lag >= onsetEnv.size / 2) continue
-                var corr = 0f
-                val limit = onsetEnv.size - lag
-                for (i in 0 until limit) {
-                    corr += onsetEnv[i] * onsetEnv[i + lag]
+                val lag = ((60f / bpm) * envRateHz).roundToInt()
+                if (lag < 2 || lag >= onsetEnv.size / 2) continue
+                val count = onsetEnv.size - lag
+                var sumA = 0.0
+                var sumB = 0.0
+                var sumAA = 0.0
+                var sumBB = 0.0
+                var sumAB = 0.0
+                for (i in 0 until count) {
+                    val a = onsetEnv[i].toDouble()
+                    val b = onsetEnv[i + lag].toDouble()
+                    sumA += a
+                    sumB += b
+                    sumAA += a * a
+                    sumBB += b * b
+                    sumAB += a * b
                 }
-                val normCorr = corr / limit.coerceAtLeast(1)
-                val octavePrior = exp(-0.5 * ((bpm - 118.0) / 38.0).pow(2)).toFloat()
-                val weighted = normCorr * (0.75f + 0.25f * octavePrior)
+                val covariance = sumAB - (sumA * sumB / count)
+                val varianceA = (sumAA - sumA * sumA / count).coerceAtLeast(0.0)
+                val varianceB = (sumBB - sumB * sumB / count).coerceAtLeast(0.0)
+                val denominator = sqrt(varianceA * varianceB)
+                val normalized = if (denominator > 1e-12) {
+                    (covariance / denominator).coerceIn(0.0, 1.0).toFloat()
+                } else 0f
+
+                // A restrained dance-tempo prior breaks near-equal octave
+                // ties without overpowering measured onset periodicity.
+                val octavePrior = exp(-0.5 * ((bpm - 118.0) / 42.0).pow(2)).toFloat()
+                val weighted = normalized * (0.90f + 0.10f * octavePrior)
                 scores[bpm - minBpm] = weighted
-                totalScore += weighted
-                if (weighted > bestWeightedScore) {
-                    bestWeightedScore = weighted
+                validCount++
+                val octaveDoubleTime = bpm.toFloat() / bestBpm
+                val isCredibleDoubleTime = octaveDoubleTime in 1.95f..2.05f &&
+                    weighted >= bestScore * 0.94f
+                if (weighted > bestScore || isCredibleDoubleTime) {
+                    bestScore = weighted
                     bestBpm = bpm.toFloat()
                 }
             }
 
-            val avgScore = (totalScore / scores.size).coerceAtLeast(1e-7f)
-            val prominence = (bestWeightedScore / avgScore).coerceIn(1f, 6f)
-            val confidence = ((prominence - 1f) / 3.5f).coerceIn(0.15f, 0.98f)
-            val stability = confidence.coerceIn(0.2f, 0.98f)
+            if (validCount == 0 || bestScore < 0.06f) {
+                // TrackAnalysis currently stores BPM as a non-null Float.
+                // Keep a neutral display value but confidence zero, so the DJ
+                // adapter and beat-sync gate never treat this as a measurement.
+                return Triple(120f, 0f, 0f)
+            }
+
+            // The normalized peak itself is a bounded periodicity measure.
+            // Mean score across the BPM sweep penalized broad but valid tempo
+            // peaks, especially at 120-130 BPM, and made clean dance signals
+            // look unconfident. Weak signals are still rejected by the 0.06
+            // floor above.
+            val confidence = bestScore.coerceIn(0f, 0.98f)
+
+            // Stability measures how clearly the selected tempo stands above
+            // candidates two BPM away. Half/double-time ambiguity is handled
+            // explicitly by the octave selection above and by beat-sync logic.
+            val bestIndex = bestBpm.toInt() - minBpm
+            val neighbour = max(
+                scores.getOrElse(bestIndex - 2) { 0f },
+                scores.getOrElse(bestIndex + 2) { 0f },
+            )
+            val stability = ((bestScore - neighbour) / bestScore.coerceAtLeast(1e-6f))
+                .coerceIn(0f, 1f) * confidence
             return Triple(bestBpm, confidence, stability)
         }
 
@@ -629,6 +837,13 @@ private fun TrackAnalysisEntity.toDomain(): TrackAnalysis = TrackAnalysis(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    vocalAverageProbability = vocalAverageProbability,
+    vocalPeakProbability = vocalPeakProbability,
+    vocalActiveRatio = vocalActiveRatio,
+    vocalAverageSpeechProbability = vocalAverageSpeechProbability,
+    vocalConfidence = vocalConfidence,
+    vocalSegmentsJson = vocalSegmentsJson,
+    vocalAnalysisVersion = vocalAnalysisVersion,
 )
 
 private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
@@ -659,4 +874,11 @@ private fun TrackAnalysis.toEntity(): TrackAnalysisEntity = TrackAnalysisEntity(
     phraseLengthMs = phraseLengthMs,
     downbeatConfidence = downbeatConfidence,
     spectralCentroidHz = spectralCentroidHz,
+    vocalAverageProbability = vocalAverageProbability,
+    vocalPeakProbability = vocalPeakProbability,
+    vocalActiveRatio = vocalActiveRatio,
+    vocalAverageSpeechProbability = vocalAverageSpeechProbability,
+    vocalConfidence = vocalConfidence,
+    vocalSegmentsJson = vocalSegmentsJson,
+    vocalAnalysisVersion = vocalAnalysisVersion,
 )

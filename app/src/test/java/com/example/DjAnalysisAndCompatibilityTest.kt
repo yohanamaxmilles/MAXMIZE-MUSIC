@@ -14,6 +14,7 @@ import org.junit.Test
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
+import kotlin.math.roundToInt
 
 class DjAnalysisAndCompatibilityTest {
 
@@ -123,6 +124,35 @@ class DjAnalysisAndCompatibilityTest {
         assertTrue(result.loudnessLufs < 0f && result.loudnessLufs > -40f)
         assertEquals("A min", result.musicalKey)
         assertEquals("8A", result.camelotCode)
+    }
+
+    @Test
+    fun `intro and outro boundaries follow measured RMS windows`() {
+        val sampleRate = 22_050
+        val seconds = 12
+        val samples = FloatArray(sampleRate * seconds)
+        val beatSamples = sampleRate / 2
+        for (i in samples.indices) {
+            val phase = i % beatSamples
+            val envelope = if (phase < sampleRate / 10) 0.8f else 0.2f
+            samples[i] = (envelope * sin(2.0 * PI * 110.0 * i / sampleRate)).toFloat()
+        }
+        val introEnvelope = FloatArray(24) { index -> if (index < 4) 0.01f else 0.8f }
+        val outroEnvelope = FloatArray(24) { index -> if (index >= 19) 0.01f else 0.8f }
+
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "intro-outro-boundaries",
+            samples = samples,
+            sampleRate = sampleRate,
+            durationMs = 32_000L,
+            sampleOffsetMs = 20_000L,
+            introRms = introEnvelope,
+            outroRms = outroEnvelope,
+        )
+
+        assertTrue("Intro boundary should follow measured quiet opening: ${result.introEndMs}", result.introEndMs in 1_500L..2_500L)
+        assertTrue("Outro boundary should follow measured fade region: ${result.outroStartMs}", result.outroStartMs in 29_500L..31_500L)
+        assertTrue("Beat grid should retain absolute track offset: ${result.firstBeatMs}", result.firstBeatMs in 20_000L..20_500L)
     }
 
     @Test
@@ -242,4 +272,43 @@ class DjAnalysisAndCompatibilityTest {
         assertEquals(1, flexibleRes.queue.size)
         assertEquals(clashKeyPop.id, flexibleRes.queue.first().track.id)
     }
+    @Test
+    fun `production BPM detector tracks several dance tempos`() {
+        val sampleRate = 22_050
+        for (expectedBpm in listOf(90, 128, 174)) {
+            val seconds = 24
+            val samples = FloatArray(sampleRate * seconds)
+            val beatLength = (sampleRate * 60.0 / expectedBpm).roundToInt()
+            for (i in samples.indices) {
+                val phase = i % beatLength
+                val envelope = if (phase < sampleRate / 12) 0.9f else 0.12f
+                samples[i] = envelope * sin(2.0 * PI * 110.0 * i / sampleRate).toFloat()
+            }
+            val result = AudioAnalysisEngine.analyzePcmSamples(
+                trackId = "tempo-$expectedBpm",
+                samples = samples,
+                sampleRate = sampleRate,
+                durationMs = seconds * 1000L,
+            )
+            assertTrue(
+                "Expected $expectedBpm BPM, got ${result.bpm} with confidence ${result.bpmConfidence}",
+                abs(result.bpm - expectedBpm) <= 3f,
+            )
+            assertTrue("Expected confident detection at $expectedBpm BPM", result.bpmConfidence >= 0.45f)
+        }
+    }
+
+    @Test
+    fun `flat PCM does not receive fabricated confident tempo`() {
+        val sampleRate = 22_050
+        val result = AudioAnalysisEngine.analyzePcmSamples(
+            trackId = "flat-signal",
+            samples = FloatArray(sampleRate * 8) { 0.00001f },
+            sampleRate = sampleRate,
+            durationMs = 8_000L,
+        )
+        assertTrue("Confidence must stay low for a flat signal", result.bpmConfidence < 0.1f)
+        assertTrue("Tempo stability must stay low for a flat signal", result.tempoStability < 0.1f)
+    }
+
 }
