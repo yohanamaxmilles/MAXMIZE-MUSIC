@@ -2,6 +2,7 @@ package com.example
 
 import android.content.Context
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -106,9 +107,13 @@ class ExampleRobolectricTest {
         composeTestRule.onNodeWithTag("dj_queue_screen").assertIsDisplayed()
         composeTestRule.onNodeWithTag("dj_subtab_history").performClick()
         composeTestRule.waitForIdle()
-        composeTestRule.onNodeWithTag("dj_subtab_queue").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("dj_history_list").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No Mix History Yet").assertIsDisplayed()
 
-        composeTestRule.onNodeWithTag("dj_tab_profiles").performClick()
+        // Profiles is inside the DJ hub's More menu.
+        composeTestRule.onNodeWithTag("dj_tab_more").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Profiles").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("dj_profiles_section").assertIsDisplayed()
 

@@ -461,7 +461,11 @@ fun MaxmizeApp(viewModel: MaxmizeViewModel) {
                                     }
 
                                     composable<MaxmizeRoute.Online> {
-                                        OnlineMusicScreen()
+                                        OnlineMusicScreen(
+                                            apiKey = prefs.audiusApiKey,
+                                            onSaveApiKey = viewModel::setAudiusApiKey,
+                                            onPlayTrack = viewModel::playOnlineTrack,
+                                        )
                                     }
 
                                     composable<MaxmizeRoute.Library> {

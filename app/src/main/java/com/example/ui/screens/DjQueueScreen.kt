@@ -50,6 +50,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -146,7 +149,8 @@ fun DjQueueScreen(
                             else MaterialTheme.colorScheme.outlineVariant,
                             shape = shape,
                         )
-                        .clickable { selectedTab = idx }
+                        .clickable(role = Role.Tab) { selectedTab = idx }
+                        .semantics { this.selected = selected }
                         .testTag("dj_subtab_${label.lowercase()}"),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -308,12 +312,18 @@ fun DjQueueScreen(
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .testTag("dj_history_list"),
             ) {
-                if (mixHistory.isEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (mixHistory.isEmpty()) {
                     item {
                         Column(
                             modifier = Modifier
@@ -379,6 +389,7 @@ fun DjQueueScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                    }
                     }
                 }
             }

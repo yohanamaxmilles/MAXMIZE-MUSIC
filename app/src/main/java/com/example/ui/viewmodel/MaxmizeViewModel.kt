@@ -42,6 +42,8 @@ import com.example.data.model.ThemeMode
 import com.example.data.model.Track
 import com.example.data.model.TrackAnalysis
 import com.example.data.model.UiDensity
+import com.example.data.online.OnlinePlaybackSource
+import com.example.data.online.OnlineTrack
 import com.example.ui.screens.DjSectionTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -979,6 +981,14 @@ class MaxmizeViewModel(val container: AppContainer) : ViewModel() {
             )
             _snackbarMessages.tryEmit("Updated audio file metadata")
         }
+    }
+
+    fun setAudiusApiKey(key: String) {
+        viewModelScope.launch { prefsRepo.setAudiusApiKey(key) }
+    }
+
+    fun playOnlineTrack(track: OnlineTrack, source: OnlinePlaybackSource) {
+        playbackController.playOnlineTrack(track, source)
     }
 
     fun setThemeMode(mode: ThemeMode) {

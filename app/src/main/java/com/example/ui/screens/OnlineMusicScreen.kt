@@ -1,424 +1,256 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Album
-import androidx.compose.material.icons.rounded.CloudOff
-import androidx.compose.material.icons.rounded.Explore
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.Headphones
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Radio
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-private data class OnlineMoodCard(
-    val title: String,
-    val detail: String,
-    val icon: androidx.compose.ui.graphics.vector.ImageVector,
-)
-
-private data class OnlineGenreCard(
-    val title: String,
-    val detail: String,
-)
+import coil.compose.AsyncImage
+import com.example.data.online.AudiusMusicProvider
+import com.example.data.online.OnlinePlaybackSource
+import com.example.data.online.OnlineTrack
+import kotlinx.coroutines.launch
 
 @Composable
 fun OnlineMusicScreen(
+    apiKey: String,
+    onSaveApiKey: (String) -> Unit,
+    onPlayTrack: (OnlineTrack, OnlinePlaybackSource) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val moods = listOf(
-        OnlineMoodCard("Focus", "Stay in the zone", Icons.Rounded.GraphicEq),
-        OnlineMoodCard("Energy", "Move with the beat", Icons.Rounded.Headphones),
-        OnlineMoodCard("Chill", "Slow things down", Icons.Rounded.Radio),
-        OnlineMoodCard("Explore", "Hear something new", Icons.Rounded.Explore),
-    )
-    val genres = listOf(
-        OnlineGenreCard("EDM", "Electronic"),
-        OnlineGenreCard("House", "Dance"),
-        OnlineGenreCard("Hip-Hop", "Urban"),
-        OnlineGenreCard("Afrobeats", "African"),
-        OnlineGenreCard("Amapiano", "South African"),
-        OnlineGenreCard("Pop", "Worldwide"),
-    )
+    val uriHandler = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
+    var apiKeyDraft by remember { mutableStateOf(apiKey) }
+    var query by remember { mutableStateOf("") }
+    var tracks by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var playingTrackId by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf("Search music from independent artists on Audius.") }
+
+    LaunchedEffect(apiKey) { apiKeyDraft = apiKey }
+
+    fun searchMusic() {
+        if (apiKeyDraft.isBlank()) {
+            message = "Add your free Audius API key first."
+            return
+        }
+        if (query.isBlank()) {
+            message = "Enter a song, artist or genre."
+            return
+        }
+        scope.launch {
+            isSearching = true
+            message = ""
+            tracks = emptyList()
+            runCatching { AudiusMusicProvider(apiKeyDraft).search(query) }
+                .onSuccess { result ->
+                    tracks = result.tracks
+                    message = if (result.tracks.isEmpty()) {
+                        "No public, streamable tracks found. Try another search."
+                    } else {
+                        "Found ${result.tracks.size} tracks. Select Play to listen."
+                    }
+                }
+                .onFailure { error ->
+                    message = error.message ?: "Search failed. Check your connection and API key."
+                }
+            isSearching = false
+        }
+    }
 
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
                     text = "MAXMIZE",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 3.sp,
-                    ),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, letterSpacing = 3.sp),
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Your sound. Beyond limits.",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.8).sp,
-                    ),
+                    text = "Online Music",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    text = "Explore music from everywhere.",
+                    text = "Search and stream public tracks from independent artists.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 15.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Search online music",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = "Search will be available when a music provider is connected.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Rounded.CloudOff,
-                        contentDescription = "Provider not connected",
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-        }
-
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Column(
-                    modifier = Modifier.padding(22.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                        )
-                        Text(
-                            text = "THE ONLINE MUSIC SPACE",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.5.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Connect Audius", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                     Text(
-                        text = "A bigger world
-of music awaits.",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-1.1).sp,
-                            lineHeight = 39.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "Find fresh sounds, explore new genres and build your next favourite collection.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Audius offers a free API plan. Create a key at api.audius.co/plans, then paste it below. No subscription or payment is required.",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primary,
-                    ) {
-                        Text(
-                            text = "STREAMING SETUP IN PROGRESS",
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.7.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
+                    TextButton(onClick = { uriHandler.openUri("https://api.audius.co/plans") }) {
+                        Text("Get a free Audius API key")
+                    }
+                    OutlinedTextField(
+                        value = apiKeyDraft,
+                        onValueChange = { apiKeyDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Audius API key") },
+                        placeholder = { Text("Paste your API key") },
+                    )
+                    Button(onClick = { onSaveApiKey(apiKeyDraft) }, enabled = apiKeyDraft.isNotBlank()) {
+                        Text("Save API key")
+                    }
+                    if (apiKey.isNotBlank()) {
+                        Text("API key saved on this device.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                OnlineSectionHeading(
-                    title = "Moods & moments",
-                    subtitle = "Choose the feeling for your next session",
-                )
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(11.dp),
-                ) {
-                    moods.forEach { mood ->
-                        Surface(
-                            modifier = Modifier.width(154.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(22.dp),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(RoundedCornerShape(13.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        imageVector = mood.icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(
-                                        text = mood.title,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = mood.detail,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-                OnlineSectionHeading(
-                    title = "Explore genres",
-                    subtitle = "Move across sounds and cultures",
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    genres.chunked(2).forEach { rowGenres ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                            rowGenres.forEach { genre ->
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(15.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
-                                        verticalArrangement = Arrangement.spacedBy(3.dp),
-                                    ) {
-                                        Text(
-                                            text = genre.title,
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
-                                        Text(
-                                            text = genre.detail,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                            if (rowGenres.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OnlineSectionHeading(
-                    title = "Made for discovery",
-                    subtitle = "Personalised mixes and collections will appear here",
-                )
-                OnlineComingSoonRow(
-                    icon = Icons.Rounded.Album,
-                    title = "Featured playlists",
-                    detail = "Curated collections from your connected music service",
-                )
-                OnlineComingSoonRow(
-                    icon = Icons.Rounded.MusicNote,
-                    title = "New releases",
-                    detail = "New tracks and artists to keep on your radar",
-                )
-                OnlineComingSoonRow(
-                    icon = Icons.Rounded.Radio,
-                    title = "Artist radio",
-                    detail = "More music based on the artists you love",
-                )
-            }
-        }
-
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Row(
-                    modifier = Modifier.padding(15.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.CloudOff,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Search songs, artists or genres") },
+                        leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            text = "Music provider not connected",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = "Online catalogue and playback are not active yet. Your local Library and DJ features remain separate.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    Button(
+                        onClick = ::searchMusic,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isSearching,
+                    ) {
+                        if (isSearching) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.size(8.dp))
+                            Text("Searching")
+                        } else {
+                            Icon(Icons.Rounded.Search, contentDescription = null)
+                            Spacer(Modifier.size(8.dp))
+                            Text("Search Audius")
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun OnlineSectionHeading(
-    title: String,
-    subtitle: String,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun OnlineComingSoonRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    detail: String,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(17.dp),
-        color = MaterialTheme.colorScheme.surface,
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(43.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center,
+        if (message.isNotBlank()) {
+            item {
+                Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        items(tracks, key = { "${it.providerId}:${it.id}" }) { track ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AsyncImage(
+                        model = track.artworkUrl,
+                        contentDescription = "Artwork for ${track.title}",
+                        modifier = Modifier.size(62.dp).clip(RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(track.title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface, maxLines = 2)
+                        Text(track.artistName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        Text("Audius · ${formatTrackDuration(track.durationMs)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (track.permalink != null) {
+                            TextButton(onClick = { uriHandler.openUri(track.permalink) }, contentPadding = PaddingValues(0.dp)) {
+                                Text("Open artist track page")
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                playingTrackId = track.id
+                                runCatching { AudiusMusicProvider(apiKeyDraft).getPlaybackSource(track) }
+                                    .onSuccess { source ->
+                                        onPlayTrack(track, source)
+                                        message = "Sent ${track.title} to the MAXMIZE player."
+                                    }
+                                    .onFailure { error -> message = error.message ?: "Unable to play this track." }
+                                playingTrackId = null
+                            }
+                        },
+                        enabled = playingTrackId == null,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        if (playingTrackId == track.id) {
+                            CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Play ${track.title}")
+                        }
+                    }
+                }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        }
+        item {
             Text(
-                text = "SOON",
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.8.sp,
-                ),
-                color = MaterialTheme.colorScheme.primary,
+                "Music provided by Audius. Some tracks are unavailable for third-party streaming and are excluded from results. DJ processing for online tracks is disabled.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
+}
+
+private fun formatTrackDuration(durationMs: Long): String {
+    if (durationMs <= 0L) return "--:--"
+    val totalSeconds = durationMs / 1000L
+    return "%d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
 }

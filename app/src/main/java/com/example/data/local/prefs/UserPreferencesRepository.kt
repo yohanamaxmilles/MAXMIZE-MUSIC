@@ -58,6 +58,7 @@ data class UserPreferences(
     val downloadLyricsOnPlayStart: Boolean = true,
     val lyricsFontSizeSp: Float = 19f,
     val musixmatchApiKey: String = "",
+    val audiusApiKey: String = "",
     // Smart Artwork Preferences
     val autoDownloadArtwork: Boolean = false,
     val artworkWifiOnly: Boolean = true,
@@ -99,6 +100,7 @@ class UserPreferencesRepository(private val context: Context) {
         val DOWNLOAD_LYRICS_ON_PLAY = booleanPreferencesKey("download_lyrics_on_play")
         val LYRICS_FONT_SIZE = floatPreferencesKey("lyrics_font_size")
         val MUSIXMATCH_API_KEY = stringPreferencesKey("musixmatch_api_key")
+        val AUDIUS_API_KEY = stringPreferencesKey("audius_api_key")
 
         // Artwork
         val AUTO_DOWNLOAD_ARTWORK = booleanPreferencesKey("auto_download_artwork")
@@ -178,6 +180,7 @@ class UserPreferencesRepository(private val context: Context) {
             downloadLyricsOnPlayStart = prefs[Keys.DOWNLOAD_LYRICS_ON_PLAY] ?: true,
             lyricsFontSizeSp = (prefs[Keys.LYRICS_FONT_SIZE] ?: 19f).coerceIn(14f, 28f),
             musixmatchApiKey = prefs[Keys.MUSIXMATCH_API_KEY] ?: "",
+            audiusApiKey = prefs[Keys.AUDIUS_API_KEY] ?: "",
             autoDownloadArtwork = prefs[Keys.AUTO_DOWNLOAD_ARTWORK] ?: false,
             artworkWifiOnly = prefs[Keys.ARTWORK_WIFI_ONLY] ?: true,
             autoFixArtworkOnScan = prefs[Keys.AUTO_FIX_ARTWORK_ON_SCAN] ?: false,
@@ -340,6 +343,10 @@ class UserPreferencesRepository(private val context: Context) {
 
     suspend fun setMusixmatchApiKey(key: String) {
         context.dataStore.edit { it[Keys.MUSIXMATCH_API_KEY] = key.trim() }
+    }
+
+    suspend fun setAudiusApiKey(key: String) {
+        context.dataStore.edit { it[Keys.AUDIUS_API_KEY] = key.trim() }
     }
 
     suspend fun setAutoDownloadArtwork(enabled: Boolean) {
